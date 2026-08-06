@@ -13,7 +13,6 @@ import {
   LogOut,
   Sparkles,
   Printer,
-  Download,
   Copy,
   Check,
   RotateCw,
@@ -29,7 +28,6 @@ import {
   generateBarcodeSvgString,
   generateQrSvgString,
   svgToDataUrl,
-  downloadBarcodeOrQrFile,
 } from '../utils/barcodeQrGenerator';
 
 export default function Profile() {
@@ -189,18 +187,6 @@ export default function Profile() {
     printWindow.document.close();
   };
 
-  const handleDownloadQr = () => {
-    downloadBarcodeOrQrFile(qrSvgString, `Library_QR_${cardNo}`, 'png');
-    setToastMessage(`Downloaded QR Code image for card ${cardNo}`);
-    setTimeout(() => setToastMessage(null), 4000);
-  };
-
-  const handleDownloadBarcode = () => {
-    downloadBarcodeOrQrFile(barcodeSvgString, `Library_Barcode_${cardNo}`, 'png');
-    setToastMessage(`Downloaded Barcode image for card ${cardNo}`);
-    setTimeout(() => setToastMessage(null), 4000);
-  };
-
   return (
     <div className="space-y-8 pb-12">
       {/* Header Banner */}
@@ -253,33 +239,19 @@ export default function Profile() {
           </div>
 
           {/* Action Control Buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setCardSide(cardSide === 'front' ? 'back' : 'front')}
-              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center gap-2 cursor-pointer"
             >
               <RotateCw className="w-3.5 h-3.5 text-blue-600" /> Flip to {cardSide === 'front' ? 'Back (Barcode)' : 'Front (Photo & QR)'}
             </button>
 
             <button
               onClick={handlePrintLibraryCard}
-              className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-2 cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" /> Print Card
-            </button>
-
-            <button
-              onClick={handleDownloadQr}
-              className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5 text-emerald-600" /> QR Code
-            </button>
-
-            <button
-              onClick={handleDownloadBarcode}
-              className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5 text-blue-600" /> Barcode
             </button>
           </div>
         </div>
