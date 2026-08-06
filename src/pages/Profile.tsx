@@ -12,11 +12,25 @@ import {
   Save,
   LogOut,
   Sparkles,
+  Printer,
+  Download,
+  Copy,
+  Check,
+  RotateCw,
+  QrCode,
+  Barcode,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { libraryStore } from '../services/libraryStore.service';
 import { MemberProfile } from '../types/library';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+  generateBarcodeSvgString,
+  generateQrSvgString,
+  svgToDataUrl,
+  downloadBarcodeOrQrFile,
+} from '../utils/barcodeQrGenerator';
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -24,6 +38,8 @@ export default function Profile() {
   const [state, setState] = useState(libraryStore.snapshot);
   const [isEditing, setIsEditing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [copiedCard, setCopiedCard] = useState(false);
+  const [cardSide, setCardSide] = useState<'front' | 'back'>('front');
 
   useEffect(() => {
     const sub = libraryStore.getObservable().subscribe(setState);
@@ -42,7 +58,9 @@ export default function Profile() {
     email: user?.email || currentMember?.email || 'user@college.edu',
     phone: currentMember?.phone || '+91 98765 43210',
     department: currentMember?.department || 'General Academic',
-    avatarUrl: currentMember?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    avatarUrl:
+      currentMember?.avatarUrl ||
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
   });
 
   useEffect(() => {
@@ -52,10 +70,26 @@ export default function Profile() {
         email: user?.email || currentMember.email,
         phone: currentMember.phone || '+91 98765 43210',
         department: currentMember.department,
-        avatarUrl: currentMember.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        avatarUrl:
+          currentMember.avatarUrl ||
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
       });
     }
   }, [currentMember, user]);
+
+  const cardNo = currentMember?.memberCardNo || 'LIB-2026-001';
+  const qrSvgString = generateQrSvgString(cardNo, 120);
+  const barcodeSvgString = generateBarcodeSvgString(cardNo, { height: 45 });
+  const qrDataUrl = svgToDataUrl(qrSvgString);
+  const barcodeDataUrl = svgToDataUrl(barcodeSvgString);
+
+  const handleCopyCardNumber = () => {
+    navigator.clipboard.writeText(cardNo);
+    setCopiedCard(true);
+    setToastMessage(`Library Card Number (${cardNo}) copied to clipboard!`);
+    setTimeout(() => setCopiedCard(false), 2000);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,18 +113,92 @@ export default function Profile() {
     window.location.reload();
   };
 
-  const getDashboardPath = () => {
-    if (!user) return '/login';
-    switch (user.role) {
-      case 'ADMIN':
-        return '/admin/dashboard';
-      case 'FACULTY':
-        return '/faculty/dashboard';
-      case 'STUDENT':
-        return '/student/dashboard';
-      default:
-        return '/';
-    }
+  const handlePrintLibraryCard = () => {
+    const printWindow = window.open('', '_blank', 'width=800,height=650');
+    if (!printWindow) return;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Print Digital Library Card - ${formData.name}</title>
+          <style>
+            @page { size: A4; margin: 15mm; }
+            body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 85vh; }
+            .card-container {
+              width: 480px;
+              background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+              border-radius: 20px;
+              padding: 24px;
+              color: #ffffff;
+              box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+              border: 2px solid rgba(255, 255, 255, 0.2);
+              box-sizing: border-box;
+            }
+            .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid rgba(255,255,255,0.15); padding-bottom: 12px; margin-bottom: 16px; }
+            .univ-title { font-size: 13px; font-weight: 800; letter-spacing: 1px; color: #60a5fa; text-transform: uppercase; }
+            .card-title { font-size: 10px; font-weight: 700; background: rgba(255,255,255,0.15); padding: 3px 10px; border-radius: 12px; text-transform: uppercase; color: #f59e0b; }
+            .card-body { display: flex; gap: 16px; align-items: center; }
+            .avatar { width: 95px; height: 95px; border-radius: 18px; object-fit: cover; border: 3px solid rgba(255,255,255,0.3); }
+            .info { flex: 1; }
+            .name { font-size: 20px; font-weight: 800; margin: 0 0 4px 0; color: #ffffff; }
+            .role { display: inline-block; font-size: 10px; font-weight: 800; background: #3b82f6; color: #ffffff; padding: 2px 10px; border-radius: 6px; text-transform: uppercase; margin-bottom: 8px; }
+            .detail-line { font-size: 12px; margin: 4px 0; color: #cbd5e1; }
+            .detail-line strong { color: #ffffff; }
+            .card-footer { margin-top: 18px; padding: 12px; background: #ffffff; border-radius: 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+            .barcode-box { flex: 1; display: flex; justify-content: center; }
+            .barcode-box svg { max-width: 100%; height: auto; }
+            .qr-box { width: 75px; height: 75px; display: flex; justify-content: center; align-items: center; }
+            .qr-box svg { width: 75px; height: 75px; }
+            .notice { margin-top: 20px; font-size: 11px; color: #64748b; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <div class="card-container">
+            <div class="card-header">
+              <div class="univ-title">🎓 UNIVERSITY CENTRAL LIBRARY</div>
+              <div class="card-title">DIGITAL MEMBER ID PASS</div>
+            </div>
+            <div class="card-body">
+              <img src="${formData.avatarUrl}" class="avatar" alt="${formData.name}" />
+              <div class="info">
+                <h2 class="name">${formData.name}</h2>
+                <span class="role">${user?.role || 'MEMBER'}</span>
+                <div class="detail-line">Card No: <strong style="font-family: monospace; color: #f59e0b;">${cardNo}</strong></div>
+                <div class="detail-line">Department: <strong>${formData.department}</strong></div>
+                <div class="detail-line">Valid Thru: <strong>DEC 2028</strong></div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="barcode-box">${barcodeSvgString}</div>
+              <div class="qr-box">${qrSvgString}</div>
+            </div>
+          </div>
+          <div class="notice">Official Digital Library Pass • University Library Management System</div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() { window.print(); }, 400);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
+  const handleDownloadQr = () => {
+    downloadBarcodeOrQrFile(qrSvgString, `Library_QR_${cardNo}`, 'png');
+    setToastMessage(`Downloaded QR Code image for card ${cardNo}`);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleDownloadBarcode = () => {
+    downloadBarcodeOrQrFile(barcodeSvgString, `Library_Barcode_${cardNo}`, 'png');
+    setToastMessage(`Downloaded Barcode image for card ${cardNo}`);
+    setTimeout(() => setToastMessage(null), 4000);
   };
 
   return (
@@ -110,16 +218,19 @@ export default function Profile() {
             </div>
             <h1 className="text-2xl sm:text-4xl font-extrabold font-poppins tracking-tight">{formData.name}</h1>
             <p className="text-slate-300 text-xs sm:text-sm">
-              Member ID: <strong className="font-mono text-amber-300">{currentMember?.memberCardNo}</strong> | Status:{' '}
+              Member Card ID: <strong className="font-mono text-amber-300">{cardNo}</strong> | Status:{' '}
               <strong className="text-emerald-400 font-bold uppercase">● Active Member</strong>
             </p>
           </div>
         </div>
 
-        <div className="relative z-10 hidden sm:flex items-center gap-2">
-          <span className="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-xs font-bold text-emerald-300 backdrop-blur-md flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-emerald-400" /> Verified Library Account
-          </span>
+        <div className="relative z-10 hidden sm:flex items-center gap-3">
+          <button
+            onClick={handlePrintLibraryCard}
+            className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white backdrop-blur-md transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+          >
+            <Printer className="w-4 h-4 text-amber-300" /> Print Digital ID Card
+          </button>
         </div>
       </div>
 
@@ -130,7 +241,189 @@ export default function Profile() {
         </div>
       )}
 
-      {/* Main Profile Grid */}
+      {/* SECTION 1: Digital Library Membership Card Display */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 text-xs font-extrabold text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase tracking-wider mb-1">
+              <CreditCard className="w-3.5 h-3.5" /> Official Member Identification
+            </div>
+            <h2 className="text-xl font-bold font-poppins text-slate-900">Digital Library Membership Card</h2>
+            <p className="text-xs text-slate-500">Your digital smart card with scannable barcode and QR code for library entry and checkouts.</p>
+          </div>
+
+          {/* Action Control Buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setCardSide(cardSide === 'front' ? 'back' : 'front')}
+              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCw className="w-3.5 h-3.5 text-blue-600" /> Flip to {cardSide === 'front' ? 'Back (Barcode)' : 'Front (Photo & QR)'}
+            </button>
+
+            <button
+              onClick={handlePrintLibraryCard}
+              className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" /> Print Card
+            </button>
+
+            <button
+              onClick={handleDownloadQr}
+              className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-600" /> Download QR
+            </button>
+          </div>
+        </div>
+
+        {/* Realistic Interactive Digital Library Card Container */}
+        <div className="flex flex-col lg:flex-row items-center justify-center gap-8 py-4">
+          {/* Card Component */}
+          <div className="w-full max-w-md aspect-[1.6/1] rounded-3xl p-6 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-white shadow-2xl border-2 border-white/20 relative overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-indigo-500/10">
+            {/* Ambient Background Blur & Chip Watermark */}
+            <div className="absolute -top-12 -right-12 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-indigo-500/20 rounded-full blur-2xl pointer-events-none" />
+
+            {cardSide === 'front' ? (
+              /* CARD FRONT */
+              <>
+                {/* Header */}
+                <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-400 to-amber-200 flex items-center justify-center shadow-md">
+                      <BookOpen className="w-4 h-4 text-slate-950 font-bold" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-extrabold tracking-wider text-blue-300 uppercase">UNIVERSITY CENTRAL LIBRARY</h3>
+                      <p className="text-[10px] text-slate-400 font-medium">Digital Library Member Pass</p>
+                    </div>
+                  </div>
+
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-300 uppercase tracking-widest">
+                    VALID MEMBER
+                  </span>
+                </div>
+
+                {/* Body Content */}
+                <div className="relative z-10 flex items-center gap-4 py-2">
+                  <img
+                    src={formData.avatarUrl}
+                    alt={formData.name}
+                    className="w-20 h-20 rounded-2xl object-cover border-2 border-amber-400/60 shadow-lg shrink-0"
+                  />
+
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="inline-block px-2 py-0.5 rounded-md bg-blue-500/30 text-[10px] font-bold text-blue-200 uppercase tracking-wide">
+                      {user?.role || 'MEMBER'}
+                    </div>
+                    <h4 className="text-lg font-extrabold font-poppins truncate text-white">{formData.name}</h4>
+
+                    <div className="flex items-center gap-1.5 text-xs text-amber-300 font-mono font-bold">
+                      <span>{cardNo}</span>
+                      <button
+                        type="button"
+                        onClick={handleCopyCardNumber}
+                        className="p-1 hover:bg-white/10 rounded transition-all text-slate-300 hover:text-white"
+                        title="Copy Card Number"
+                      >
+                        {copiedCard ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-slate-300 truncate">Dept: {formData.department}</p>
+                  </div>
+
+                  {/* QR Code Container */}
+                  <div className="bg-white p-1.5 rounded-xl shadow-md shrink-0">
+                    <img src={qrDataUrl} alt="Member QR Code" className="w-16 h-16 object-contain" />
+                  </div>
+                </div>
+
+                {/* Card Footer */}
+                <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-slate-400">
+                  <span>Issued: <strong className="text-slate-200">{currentMember?.registeredDate || '2026-01-15'}</strong></span>
+                  <span>Valid Thru: <strong className="text-slate-200">DEC 2028</strong></span>
+                  <span className="font-mono text-amber-300 font-bold">LIBRARY ID CARD</span>
+                </div>
+              </>
+            ) : (
+              /* CARD BACK */
+              <>
+                {/* Header */}
+                <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Barcode className="w-5 h-5 text-amber-400" />
+                    <span className="text-xs font-extrabold tracking-wider text-amber-300 uppercase">OFFICIAL BARCODE & SECURITY VERIFICATION</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400">{cardNo}</span>
+                </div>
+
+                {/* Barcode Display */}
+                <div className="relative z-10 my-auto bg-white p-3 rounded-2xl shadow-inner flex flex-col items-center justify-center">
+                  <img src={barcodeDataUrl} alt="Member Barcode" className="max-h-16 object-contain" />
+                </div>
+
+                {/* Terms & Rules */}
+                <div className="relative z-10 border-t border-white/10 pt-2 text-[9px] text-slate-400 leading-tight space-y-1">
+                  <p>• Present this card for book issue, return, and library turnstile entry.</p>
+                  <p>• Non-transferable. Max limit: <strong className="text-amber-300">{currentMember?.maxAllowedBooks} Books</strong>.</p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Quick Card Information Summary Side Card */}
+          <div className="w-full lg:w-72 bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4 text-xs font-medium">
+            <h4 className="font-bold text-slate-900 border-b border-slate-200 pb-2 flex items-center gap-2">
+              <QrCode className="w-4 h-4 text-blue-600" /> Digital Card Details
+            </h4>
+
+            <div className="space-y-2.5">
+              <div>
+                <span className="text-slate-500 block text-[11px]">Card Number</span>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-bold text-slate-900 text-sm">{cardNo}</span>
+                  <button
+                    onClick={handleCopyCardNumber}
+                    className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1"
+                  >
+                    {copiedCard ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedCard ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-slate-500 block text-[11px]">Account Status</span>
+                <span className="inline-flex items-center gap-1.5 text-emerald-700 font-bold bg-emerald-100/80 px-2.5 py-0.5 rounded-md text-[11px]">
+                  <CheckCircle className="w-3 h-3 text-emerald-600" /> ACTIVE MEMBER
+                </span>
+              </div>
+
+              <div>
+                <span className="text-slate-500 block text-[11px]">Download Formats</span>
+                <div className="flex gap-2 mt-1">
+                  <button
+                    onClick={handleDownloadQr}
+                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100 transition-all font-bold text-[11px] flex items-center gap-1"
+                  >
+                    <Download className="w-3 h-3 text-emerald-600" /> QR Code
+                  </button>
+                  <button
+                    onClick={handleDownloadBarcode}
+                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100 transition-all font-bold text-[11px] flex items-center gap-1"
+                  >
+                    <Download className="w-3 h-3 text-blue-600" /> Barcode
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 2: Main Profile Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Left Column: Account Privileges & Quotas */}
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
@@ -166,7 +459,7 @@ export default function Profile() {
                 logout();
                 navigate('/');
               }}
-              className="w-full py-3 rounded-2xl border border-rose-200 text-rose-600 font-bold text-xs hover:bg-rose-50 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-2xl border border-rose-200 text-rose-600 font-bold text-xs hover:bg-rose-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <LogOut className="w-4 h-4" /> End Session & Sign Out
             </button>
@@ -183,14 +476,14 @@ export default function Profile() {
             {!isEditing ? (
               <button
                 onClick={() => setIsEditing(true)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Edit className="w-4 h-4 text-blue-600" /> Edit Profile
               </button>
             ) : (
               <button
                 onClick={() => setIsEditing(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs"
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs cursor-pointer"
               >
                 Cancel
               </button>
@@ -276,7 +569,7 @@ export default function Profile() {
               <div className="pt-3 flex justify-end">
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-md hover:opacity-95 transition-all flex items-center gap-2"
+                  className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <Save className="w-4 h-4" /> Save Profile Changes
                 </button>
