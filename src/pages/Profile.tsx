@@ -249,7 +249,7 @@ export default function Profile() {
               <CreditCard className="w-3.5 h-3.5" /> Official Member Identification
             </div>
             <h2 className="text-xl font-bold font-poppins text-slate-900">Digital Library Membership Card</h2>
-            <p className="text-xs text-slate-500">Your digital smart card with scannable barcode and QR code for library entry and checkouts.</p>
+            <p className="text-xs text-slate-500">Official digital smart pass for library entry, checkout counters, and turnstile verification.</p>
           </div>
 
           {/* Action Control Buttons */}
@@ -272,79 +272,86 @@ export default function Profile() {
               onClick={handleDownloadQr}
               className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5 text-emerald-600" /> Download QR
+              <Download className="w-3.5 h-3.5 text-emerald-600" /> QR Code
+            </button>
+
+            <button
+              onClick={handleDownloadBarcode}
+              className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-blue-600" /> Barcode
             </button>
           </div>
         </div>
 
-        {/* Realistic Interactive Digital Library Card Container */}
-        <div className="flex flex-col lg:flex-row items-center justify-center gap-8 py-4">
-          {/* Card Component */}
-          <div className="w-full max-w-md aspect-[1.6/1] rounded-3xl p-6 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-white shadow-2xl border-2 border-white/20 relative overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-indigo-500/10">
-            {/* Ambient Background Blur & Chip Watermark */}
-            <div className="absolute -top-12 -right-12 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-indigo-500/20 rounded-full blur-2xl pointer-events-none" />
+        {/* Centered Digital Library Card Layout */}
+        <div className="flex flex-col items-center justify-center py-6 space-y-6">
+          {/* Card Element */}
+          <div className="w-full max-w-lg aspect-[1.6/1] rounded-3xl p-6 sm:p-7 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-white shadow-2xl border-2 border-white/20 relative overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-indigo-500/10">
+            {/* Ambient Lighting FX */}
+            <div className="absolute -top-12 -right-12 w-56 h-56 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 w-56 h-56 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
 
             {cardSide === 'front' ? (
               /* CARD FRONT */
               <>
                 {/* Header */}
                 <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-400 to-amber-200 flex items-center justify-center shadow-md">
-                      <BookOpen className="w-4 h-4 text-slate-950 font-bold" />
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-400 to-amber-200 flex items-center justify-center shadow-md">
+                      <BookOpen className="w-5 h-5 text-slate-950 font-extrabold" />
                     </div>
                     <div>
-                      <h3 className="text-xs font-extrabold tracking-wider text-blue-300 uppercase">UNIVERSITY CENTRAL LIBRARY</h3>
-                      <p className="text-[10px] text-slate-400 font-medium">Digital Library Member Pass</p>
+                      <h3 className="text-xs sm:text-sm font-extrabold tracking-wider text-blue-300 uppercase font-poppins">UNIVERSITY CENTRAL LIBRARY</h3>
+                      <p className="text-[10px] sm:text-xs text-slate-400 font-medium">Digital Library Member Pass</p>
                     </div>
                   </div>
 
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-300 uppercase tracking-widest">
-                    VALID MEMBER
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-[10px] sm:text-xs font-extrabold text-emerald-300 uppercase tracking-widest">
+                    ACTIVE MEMBER
                   </span>
                 </div>
 
                 {/* Body Content */}
-                <div className="relative z-10 flex items-center gap-4 py-2">
+                <div className="relative z-10 flex items-center gap-5 py-3">
                   <img
                     src={formData.avatarUrl}
                     alt={formData.name}
-                    className="w-20 h-20 rounded-2xl object-cover border-2 border-amber-400/60 shadow-lg shrink-0"
+                    className="w-22 h-22 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-amber-400/60 shadow-xl shrink-0"
                   />
 
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <div className="inline-block px-2 py-0.5 rounded-md bg-blue-500/30 text-[10px] font-bold text-blue-200 uppercase tracking-wide">
+                  <div className="space-y-1.5 min-w-0 flex-1">
+                    <div className="inline-block px-2.5 py-0.5 rounded-md bg-blue-500/30 border border-blue-400/20 text-[10px] font-extrabold text-blue-200 uppercase tracking-wide">
                       {user?.role || 'MEMBER'}
                     </div>
-                    <h4 className="text-lg font-extrabold font-poppins truncate text-white">{formData.name}</h4>
+                    <h4 className="text-xl font-extrabold font-poppins truncate text-white tracking-tight">{formData.name}</h4>
 
-                    <div className="flex items-center gap-1.5 text-xs text-amber-300 font-mono font-bold">
+                    <div className="flex items-center gap-2 text-sm text-amber-300 font-mono font-extrabold">
                       <span>{cardNo}</span>
                       <button
                         type="button"
                         onClick={handleCopyCardNumber}
-                        className="p-1 hover:bg-white/10 rounded transition-all text-slate-300 hover:text-white"
+                        className="p-1 hover:bg-white/10 rounded transition-all text-slate-300 hover:text-white cursor-pointer"
                         title="Copy Card Number"
                       >
-                        {copiedCard ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copiedCard ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                       </button>
                     </div>
 
-                    <p className="text-[11px] text-slate-300 truncate">Dept: {formData.department}</p>
+                    <p className="text-xs text-slate-300 truncate">Dept: <strong>{formData.department}</strong></p>
                   </div>
 
-                  {/* QR Code Container */}
-                  <div className="bg-white p-1.5 rounded-xl shadow-md shrink-0">
-                    <img src={qrDataUrl} alt="Member QR Code" className="w-16 h-16 object-contain" />
+                  {/* QR Code */}
+                  <div className="bg-white p-2 rounded-2xl shadow-lg shrink-0">
+                    <img src={qrDataUrl} alt="Member QR Code" className="w-18 h-18 sm:w-20 sm:h-20 object-contain" />
                   </div>
                 </div>
 
-                {/* Card Footer */}
-                <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-slate-400">
-                  <span>Issued: <strong className="text-slate-200">{currentMember?.registeredDate || '2026-01-15'}</strong></span>
-                  <span>Valid Thru: <strong className="text-slate-200">DEC 2028</strong></span>
-                  <span className="font-mono text-amber-300 font-bold">LIBRARY ID CARD</span>
+                {/* Footer */}
+                <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-2.5 text-[11px] text-slate-400">
+                  <span>Issued: <strong className="text-slate-200 font-mono">{currentMember?.registeredDate || '2026-01-15'}</strong></span>
+                  <span>Valid Thru: <strong className="text-slate-200 font-mono">DEC 2028</strong></span>
+                  <span className="font-mono text-amber-300 font-bold">DIGITAL PASS</span>
                 </div>
               </>
             ) : (
@@ -354,71 +361,23 @@ export default function Profile() {
                 <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-3">
                   <div className="flex items-center gap-2">
                     <Barcode className="w-5 h-5 text-amber-400" />
-                    <span className="text-xs font-extrabold tracking-wider text-amber-300 uppercase">OFFICIAL BARCODE & SECURITY VERIFICATION</span>
+                    <span className="text-xs font-extrabold tracking-wider text-amber-300 uppercase font-poppins">BARCODE & SECURITY VERIFICATION</span>
                   </div>
-                  <span className="text-[10px] font-mono text-slate-400">{cardNo}</span>
+                  <span className="text-xs font-mono font-bold text-slate-300">{cardNo}</span>
                 </div>
 
                 {/* Barcode Display */}
-                <div className="relative z-10 my-auto bg-white p-3 rounded-2xl shadow-inner flex flex-col items-center justify-center">
-                  <img src={barcodeDataUrl} alt="Member Barcode" className="max-h-16 object-contain" />
+                <div className="relative z-10 my-auto bg-white p-4 rounded-2xl shadow-inner flex flex-col items-center justify-center">
+                  <img src={barcodeDataUrl} alt="Member Barcode" className="max-h-20 object-contain" />
                 </div>
 
                 {/* Terms & Rules */}
-                <div className="relative z-10 border-t border-white/10 pt-2 text-[9px] text-slate-400 leading-tight space-y-1">
-                  <p>• Present this card for book issue, return, and library turnstile entry.</p>
-                  <p>• Non-transferable. Max limit: <strong className="text-amber-300">{currentMember?.maxAllowedBooks} Books</strong>.</p>
+                <div className="relative z-10 border-t border-white/10 pt-2.5 text-[10px] text-slate-400 leading-tight space-y-1">
+                  <p>• Present this card for book issues, returns, turnstiles, and reading room access.</p>
+                  <p>• Non-transferable pass. Max borrowing limit: <strong className="text-amber-300">{currentMember?.maxAllowedBooks} Books</strong>.</p>
                 </div>
               </>
             )}
-          </div>
-
-          {/* Quick Card Information Summary Side Card */}
-          <div className="w-full lg:w-72 bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4 text-xs font-medium">
-            <h4 className="font-bold text-slate-900 border-b border-slate-200 pb-2 flex items-center gap-2">
-              <QrCode className="w-4 h-4 text-blue-600" /> Digital Card Details
-            </h4>
-
-            <div className="space-y-2.5">
-              <div>
-                <span className="text-slate-500 block text-[11px]">Card Number</span>
-                <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-slate-900 text-sm">{cardNo}</span>
-                  <button
-                    onClick={handleCopyCardNumber}
-                    className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1"
-                  >
-                    {copiedCard ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copiedCard ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <span className="text-slate-500 block text-[11px]">Account Status</span>
-                <span className="inline-flex items-center gap-1.5 text-emerald-700 font-bold bg-emerald-100/80 px-2.5 py-0.5 rounded-md text-[11px]">
-                  <CheckCircle className="w-3 h-3 text-emerald-600" /> ACTIVE MEMBER
-                </span>
-              </div>
-
-              <div>
-                <span className="text-slate-500 block text-[11px]">Download Formats</span>
-                <div className="flex gap-2 mt-1">
-                  <button
-                    onClick={handleDownloadQr}
-                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100 transition-all font-bold text-[11px] flex items-center gap-1"
-                  >
-                    <Download className="w-3 h-3 text-emerald-600" /> QR Code
-                  </button>
-                  <button
-                    onClick={handleDownloadBarcode}
-                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100 transition-all font-bold text-[11px] flex items-center gap-1"
-                  >
-                    <Download className="w-3 h-3 text-blue-600" /> Barcode
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
