@@ -1,0 +1,208 @@
+import React, { useState } from 'react';
+import { UserPlus, X, CheckCircle, ShieldCheck, Mail, Lock, Phone, Building, User, Sparkles } from 'lucide-react';
+import { libraryStore } from '../../services/libraryStore.service';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { Role } from '../../types';
+
+interface RegisterAccountModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: RegisterAccountModalProps) {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: 'STUDENT' as Role,
+    department: 'Computer Science & Engineering',
+    password: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.email) return;
+
+    setIsSubmitting(true);
+
+    // Register member in store
+    const registeredMember = libraryStore.registerMember({
+      name: formData.name,
+      email: formData.email,
+      role: formData.role as Role,
+      department: formData.department,
+      phone: formData.phone,
+    });
+
+    setToastMessage(`Account successfully created for ${registeredMember.name}! Card ID: ${registeredMember.memberCardNo}`);
+
+    setTimeout(async () => {
+      setIsSubmitting(false);
+      // Log in automatically with newly registered email & role
+      await login(formData.email, registeredMember.role);
+
+      if (onSuccess) onSuccess();
+      onClose();
+
+      // Redirect to dashboard matching registered role
+      if (registeredMember.role === 'ADMIN') navigate('/admin/dashboard');
+      else if (registeredMember.role === 'FACULTY') navigate('/faculty/dashboard');
+      else navigate('/student/dashboard');
+    }, 1000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden space-y-0">
+        {/* Modal Header */}
+        <div className="p-6 bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-900 text-white flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="p-2.5 rounded-2xl bg-blue-500/20 text-blue-300">
+              <UserPlus className="h-6 w-6" />
+            </span>
+            <div>
+              <h3 className="font-bold text-lg font-poppins">Create Library Account</h3>
+              <p className="text-xs text-slate-300">Register new Student, Faculty, or Staff membership</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs font-medium">
+          {toastMessage && (
+            <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs">
+              <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span>{toastMessage}</span>
+            </div>
+          )}
+
+          {/* Full Name */}
+          <div className="space-y-1">
+            <label className="block text-slate-700 font-bold">Full Name *</label>
+            <div className="relative">
+              <User className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                required
+                placeholder="e.g. Rahul Sharma"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+          </div>
+
+          {/* Email Address */}
+          <div className="space-y-1">
+            <label className="block text-slate-700 font-bold">Institutional Email Address *</label>
+            <div className="relative">
+              <Mail className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <input
+                type="email"
+                required
+                placeholder="e.g. rahul.sharma@college.edu"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+          </div>
+
+          {/* Role & Phone */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="block text-slate-700 font-bold">Select Role *</label>
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+              >
+                <option value="STUDENT">Student Scholar</option>
+                <option value="FACULTY">Faculty Member</option>
+                <option value="STAFF">Library Staff</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-slate-700 font-bold">Phone Number</label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="+91 98765 43210"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Department */}
+          <div className="space-y-1">
+            <label className="block text-slate-700 font-bold">Academic Department</label>
+            <div className="relative">
+              <Building className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <select
+                value={formData.department}
+                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+              >
+                <option value="Computer Science & Engineering">Computer Science & Engineering</option>
+                <option value="Electrical & Electronics">Electrical & Electronics</option>
+                <option value="Mechanical Engineering">Mechanical Engineering</option>
+                <option value="Physics & Applied Science">Physics & Applied Science</option>
+                <option value="Mathematics & Statistics">Mathematics & Statistics</option>
+                <option value="Business Administration">Business Administration</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Password */}
+          <div className="space-y-1">
+            <label className="block text-slate-700 font-bold">Create Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+          </div>
+
+          {/* Submit Action */}
+          <div className="pt-3 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 rounded-2xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-md hover:opacity-95 disabled:opacity-50 transition-all flex items-center gap-2"
+            >
+              <UserPlus className="h-4 w-4" />
+              <span>{isSubmitting ? 'Registering Account...' : 'Create Account & Sign In'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
