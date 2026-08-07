@@ -51,6 +51,7 @@ export interface BookCopy {
   status: BookStatus;
   condition: CopyCondition;
   addedDate: string;
+  isReferenceOnly?: boolean;
 }
 
 export interface Book {
@@ -85,6 +86,7 @@ export interface Book {
   digitalUrl?: string;
   keywords?: string[];
   borrowCount?: number;
+  isReferenceOnly?: boolean;
 }
 
 export type TransactionStatus = 'ISSUED' | 'RETURNED' | 'OVERDUE' | 'LOST' | 'RENEWED';

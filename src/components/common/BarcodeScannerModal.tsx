@@ -39,15 +39,17 @@ export default function BarcodeScannerModal({
   const state = libraryStore.snapshot;
 
   // Extract all available accession copy barcodes from state with ISBN metadata
-  const availableCopies = state.books.flatMap((b) =>
-    (b.copies || []).map((c) => ({
+  const availableCopies = state.books.flatMap((b) => {
+    const isRefBook = b.isReferenceOnly || b.collectionType === 'REFERENCE';
+    return (b.copies || []).map((c) => ({
       barcode: c.barcode,
       accessionNo: c.accessionNo,
       bookTitle: b.title,
       bookIsbn: b.isbn,
       status: c.status,
-    }))
-  );
+      isReferenceOnly: isRefBook || c.isReferenceOnly,
+    }));
+  });
 
   // Combine books in store with sample ISBN presets
   const catalogIsbns = [
@@ -263,7 +265,7 @@ export default function BarcodeScannerModal({
                   </option>
                   {filteredCopies.map((item, idx) => (
                     <option key={idx} value={item.barcode}>
-                      Barcode: {item.barcode} ({item.accessionNo}) - {item.bookTitle} [{item.status}]
+                      Barcode: {item.barcode} ({item.accessionNo}) - {item.bookTitle} {item.isReferenceOnly ? '🚫 [LIBRARY REFERENCE ONLY — NON-ISSUABLE]' : `[${item.status}]`}
                     </option>
                   ))}
                   {filteredCopies.length === 0 && (

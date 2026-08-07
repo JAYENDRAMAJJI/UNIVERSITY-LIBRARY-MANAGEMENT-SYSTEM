@@ -15,6 +15,7 @@ import {
   ChevronDown,
   X,
   User,
+  ShieldAlert,
 } from 'lucide-react';
 import { libraryStore, formatOnlyTimeInBracket } from '../../services/libraryStore.service';
 import { MemberProfile, IssueTransaction } from '../../types/library';
@@ -31,6 +32,7 @@ export default function IssueBooks() {
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'STUDENT' | 'FACULTY' | 'STAFF'>('ALL');
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [refModalBook, setRefModalBook] = useState<{ title: string; barcode: string; accessionNo: string; rack: string } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -88,11 +90,51 @@ export default function IssueBooks() {
     return list;
   }, [state.books]);
 
+  const checkAndTriggerReferenceModal = (code: string): boolean => {
+    const clean = code.trim().toLowerCase();
+    if (!clean) return false;
+
+    for (const b of state.books) {
+      const isRefBook = b.isReferenceOnly || b.collectionType === 'REFERENCE';
+      for (const c of b.copies || []) {
+        const match =
+          c.barcode.toLowerCase() === clean ||
+          c.accessionNo.toLowerCase() === clean ||
+          c.id.toLowerCase() === clean ||
+          (c.qrCode && c.qrCode.toLowerCase() === clean);
+
+        if (match && (isRefBook || c.isReferenceOnly)) {
+          setRefModalBook({
+            title: b.title,
+            barcode: c.barcode,
+            accessionNo: c.accessionNo,
+            rack: `${c.rackNumber || b.rackNumber || 'RACK-REF'} / ${c.shelfNumber || b.shelfNumber || 'SHELF-A1'}`,
+          });
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const handleSelectCode = (code: string) => {
+    setAccessionOrBarcode(code);
+    checkAndTriggerReferenceModal(code);
+  };
+
   const handleIssueBook = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanCode = accessionOrBarcode.trim();
     if (!selectedMemberId || !cleanCode) {
       setAlert({ type: 'error', message: 'Please select a member and enter a book barcode / accession number.' });
+      return;
+    }
+
+    if (checkAndTriggerReferenceModal(cleanCode)) {
+      setAlert({
+        type: 'error',
+        message: 'RESTRICTED ITEM: This book is a Library Reference Book and CANNOT be issued to members.',
+      });
       return;
     }
 
@@ -299,9 +341,12 @@ export default function IssueBooks() {
                 <ScanBarcode className="absolute left-3.5 top-3 h-5 w-5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="e.g. ACC-2024-001 or BC-99201"
+                  placeholder="e.g. ACC-2024-001, BC-99201 or BC-REF-001"
                   value={accessionOrBarcode}
-                  onChange={(e) => setAccessionOrBarcode(e.target.value)}
+                  onChange={(e) => {
+                    setAccessionOrBarcode(e.target.value);
+                    checkAndTriggerReferenceModal(e.target.value);
+                  }}
                   className="w-full pl-11 pr-24 py-2.5 rounded-xl border border-slate-200 text-sm font-mono focus:ring-2 focus:ring-blue-500/20"
                 />
                 <button
@@ -320,20 +365,26 @@ export default function IssueBooks() {
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {['BC-99201', 'BC-99203', 'BC-99301', 'BC-99401', 'BC-99501', 'BC-99503'].map((code) => (
-                    <button
-                      key={code}
-                      type="button"
-                      onClick={() => setAccessionOrBarcode(code)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
-                        accessionOrBarcode.trim().toUpperCase() === code.toUpperCase()
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                          : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300'
-                      }`}
-                    >
-                      {code}
-                    </button>
-                  ))}
+                  {['BC-99201', 'BC-99203', 'BC-99301', 'BC-99401', 'BC-REF-001', 'BC-99501'].map((code) => {
+                    const isRef = code === 'BC-REF-001';
+                    return (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() => handleSelectCode(code)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border flex items-center gap-1 ${
+                          isRef
+                            ? 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-600 hover:text-white'
+                            : accessionOrBarcode.trim().toUpperCase() === code.toUpperCase()
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                            : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300'
+                        }`}
+                      >
+                        <span>{code}</span>
+                        {isRef && <span className="text-[9px] font-extrabold px-1 bg-rose-200 text-rose-900 rounded uppercase">REF ONLY</span>}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -342,7 +393,7 @@ export default function IssueBooks() {
                 <div className="pt-1">
                   <select
                     onChange={(e) => {
-                      if (e.target.value) setAccessionOrBarcode(e.target.value);
+                      if (e.target.value) handleSelectCode(e.target.value);
                     }}
                     value=""
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono text-slate-700 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
@@ -363,7 +414,7 @@ export default function IssueBooks() {
             <BarcodeScannerModal
               isOpen={isScannerOpen}
               onClose={() => setIsScannerOpen(false)}
-              onScanSuccess={(scannedCode) => setAccessionOrBarcode(scannedCode)}
+              onScanSuccess={(scannedCode) => handleSelectCode(scannedCode)}
               title="Barcode Reader Simulator (Issue Desk)"
             />
 
@@ -485,6 +536,44 @@ export default function IssueBooks() {
                 <Printer className="h-4 w-4" /> Print Receipt
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reference Book Restriction Pop-Up Alert Modal */}
+      {refModalBook && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-rose-200 shadow-2xl max-w-md w-full p-6 space-y-5 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 shadow-inner">
+              <ShieldAlert className="h-9 w-9" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="px-3.5 py-1 bg-rose-100 text-rose-800 text-[11px] font-extrabold uppercase rounded-full tracking-wider">
+                🚫 Library Reference Book — Non-Issuable
+              </span>
+              <h3 className="text-xl font-bold font-poppins text-slate-900">Reference Book Restriction</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                This item is a <strong>Library Reference Book</strong>. It has a barcode generated for catalog identification and inventory tracking, but <strong>CANNOT be issued or checked out to members</strong>.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-left text-xs space-y-1.5 font-sans">
+              <p className="font-bold text-slate-900 leading-snug">{refModalBook.title}</p>
+              <p className="text-slate-500 font-mono">
+                Barcode: <strong className="text-slate-900">{refModalBook.barcode}</strong> | Accession: <strong className="text-slate-900">{refModalBook.accessionNo}</strong>
+              </p>
+              <p className="text-slate-500 font-mono">
+                Location: <strong className="text-slate-900">{refModalBook.rack}</strong>
+              </p>
+            </div>
+
+            <button
+              onClick={() => setRefModalBook(null)}
+              className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer"
+            >
+              I Understand — Close Alert
+            </button>
           </div>
         </div>
       )}

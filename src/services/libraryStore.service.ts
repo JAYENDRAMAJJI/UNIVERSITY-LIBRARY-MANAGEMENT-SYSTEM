@@ -689,6 +689,47 @@ const DEFAULT_BOOKS: Book[] = [
     })),
   },
   {
+    id: 'book-ref-1',
+    title: 'Oxford Reference Handbook of Computer Science & Engineering (Library Reference Edition)',
+    isbn: '978-0199571123',
+    categoryId: 'cat-1',
+    categoryName: 'Computer Science & Software',
+    authorId: 'auth-1',
+    authorName: 'Dr. Thomas H. Cormen',
+    publisherId: 'pub-1',
+    publisherName: 'Oxford University Press',
+    edition: 'Reference Edition',
+    publishingYear: 2024,
+    language: 'English',
+    price: 185.00,
+    description: 'Library Reading Room Reference Handbook. Restricted for reference use inside the library only. Barcode generated for catalog audit, not for checkout.',
+    coverUrl: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&w=400&q=80',
+    totalCopies: 5,
+    availableCopies: 5,
+    isFeatured: true,
+    isBookOfMonth: false,
+    rackNumber: 'RACK-REF-01',
+    shelfNumber: 'SHELF-REF-A1',
+    department: 'Computer Science & Engineering',
+    format: 'PHYSICAL',
+    collectionType: 'REFERENCE',
+    isReferenceOnly: true,
+    borrowCount: 0,
+    copies: Array.from({ length: 5 }, (_, i) => ({
+      id: `copy-ref-0${i + 1}`,
+      bookId: 'book-ref-1',
+      accessionNo: `ACC-REF-00${i + 1}`,
+      barcode: `BC-REF-00${i + 1}`,
+      qrCode: `QR-REF-00${i + 1}`,
+      rackNumber: 'RACK-REF-01',
+      shelfNumber: 'SHELF-REF-A1',
+      status: 'AVAILABLE',
+      condition: 'NEW',
+      addedDate: '2024-03-01',
+      isReferenceOnly: true,
+    })),
+  },
+  {
     id: 'book-9',
     title: 'Principles of Marketing (18th Edition)',
     isbn: '978-0135766606',
@@ -2799,6 +2840,14 @@ class LibraryStoreService {
 
     if (!targetBook || !targetCopy) {
       return { success: false, message: `Book copy not found for accession / barcode code: "${copyId.trim()}".` };
+    }
+
+    // Reference Book Protection: Reference books cannot be issued to users
+    if (targetBook.isReferenceOnly || targetBook.collectionType === 'REFERENCE' || targetCopy.isReferenceOnly) {
+      return {
+        success: false,
+        message: `RESTRICTED ITEM: "${targetBook.title}" is a Library Reference Book. Reference books have barcodes for catalog management, but CANNOT be issued or checked out to members.`,
+      };
     }
 
     if (targetCopy.status !== 'AVAILABLE') {
