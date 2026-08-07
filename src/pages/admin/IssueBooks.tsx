@@ -550,11 +550,11 @@ export default function IssueBooks() {
 
             <div className="space-y-2">
               <span className="px-3.5 py-1 bg-rose-100 text-rose-800 text-[11px] font-extrabold uppercase rounded-full tracking-wider">
-                🚫 Library Reference Book — Non-Issuable
+                🚫 Reserved Library Reference Copy — Non-Issuable
               </span>
-              <h3 className="text-xl font-bold font-poppins text-slate-900">Reference Book Restriction</h3>
+              <h3 className="text-xl font-bold font-poppins text-slate-900">Reference Copy Restriction</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                This item is a <strong>Library Reference Book</strong>. It has a barcode generated for catalog identification and inventory tracking, but <strong>CANNOT be issued or checked out to members</strong>.
+                Copy #1 of this book is reserved as an <strong>In-Library Reference Copy</strong> for reading room reference only. It has a barcode for catalog inventory tracking, but <strong>CANNOT be issued or checked out to members</strong>. Please issue Copy #2 or higher for member loans.
               </p>
             </div>
 

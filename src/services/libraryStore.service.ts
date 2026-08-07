@@ -418,6 +418,7 @@ const DEFAULT_BOOKS: Book[] = [
       status: i < 7 ? 'AVAILABLE' : 'ISSUED',
       condition: i % 4 === 0 ? 'NEW' : 'GOOD',
       addedDate: '2024-01-10',
+      isReferenceOnly: i === 0,
     })),
   },
   {
@@ -456,6 +457,7 @@ const DEFAULT_BOOKS: Book[] = [
       status: i < 8 ? 'AVAILABLE' : 'ISSUED',
       condition: i % 3 === 0 ? 'NEW' : 'GOOD',
       addedDate: '2024-01-12',
+      isReferenceOnly: i === 0,
     })),
   },
   {
@@ -494,6 +496,7 @@ const DEFAULT_BOOKS: Book[] = [
       status: i < 6 ? 'AVAILABLE' : 'ISSUED',
       condition: 'GOOD',
       addedDate: '2024-01-15',
+      isReferenceOnly: i === 0,
     })),
   },
   {
@@ -533,6 +536,7 @@ const DEFAULT_BOOKS: Book[] = [
       status: i < 9 ? 'AVAILABLE' : 'ISSUED',
       condition: 'GOOD',
       addedDate: '2024-01-18',
+      isReferenceOnly: i === 0,
     })),
   },
   {
@@ -571,6 +575,7 @@ const DEFAULT_BOOKS: Book[] = [
       status: i < 8 ? 'AVAILABLE' : 'ISSUED',
       condition: 'NEW',
       addedDate: '2024-01-20',
+      isReferenceOnly: i === 0,
     })),
   },
   {
@@ -609,6 +614,7 @@ const DEFAULT_BOOKS: Book[] = [
       status: i < 7 ? 'AVAILABLE' : 'ISSUED',
       condition: 'GOOD',
       addedDate: '2024-02-01',
+      isReferenceOnly: i === 0,
     })),
   },
   {
@@ -647,6 +653,7 @@ const DEFAULT_BOOKS: Book[] = [
       status: i < 8 ? 'AVAILABLE' : 'ISSUED',
       condition: 'GOOD',
       addedDate: '2024-02-05',
+      isReferenceOnly: i === 0,
     })),
   },
   {
@@ -686,6 +693,7 @@ const DEFAULT_BOOKS: Book[] = [
       status: i < 9 ? 'AVAILABLE' : 'ISSUED',
       condition: 'NEW',
       addedDate: '2024-02-10',
+      isReferenceOnly: i === 0,
     })),
   },
   {
@@ -726,6 +734,88 @@ const DEFAULT_BOOKS: Book[] = [
       status: 'AVAILABLE',
       condition: 'NEW',
       addedDate: '2024-03-01',
+      isReferenceOnly: true,
+    })),
+  },
+  {
+    id: 'book-ref-2',
+    title: 'Encyclopedic Dictionary of Electronics & Communication Engineering (Reference Edition)',
+    isbn: '978-0471393740',
+    categoryId: 'cat-4',
+    categoryName: 'Electronics & Communication Engineering',
+    authorId: 'auth-4',
+    authorName: 'Dr. Ben G. Streetman',
+    publisherId: 'pub-4',
+    publisherName: 'Springer Nature',
+    edition: 'Reference Edition',
+    publishingYear: 2023,
+    language: 'English',
+    price: 210.00,
+    description: 'Specialized Reference Encyclopedia for semiconductor physics, RF communication, and signal processing. Restricted for reading room reference only.',
+    coverUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=400&q=80',
+    totalCopies: 4,
+    availableCopies: 4,
+    isFeatured: true,
+    isBookOfMonth: false,
+    rackNumber: 'RACK-REF-02',
+    shelfNumber: 'SHELF-REF-B1',
+    department: 'Electronics & Communication Engineering',
+    format: 'PHYSICAL',
+    collectionType: 'REFERENCE',
+    isReferenceOnly: true,
+    borrowCount: 0,
+    copies: Array.from({ length: 4 }, (_, i) => ({
+      id: `copy-ref-1${i + 1}`,
+      bookId: 'book-ref-2',
+      accessionNo: `ACC-REF-10${i + 1}`,
+      barcode: `BC-REF-10${i + 1}`,
+      qrCode: `QR-REF-10${i + 1}`,
+      rackNumber: 'RACK-REF-02',
+      shelfNumber: 'SHELF-REF-B1',
+      status: 'AVAILABLE',
+      condition: 'NEW',
+      addedDate: '2024-03-05',
+      isReferenceOnly: true,
+    })),
+  },
+  {
+    id: 'book-ref-3',
+    title: 'CRC Handbook of Mechanical Engineering Reference Data',
+    isbn: '978-0849308666',
+    categoryId: 'cat-6',
+    categoryName: 'Mechanical Engineering & Mechatronics',
+    authorId: 'auth-4',
+    authorName: 'Dr. Ben G. Streetman',
+    publisherId: 'pub-4',
+    publisherName: 'Springer Nature',
+    edition: 'Reference Edition',
+    publishingYear: 2024,
+    language: 'English',
+    price: 195.00,
+    description: 'Comprehensive engineering tables, formulas, and material property reference manual. Restricted for reading room reference only.',
+    coverUrl: 'https://images.unsplash.com/photo-1537462715879-360eeb61a0ad?auto=format&fit=crop&w=400&q=80',
+    totalCopies: 4,
+    availableCopies: 4,
+    isFeatured: true,
+    isBookOfMonth: false,
+    rackNumber: 'RACK-REF-03',
+    shelfNumber: 'SHELF-REF-C1',
+    department: 'Mechanical Engineering',
+    format: 'PHYSICAL',
+    collectionType: 'REFERENCE',
+    isReferenceOnly: true,
+    borrowCount: 0,
+    copies: Array.from({ length: 4 }, (_, i) => ({
+      id: `copy-ref-2${i + 1}`,
+      bookId: 'book-ref-3',
+      accessionNo: `ACC-REF-20${i + 1}`,
+      barcode: `BC-REF-20${i + 1}`,
+      qrCode: `QR-REF-20${i + 1}`,
+      rackNumber: 'RACK-REF-03',
+      shelfNumber: 'SHELF-REF-C1',
+      status: 'AVAILABLE',
+      condition: 'NEW',
+      addedDate: '2024-03-10',
       isReferenceOnly: true,
     })),
   },
@@ -2062,11 +2152,34 @@ class LibraryStoreService {
 
         // Auto-merge all default university department books into stored state if missing
         if (initialState.books) {
+          const existingIds = new Set(initialState.books.map((b) => b.id));
           const existingIsbns = new Set(initialState.books.map((b) => b.isbn));
-          const missingBooks = DEFAULT_BOOKS.filter((b) => !existingIsbns.has(b.isbn));
+          const missingBooks = DEFAULT_BOOKS.filter((b) => !existingIds.has(b.id) && !existingIsbns.has(b.isbn));
           if (missingBooks.length > 0) {
             initialState.books = [...initialState.books, ...missingBooks];
           }
+
+          // Force sync missing reference books from DEFAULT_BOOKS definitions
+          DEFAULT_BOOKS.forEach((def) => {
+            const idx = initialState.books.findIndex((b) => b.id === def.id || b.isbn === def.isbn);
+            if (idx === -1) {
+              initialState.books.push(def);
+            }
+          });
+
+          // Reserve EXACTLY Copy #1 (idx === 0) of EVERY book as a Reference Copy for in-library use only!
+          initialState.books = initialState.books.map((b) => {
+            const copies = (b.copies || []).map((c, idx) => ({
+              ...c,
+              isReferenceOnly: idx === 0,
+            }));
+            return {
+              ...b,
+              isReferenceOnly: false,
+              collectionType: b.collectionType === 'REFERENCE' ? 'ACADEMIC' : (b.collectionType || 'ACADEMIC'),
+              copies,
+            };
+          });
         }
 
         // Auto-merge all default enterprise digital resources into stored state if missing or incomplete
@@ -2399,6 +2512,8 @@ class LibraryStoreService {
     const bookId = `book-${Date.now()}`;
     const copies: BookCopy[] = [];
 
+    const isRefBook = bookData.collectionType === 'REFERENCE' || bookData.isReferenceOnly || false;
+
     for (let i = 1; i <= initialCopiesCount; i++) {
       const accessionNo = `ACC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
       const barcode = `BC-${Math.floor(10000 + Math.random() * 90000)}`;
@@ -2413,12 +2528,15 @@ class LibraryStoreService {
         status: 'AVAILABLE',
         condition: 'NEW',
         addedDate: getLocalDateStr(new Date()),
+        isReferenceOnly: isRefBook ? true : i === 1,
       });
     }
 
     const newBook: Book = {
       ...bookData,
       id: bookId,
+      collectionType: isRefBook ? 'REFERENCE' : (bookData.collectionType || 'ACADEMIC'),
+      isReferenceOnly: isRefBook,
       totalCopies: initialCopiesCount,
       availableCopies: initialCopiesCount,
       copies,
@@ -2482,9 +2600,16 @@ class LibraryStoreService {
         newAvailableCopies = updatedCopies.filter((c) => c.status === 'AVAILABLE').length;
       }
 
+      const isRefBook = updated.collectionType === 'REFERENCE' || updated.isReferenceOnly || (b.isReferenceOnly && updated.isReferenceOnly !== false);
+      if (isRefBook) {
+        updatedCopies = updatedCopies.map((c) => ({ ...c, isReferenceOnly: true }));
+      }
+
       return {
         ...b,
         ...updated,
+        isReferenceOnly: isRefBook,
+        collectionType: isRefBook ? 'REFERENCE' : (updated.collectionType || b.collectionType),
         totalCopies: newTotalCopies,
         availableCopies: newAvailableCopies,
         copies: updatedCopies,

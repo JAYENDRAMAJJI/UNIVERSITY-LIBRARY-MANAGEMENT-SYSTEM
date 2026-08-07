@@ -1282,6 +1282,11 @@ export default function BooksManagement() {
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80 truncate max-w-[120px]">
                                 {book.categoryName}
                               </span>
+                              {(book.isReferenceOnly || book.collectionType === 'REFERENCE') && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-0.5" title="Library Reference Book - Non-Issuable">
+                                  🚫 REF ONLY
+                                </span>
+                              )}
                               {book.isFeatured && (
                                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-0.5">
                                   <Sparkles className="w-2.5 h-2.5" /> Featured
@@ -1352,6 +1357,11 @@ export default function BooksManagement() {
                           </span>
                           <span className="text-slate-500 font-bold"> / {book.totalCopies}</span>
                         </button>
+                        {(book.isReferenceOnly || book.collectionType === 'REFERENCE') && (
+                          <span className="block text-[9px] font-extrabold text-rose-700 uppercase mt-0.5">
+                            NON-ISSUABLE
+                          </span>
+                        )}
                       </td>
 
                       {/* Actions */}
@@ -1636,17 +1646,23 @@ export default function BooksManagement() {
                         </div>
 
                         <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
-                              copy.status === 'AVAILABLE'
-                                ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                                : copy.status === 'BORROWED'
-                                ? 'bg-blue-100 text-blue-800 border-blue-200'
-                                : 'bg-amber-100 text-amber-800 border-amber-200'
-                            }`}
-                          >
-                            {copy.status}
-                          </span>
+                          {copy.isReferenceOnly ? (
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200">
+                              🚫 REF COPY
+                            </span>
+                          ) : (
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                                copy.status === 'AVAILABLE'
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                  : copy.status === 'BORROWED'
+                                  ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                  : 'bg-amber-100 text-amber-800 border-amber-200'
+                              }`}
+                            >
+                              {copy.status}
+                            </span>
+                          )}
 
                           <button
                             onClick={() => setPreviewBarcodeCopyModal({ book: selectedBookCopiesModal, copy })}
@@ -1943,6 +1959,28 @@ export default function BooksManagement() {
                 </div>
 
                 <div>
+                  <label className="block font-bold text-slate-700 mb-1">Collection Classification</label>
+                  <select
+                    value={addFormData.collectionType}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setAddFormData({
+                        ...addFormData,
+                        collectionType: val as any,
+                        isReferenceOnly: val === 'REFERENCE',
+                      });
+                    }}
+                    className="w-full px-3 py-2 border rounded-xl font-semibold text-slate-800"
+                  >
+                    <option value="ACADEMIC font-semibold">Academic Book (Issuable)</option>
+                    <option value="REFERENCE" className="font-bold text-rose-700">🚫 Library Reference Book (Non-Issuable / Reading Room Only)</option>
+                    <option value="GENERAL">General Book (Issuable)</option>
+                    <option value="COMPETITIVE">Competitive Exam Book</option>
+                    <option value="RESEARCH">Research Paper & Journal</option>
+                  </select>
+                </div>
+
+                <div>
                   <label className="block font-bold text-slate-700 mb-1">Format Type</label>
                   <select
                     value={addFormData.format}
@@ -2029,6 +2067,28 @@ export default function BooksManagement() {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Collection Classification</label>
+                <select
+                  value={editFormData.collectionType || (editFormData.isReferenceOnly ? 'REFERENCE' : 'ACADEMIC')}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setEditFormData({
+                      ...editFormData,
+                      collectionType: val as any,
+                      isReferenceOnly: val === 'REFERENCE',
+                    });
+                  }}
+                  className="w-full px-3 py-2 border rounded-xl font-semibold text-slate-800"
+                >
+                  <option value="ACADEMIC">Academic Book (Issuable)</option>
+                  <option value="REFERENCE">🚫 Library Reference Book (Non-Issuable / Reading Room Only)</option>
+                  <option value="GENERAL">General Book (Issuable)</option>
+                  <option value="COMPETITIVE">Competitive Exam Book</option>
+                  <option value="RESEARCH">Research Paper & Journal</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
