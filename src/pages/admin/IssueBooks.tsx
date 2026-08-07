@@ -146,6 +146,9 @@ export default function IssueBooks() {
       setAccessionOrBarcode('');
     } else {
       setAlert({ type: 'error', message: result.message });
+      if ((result as any).isReferenceBook) {
+        checkAndTriggerReferenceModal(cleanCode);
+      }
     }
   };
 

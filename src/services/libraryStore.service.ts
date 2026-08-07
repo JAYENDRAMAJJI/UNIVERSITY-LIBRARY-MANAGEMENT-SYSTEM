@@ -2919,7 +2919,11 @@ class LibraryStoreService {
     };
   }
 
-  public issueBook(copyId: string, memberId: string, issuedByUserId: string = '1'): { success: boolean; message: string; transaction?: IssueTransaction } {
+  public issueBook(
+    copyId: string,
+    memberId: string,
+    issuedByUserId: string = '1'
+  ): { success: boolean; message: string; transaction?: IssueTransaction; isReferenceBook?: boolean } {
     const current = this.snapshot;
     const member = current.members.find((m) => m.id === memberId || m.memberCardNo === memberId);
 
@@ -2971,7 +2975,8 @@ class LibraryStoreService {
     if (targetBook.isReferenceOnly || targetBook.collectionType === 'REFERENCE' || targetCopy.isReferenceOnly) {
       return {
         success: false,
-        message: `RESTRICTED ITEM: "${targetBook.title}" is a Library Reference Book. Reference books have barcodes for catalog management, but CANNOT be issued or checked out to members.`,
+        isReferenceBook: true,
+        message: `RESTRICTED ITEM: Copy "${targetCopy.accessionNo}" (${targetCopy.barcode}) of "${targetBook.title}" is reserved as Copy #1 Reference Copy for in-library reading room use only and CANNOT be checked out. Please issue Copy #2 or higher for member loans.`,
       };
     }
 
