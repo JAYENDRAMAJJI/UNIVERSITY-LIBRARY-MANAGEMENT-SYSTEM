@@ -77,6 +77,101 @@ export const formatOnlyTimeInBracket = (str?: string): string => {
   return unbracketed;
 };
 
+export interface OperatingHoursStatus {
+  isOpen: boolean;
+  statusText: string;
+  reason?: string;
+  nextOpenText?: string;
+  isHoliday?: boolean;
+  holidayName?: string;
+}
+
+export const IS_NATIONAL_HOLIDAY = (d: Date = new Date()): { isHoliday: boolean; holidayName?: string } => {
+  const month = d.getMonth() + 1; // 1-12
+  const date = d.getDate(); // 1-31
+
+  // Standard Indian & Gazetted National Holidays
+  const holidays: Record<string, string> = {
+    '1-1': "New Year's Day",
+    '1-26': 'Republic Day',
+    '3-8': "International Women's Day",
+    '3-25': 'Holi Festival',
+    '4-14': 'Dr. B.R. Ambedkar Jayanti',
+    '8-15': 'Independence Day',
+    '10-2': 'Gandhi Jayanti',
+    '10-12': 'Dussehra / Vijayadashami',
+    '11-1': 'Kannada Rajyotsava / Statehood Day',
+    '12-25': 'Christmas Day',
+  };
+
+  const key = `${month}-${date}`;
+  if (holidays[key]) {
+    return { isHoliday: true, holidayName: holidays[key] };
+  }
+
+  return { isHoliday: false };
+};
+
+export const getLibraryOperatingStatus = (now: Date = new Date()): OperatingHoursStatus => {
+  const dayOfWeek = now.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const currentMinutes = hours * 60 + minutes;
+
+  const openMinutes = 8 * 60;   // 8:00 AM = 480 mins
+  const closeMinutes = 22 * 60; // 10:00 PM = 1320 mins
+
+  // 1. Sunday check
+  if (dayOfWeek === 0) {
+    return {
+      isOpen: false,
+      statusText: 'CLOSED (Sunday)',
+      reason: 'Central Library is closed on Sundays. Reopens Monday at 8:00 AM.',
+      nextOpenText: 'Opens Monday 8:00 AM',
+    };
+  }
+
+  // 2. National Holiday check
+  const holidayCheck = IS_NATIONAL_HOLIDAY(now);
+  if (holidayCheck.isHoliday) {
+    return {
+      isOpen: false,
+      statusText: `CLOSED (${holidayCheck.holidayName})`,
+      reason: `Central Library is closed today for National Holiday (${holidayCheck.holidayName}).`,
+      nextOpenText: 'Reopens next working day 8:00 AM',
+      isHoliday: true,
+      holidayName: holidayCheck.holidayName,
+    };
+  }
+
+  // 3. Operating hours check (8:00 AM - 10:00 PM)
+  if (currentMinutes < openMinutes) {
+    return {
+      isOpen: false,
+      statusText: 'CLOSED (Before 8:00 AM)',
+      reason: 'Central Library opens at 8:00 AM (Mon – Sat).',
+      nextOpenText: 'Opens today at 8:00 AM',
+    };
+  }
+
+  if (currentMinutes >= closeMinutes) {
+    return {
+      isOpen: false,
+      statusText: 'CLOSED (After 10:00 PM)',
+      reason: 'Central Library closes automatically at 10:00 PM. Active visitors auto-checked out.',
+      nextOpenText: 'Opens tomorrow at 8:00 AM',
+    };
+  }
+
+  return {
+    isOpen: true,
+    statusText: 'OPEN NOW (8:00 AM – 10:00 PM)',
+    reason: 'Central Library Circulation Desk & Reading Rooms are open.',
+    nextOpenText: 'Closes today at 10:00 PM',
+  };
+};
+
+
 const INITIAL_EXTENSION_REQUESTS: ExtensionRequest[] = [
   {
     id: 'ext-1',
@@ -2110,6 +2205,16 @@ class LibraryStoreService {
     this.state$.subscribe((state) => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     });
+
+    // Run operating hours auto checkout logic on initialization
+    this.checkAndAutoCheckoutExpiredSessions();
+
+    // Setup periodic auto checkout timer (runs every 30 seconds)
+    if (typeof window !== 'undefined') {
+      setInterval(() => {
+        this.checkAndAutoCheckoutExpiredSessions();
+      }, 30000);
+    }
   }
 
   private getDefaultState(): StateSchema {
@@ -2141,12 +2246,12 @@ class LibraryStoreService {
     return this.state$;
   }
 
-  public addAuditLog(userId: string, userName: string, userRole: any, action: string, module: string, details: string) {
+  public addAuditLog(userId: string, userName: string, userRole: Role | string, action: string, module: string, details: string) {
     const newLog: AuditLog = {
       id: `log-${Date.now()}`,
       userId,
       userName,
-      userRole,
+      userRole: userRole as Role,
       action,
       module,
       details,
@@ -3831,8 +3936,18 @@ class LibraryStoreService {
     verificationMethod: VerificationMethod = 'BARCODE',
     purposeOfVisit: VisitPurpose = 'GENERAL_READING',
     entryGate: string = 'Main Gate - Central Library',
-    checkedInBy: string = 'Desk Kiosk'
+    checkedInBy: string = 'Desk Kiosk',
+    allowClosedCheckIn: boolean = false
   ): { success: boolean; message: string; record?: AttendanceRecord; member?: MemberProfile } {
+    // 0. Operating Hours & Holiday Check
+    const opStatus = getLibraryOperatingStatus();
+    if (!opStatus.isOpen && !allowClosedCheckIn) {
+      return {
+        success: false,
+        message: `Check-in Failed: Central Library is currently CLOSED. Operating Hours: Mon – Sat (8:00 AM – 10:00 PM) | Closed on Sundays & National Holidays. (${opStatus.reason})`,
+      };
+    }
+
     const current = this.snapshot;
     const term = cardNoOrEmail.trim().toLowerCase();
 
@@ -3977,6 +4092,82 @@ class LibraryStoreService {
       message: `Goodbye ${activeRecord.memberName}! Check-out completed. Stay duration: ${durationText}.`,
       record: updatedRecord,
     };
+  }
+
+  public checkAndAutoCheckoutExpiredSessions(): { checkedOutCount: number } {
+    const current = this.snapshot;
+    const attendanceRecords = current.attendanceRecords || [];
+    const now = new Date();
+    const todayStr = getLocalDateStr(now);
+    const opStatus = getLibraryOperatingStatus(now);
+
+    let count = 0;
+    let modified = false;
+
+    const updatedRecords = attendanceRecords.map((r) => {
+      if (r.status === 'IN_LIBRARY') {
+        const inTimeDate = new Date(r.checkInTime.replace(' ', 'T'));
+        const inTimeMs = inTimeDate.getTime();
+        const inTimeDateStr = r.date || (isNaN(inTimeMs) ? todayStr : getLocalDateStr(inTimeDate));
+
+        const isPastDay = inTimeDateStr < todayStr;
+        const isPastClosingTimeToday = inTimeDateStr === todayStr && now.getHours() >= 22;
+        const isClosedNow = !opStatus.isOpen;
+
+        if (isPastDay || isPastClosingTimeToday || isClosedNow) {
+          count++;
+          modified = true;
+
+          let outTimeStr: string;
+          if (isPastClosingTimeToday) {
+            outTimeStr = `${todayStr} 22:00:00`;
+          } else if (isPastDay) {
+            outTimeStr = `${inTimeDateStr} 22:00:00`;
+          } else {
+            outTimeStr = getLocalDateTimeStr(now);
+          }
+
+          const outTimeMs = new Date(outTimeStr.replace(' ', 'T')).getTime();
+          let durationMinutes = 60;
+          if (!isNaN(inTimeMs) && !isNaN(outTimeMs) && outTimeMs > inTimeMs) {
+            durationMinutes = Math.max(1, Math.round((outTimeMs - inTimeMs) / (1000 * 60)));
+          }
+
+          let noteText = 'Automatic check-out at Library Closing Time (10:00 PM Operating Hours Rule)';
+          if (opStatus.reason?.includes('Sunday') || opStatus.reason?.includes('Holiday')) {
+            noteText = `Automatic check-out: ${opStatus.reason}`;
+          }
+
+          return {
+            ...r,
+            checkOutTime: outTimeStr,
+            durationMinutes,
+            status: 'AUTO_CHECK_OUT' as const,
+            checkedOutBy: 'Auto System Scheduler (Operating Hours Rule)',
+            notes: noteText,
+          };
+        }
+      }
+      return r;
+    });
+
+    if (modified) {
+      this.state$.next({
+        ...current,
+        attendanceRecords: updatedRecords,
+      });
+
+      this.addAuditLog(
+        'system',
+        'System Scheduler',
+        'ADMIN',
+        'AUTO_CHECK_OUT_OPERATING_HOURS',
+        'ATTENDANCE',
+        `Automatically checked out ${count} active library visitors outside operating hours (Mon-Sat 8:00 AM - 10:00 PM).`
+      );
+    }
+
+    return { checkedOutCount: count };
   }
 
   public forceCheckOutAll(adminName: string = 'Chief Admin Librarian'): { success: boolean; count: number } {
@@ -4140,6 +4331,19 @@ class LibraryStoreService {
     );
 
     return { success: true, filename: `University_Library_Attendance_Report_${dateStr}.csv` };
+  }
+
+  public restoreFromBackup(backupData: StateSchema) {
+    this.state$.next(backupData);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(backupData));
+    this.addAuditLog('1', 'Chief Admin Librarian', 'ADMIN', 'RESTORE_DATABASE', 'SETTINGS', 'Restored library database snapshot from JSON backup file');
+  }
+
+  public clearAuditLogs() {
+    const current = this.snapshot;
+    const updated: StateSchema = { ...current, auditLogs: [] };
+    this.state$.next(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   }
 
   public resetToFactoryDefaults() {

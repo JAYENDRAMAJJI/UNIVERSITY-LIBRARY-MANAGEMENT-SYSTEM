@@ -27,7 +27,7 @@ import {
   Calendar,
   Zap,
 } from 'lucide-react';
-import { libraryStore, getLocalDateTimeStr, getLocalDateStr, formatOnlyTimeInBracket } from '../../services/libraryStore.service';
+import { libraryStore, getLocalDateTimeStr, getLocalDateStr, formatOnlyTimeInBracket, getLibraryOperatingStatus } from '../../services/libraryStore.service';
 import { useAuth } from '../../context/AuthContext';
 import {
   AttendanceRecord,
@@ -86,12 +86,19 @@ export default function AttendanceManagement() {
   // Real Clock State (Updates every second)
   const [nowClock, setNowClock] = useState(new Date());
 
+  const operatingStatus = useMemo(() => getLibraryOperatingStatus(nowClock), [nowClock]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setNowClock(new Date());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Periodically enforce library closing time (10:00 PM auto check-out rule)
+  useEffect(() => {
+    libraryStore.checkAndAutoCheckoutExpiredSessions();
+  }, [nowClock]);
 
   useEffect(() => {
     const sub = libraryStore.getObservable().subscribe(setState);
@@ -429,6 +436,49 @@ export default function AttendanceManagement() {
           >
             <Download className="h-4 w-4 text-blue-600" /> Export CSV
           </button>
+        </div>
+      </div>
+
+      {/* Official Central Library Building Location & Operating Hours Banner */}
+      <div className="bg-slate-900 border border-slate-800 text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div className="p-3.5 rounded-2xl bg-blue-600/20 border border-blue-500/30 text-blue-400 shrink-0">
+            <Building2 className="w-7 h-7 text-blue-400" />
+          </div>
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base sm:text-lg font-extrabold font-poppins text-white">Central University Library Building</h2>
+              <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                Academic Block A, Ground Floor
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-300 font-medium">
+              Circulation Desk & Reading Rooms | <strong>Operating Hours: Mon – Sat (8:00 AM – 10:00 PM) | Closed on National Holidays</strong>
+            </p>
+          </div>
+        </div>
+
+        {/* Live Operating Status Badge & Auto Check-Out Notice */}
+        <div className="flex items-center gap-3 shrink-0 self-stretch md:self-auto justify-between md:justify-end border-t md:border-t-0 border-slate-800 pt-3 md:pt-0">
+          <div className="text-right hidden sm:block">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+              Auto Check-Out Scheduler
+            </span>
+            <span className="text-xs font-semibold text-slate-300">
+              Active at 10:00 PM Closing
+            </span>
+          </div>
+          {operatingStatus.isOpen ? (
+            <div className="px-4 py-2 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-2 text-xs font-extrabold">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+              <span>🟢 LIBRARY OPEN NOW</span>
+            </div>
+          ) : (
+            <div className="px-4 py-2 rounded-2xl bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-2 text-xs font-extrabold">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
+              <span>🔴 LIBRARY CLOSED ({operatingStatus.statusText})</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -865,6 +915,29 @@ export default function AttendanceManagement() {
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Administrative Desk Controls</h3>
               <div className="space-y-2">
                 <button
+                  onClick={() => {
+                    const res = libraryStore.checkAndAutoCheckoutExpiredSessions();
+                    if (res.checkedOutCount > 0) {
+                      setLastScanResult({
+                        success: true,
+                        message: `Operating Hours Auto-Checkout: Successfully checked out ${res.checkedOutCount} visitor(s) (10:00 PM Closing Rule).`,
+                      });
+                    } else {
+                      setLastScanResult({
+                        success: true,
+                        message: `Operating Hours Verified: No active visitors require auto-checkout at this time.`,
+                      });
+                    }
+                  }}
+                  className="w-full p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200/80 transition-colors flex items-center justify-between cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-amber-600" /> Run Auto Check-Out (10 PM Closing)
+                  </span>
+                  <span className="text-[10px] text-amber-700 font-extrabold uppercase">Auto Rule</span>
+                </button>
+
+                <button
                   onClick={() => setShowOverrideModal(true)}
                   className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-bold border border-slate-200/80 transition-colors flex items-center justify-between cursor-pointer"
                 >
@@ -1209,10 +1282,17 @@ export default function AttendanceManagement() {
                                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                   : r.status === 'COMPLETED'
                                   ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                  : r.status === 'AUTO_CHECK_OUT'
+                                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
                                   : 'bg-slate-100 text-slate-700 border border-slate-200'
                               }`}
+                              title={r.notes}
                             >
-                              {r.status === 'IN_LIBRARY' ? 'IN LIBRARY' : r.status}
+                              {r.status === 'IN_LIBRARY'
+                                ? 'IN LIBRARY'
+                                : r.status === 'AUTO_CHECK_OUT'
+                                ? 'AUTO CHECK-OUT (10 PM)'
+                                : r.status}
                             </span>
                           </td>
                           <td className="py-3.5 px-4 space-y-0.5">

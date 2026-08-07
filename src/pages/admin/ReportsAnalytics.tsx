@@ -1,5 +1,19 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, Download, Printer, Shield, Activity, FileText, CheckCircle, Search, X } from 'lucide-react';
+import {
+  BarChart3,
+  Download,
+  Activity,
+  FileText,
+  Search,
+  X,
+  Info,
+  Clock,
+  User,
+  BookOpen,
+  IndianRupee,
+  CheckCircle2,
+  Filter,
+} from 'lucide-react';
 import { libraryStore, getLocalDateStr } from '../../services/libraryStore.service';
 
 export default function ReportsAnalytics() {
@@ -24,96 +38,215 @@ export default function ReportsAnalytics() {
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
     const link = document.createElement('a');
     link.setAttribute('href', encodeURI(csvContent));
-    link.setAttribute('download', `audit_logs_${getLocalDateStr(new Date())}.csv`);
+    link.setAttribute('download', `library_audit_report_${getLocalDateStr(new Date())}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  // Convert technical action codes into simple human-readable text
+  const getFriendlyActionName = (action: string) => {
+    const map: Record<string, string> = {
+      ISSUE_BOOK: 'Issued Book',
+      RETURN_BOOK: 'Returned Book',
+      RENEW_BOOK: 'Extended Loan Period',
+      REQUEST_EXTENSION: 'Requested Loan Extension',
+      APPROVE_EXTENSION: 'Approved Extension',
+      REJECT_EXTENSION: 'Rejected Extension',
+      PLACE_RESERVATION_HOLD: 'Placed Book Hold',
+      CANCEL_RESERVATION: 'Cancelled Book Hold',
+      ADD_BOOK: 'Added New Book',
+      UPDATE_BOOK: 'Updated Book Info',
+      DELETE_BOOK: 'Removed Book',
+      ADD_COPY: 'Added Book Copy',
+      UPDATE_COPY: 'Updated Copy Info',
+      DELETE_COPY: 'Removed Book Copy',
+      BULK_GENERATE_BARCODES: 'Generated Barcodes',
+      REGISTER_MEMBER: 'Registered Member',
+      UPDATE_PROFILE: 'Updated Profile Details',
+      FINE_PAID: 'Collected Fine Payment',
+      FINE_WAIVED: 'Waived Fine',
+      CONFIG_UPDATE: 'Updated System Settings',
+      PROCUREMENT_REQUEST: 'Submitted Purchase Request',
+      PROCUREMENT_LIFECYCLE_ADVANCE: 'Updated Order Status',
+      ADD_VENDOR: 'Added Book Vendor',
+      BULK_CSV_IMPORT: 'Bulk Imported Books',
+      EXPORT_EXECUTIVE_REPORT: 'Exported Executive Report',
+    };
+    return map[action] || action.replace(/_/g, ' ');
+  };
+
+  // Convert module codes into friendly categories
+  const getFriendlyModuleName = (mod: string) => {
+    const map: Record<string, string> = {
+      CIRCULATION: 'Loans & Returns',
+      CATALOG: 'Book Catalog',
+      TAXONOMY: 'Categories & Authors',
+      MEMBER_MANAGEMENT: 'Member Admin',
+      USER_PROFILE: 'User Profile',
+      FINANCE: 'Fines & Payments',
+      SETTINGS: 'System Settings',
+      PROCUREMENT: 'Purchases & Orders',
+      DIGITAL_LIBRARY: 'Digital Resources',
+      CATALOG_RESERVATIONS: 'Book Holds',
+      REPORTS_MODULE: 'Reports Engine',
+    };
+    return map[mod] || mod.replace(/_/g, ' ');
+  };
+
+  // Module filter options
+  const moduleFilters = [
+    { id: 'ALL', label: 'All Activity' },
+    { id: 'CIRCULATION', label: 'Loans & Returns' },
+    { id: 'CATALOG', label: 'Book Catalog' },
+    { id: 'FINANCE', label: 'Fines & Money' },
+    { id: 'MEMBER_MANAGEMENT', label: 'Members & Users' },
+    { id: 'SETTINGS', label: 'System Settings' },
+  ];
+
+  // Filter audit logs based on search query and selected module
+  const filteredLogs = state.auditLogs.filter((log) => {
+    const q = auditSearchTerm.toLowerCase().trim();
+    const friendlyAction = getFriendlyActionName(log.action).toLowerCase();
+    const friendlyModule = getFriendlyModuleName(log.module).toLowerCase();
+
+    const matchesSearch =
+      !q ||
+      log.userName.toLowerCase().includes(q) ||
+      log.userRole.toLowerCase().includes(q) ||
+      log.action.toLowerCase().includes(q) ||
+      log.module.toLowerCase().includes(q) ||
+      log.details.toLowerCase().includes(q) ||
+      friendlyAction.includes(q) ||
+      friendlyModule.includes(q);
+
+    const matchesModule =
+      auditModuleFilter === 'ALL' ||
+      log.module === auditModuleFilter ||
+      (auditModuleFilter === 'CIRCULATION' && (log.module === 'CIRCULATION' || log.module === 'CATALOG_RESERVATIONS')) ||
+      (auditModuleFilter === 'FINANCE' && log.module === 'FINANCE') ||
+      (auditModuleFilter === 'CATALOG' && (log.module === 'CATALOG' || log.module === 'TAXONOMY')) ||
+      (auditModuleFilter === 'MEMBER_MANAGEMENT' && (log.module === 'MEMBER_MANAGEMENT' || log.module === 'USER_PROFILE')) ||
+      (auditModuleFilter === 'SETTINGS' && (log.module === 'SETTINGS' || log.module === 'REPORTS_MODULE'));
+
+    return matchesSearch && matchesModule;
+  });
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {/* Top Header Card */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-700 bg-blue-50 px-3 py-1 rounded-full mb-2">
-            <BarChart3 className="h-3.5 w-3.5" /> Reports & Audit Trail
+          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-3 py-1 rounded-full mb-2">
+            <BarChart3 className="h-3.5 w-3.5" /> Easy Management Hub
           </div>
           <h1 className="text-2xl font-bold font-poppins text-slate-900">Analytics & Operation Audit Logs</h1>
-          <p className="text-sm text-slate-500 mt-1">Generate operational reports, monitor borrowing metrics, and review system audit logs.</p>
+          <p className="text-sm text-slate-500 mt-1">
+            Track library activity, review staff action history, and monitor monthly circulation trends in one simple dashboard.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={exportAuditCSV} className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold flex items-center gap-2">
-            <Download className="h-4 w-4" /> Export Audit CSV
+        <button
+          onClick={exportAuditCSV}
+          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer shrink-0"
+        >
+          <Download className="h-4 w-4" /> Download Audit Excel/CSV
+        </button>
+      </div>
+
+      {/* Beginner-Friendly Quick Usage Guide */}
+      <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-slate-50 p-4 sm:p-5 rounded-2xl border border-blue-100/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-xl bg-blue-600 text-white shrink-0 shadow-xs">
+            <Info className="h-4 w-4" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-bold text-slate-900 text-sm">How to use this section:</h3>
+            <p className="text-slate-600 leading-relaxed">
+              Use the tabs below to switch between <strong>📊 Overview & Monthly Charts</strong> for quick library stats, or <strong>📜 Activity & System Logs</strong> to inspect who performed specific actions (like issuing books, adding inventory, or updating settings).
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setActiveReportTab('OVERVIEW')}
+            className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+              activeReportTab === 'OVERVIEW' ? 'bg-blue-600 text-white shadow-xs' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            📊 View Overview Charts
+          </button>
+          <button
+            onClick={() => setActiveReportTab('AUDIT_LOGS')}
+            className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+              activeReportTab === 'AUDIT_LOGS' ? 'bg-blue-600 text-white shadow-xs' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            📜 View Activity Logs ({state.auditLogs.length})
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
-        <button
-          onClick={() => setActiveReportTab('AUDIT_LOGS')}
-          className={`pb-2 px-4 text-sm font-bold border-b-2 cursor-pointer transition-all ${activeReportTab === 'AUDIT_LOGS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-        >
-          Real-Time Audit Trail ({state.auditLogs.length})
-        </button>
-        <button
-          onClick={() => setActiveReportTab('OVERVIEW')}
-          className={`pb-2 px-4 text-sm font-bold border-b-2 cursor-pointer transition-all ${activeReportTab === 'OVERVIEW' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-        >
-          Analytics & Metrics
-        </button>
-      </div>
-
+      {/* Main Content Sections */}
       {activeReportTab === 'OVERVIEW' ? (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fadeIn">
+          {/* Key Metric Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200">
-              <p className="text-xs text-slate-500 font-semibold uppercase">Total Copies Stock</p>
-              <p className="text-3xl font-bold text-slate-900 mt-1">{totalBooks}</p>
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500 font-bold uppercase">Total Book Stock</span>
+                <BookOpen className="h-4 w-4 text-slate-400" />
+              </div>
+              <p className="text-3xl font-extrabold text-slate-900">{totalBooks}</p>
+              <p className="text-[11px] text-slate-500 font-medium">Physical copies in library</p>
             </div>
-            <div className="bg-white p-5 rounded-2xl border border-blue-200 bg-blue-50/20">
-              <p className="text-xs text-blue-700 font-semibold uppercase">Issued Active Books</p>
-              <p className="text-3xl font-bold text-blue-900 mt-1">{issuedCount}</p>
+
+            <div className="bg-white p-5 rounded-2xl border border-blue-200 bg-blue-50/30 shadow-2xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-blue-700 font-bold uppercase">Active Issued Books</span>
+                <Activity className="h-4 w-4 text-blue-600" />
+              </div>
+              <p className="text-3xl font-extrabold text-blue-900">{issuedCount}</p>
+              <p className="text-[11px] text-blue-600 font-medium">Currently borrowed by readers</p>
             </div>
-            <div className="bg-white p-5 rounded-2xl border border-emerald-200 bg-emerald-50/20">
-              <p className="text-xs text-emerald-700 font-semibold uppercase">Returned Books</p>
-              <p className="text-3xl font-bold text-emerald-900 mt-1">{returnedCount}</p>
+
+            <div className="bg-white p-5 rounded-2xl border border-emerald-200 bg-emerald-50/30 shadow-2xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-emerald-700 font-bold uppercase">Returned Books</span>
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              </div>
+              <p className="text-3xl font-extrabold text-emerald-900">{returnedCount}</p>
+              <p className="text-[11px] text-emerald-600 font-medium">Successfully completed loans</p>
             </div>
-            <div className="bg-white p-5 rounded-2xl border border-purple-200 bg-purple-50/20">
-              <p className="text-xs text-purple-700 font-semibold uppercase">Total Fine Revenue</p>
-              <p className="text-3xl font-bold text-purple-900 mt-1">₹{fineCollected.toFixed(2)}</p>
+
+            <div className="bg-white p-5 rounded-2xl border border-purple-200 bg-purple-50/30 shadow-2xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-purple-700 font-bold uppercase">Fine Money Collected</span>
+                <IndianRupee className="h-4 w-4 text-purple-600" />
+              </div>
+              <p className="text-3xl font-extrabold text-purple-900">₹{fineCollected.toFixed(2)}</p>
+              <p className="text-[11px] text-purple-600 font-medium">Total overdue fine revenue</p>
             </div>
           </div>
 
+          {/* Simple Visual Chart */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <div>
-                <h2 className="font-bold text-slate-900 text-base font-poppins">Monthly Circulation & Revenue Telemetry</h2>
-                <p className="text-xs text-slate-500">Real-time breakdown of monthly book checkouts and collected fine revenue.</p>
+                <h2 className="font-bold text-slate-900 text-base font-poppins">Monthly Book Circulation & Revenue Trends</h2>
+                <p className="text-xs text-slate-500">Visual comparison of monthly book checkouts versus fine money collected.</p>
               </div>
               <div className="flex items-center gap-4 text-xs font-bold">
                 <span className="flex items-center gap-1.5 text-blue-700">
                   <span className="h-3 w-3 rounded-full bg-blue-600 inline-block" /> Issued Books
                 </span>
                 <span className="flex items-center gap-1.5 text-emerald-700">
-                  <span className="h-3 w-3 rounded-full bg-emerald-500 inline-block" /> Fines (₹)
+                  <span className="h-3 w-3 rounded-full bg-emerald-500 inline-block" /> Fine Revenue (₹)
                 </span>
               </div>
             </div>
 
             <div className="relative pt-6 pb-2">
-              {/* Guidelines */}
-              <div className="absolute inset-x-0 top-6 bottom-8 flex flex-col justify-between pointer-events-none opacity-30">
-                <div className="border-b border-dashed border-slate-300 flex justify-between text-[9px] font-mono text-slate-400">
-                  <span>Telemetry Max</span>
-                </div>
-                <div className="border-b border-dashed border-slate-300 flex justify-between text-[9px] font-mono text-slate-400">
-                  <span>Telemetry Mid</span>
-                </div>
-                <div className="border-b border-slate-300" />
-              </div>
-
-              {/* Dual Bar Series */}
               <div className="h-48 flex items-end gap-3 sm:gap-6 px-4 relative z-10">
                 {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((monthName, idx) => {
                   const activeTxCount = state.transactions.filter((t) => t.status === 'ISSUED' || t.status === 'OVERDUE').length;
@@ -123,21 +256,18 @@ export default function ReportsAnalytics() {
 
                   return (
                     <div key={monthName} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-pointer relative">
-                      {/* Hover Tooltip */}
                       <div className="opacity-0 group-hover:opacity-100 transition-all duration-200 absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[11px] font-mono font-bold px-2.5 py-1.5 rounded-xl shadow-2xl pointer-events-none z-30 whitespace-nowrap">
                         <div>Issued: <span className="text-blue-300">{issuedVal} Books</span></div>
                         <div>Revenue: <span className="text-emerald-300">₹{finesVal}</span></div>
                       </div>
 
                       <div className="w-full flex items-end justify-center gap-1.5 h-full">
-                        {/* Bar 1: Issued */}
                         <div className="w-1/2 bg-slate-100/80 rounded-t-xl h-full flex items-end">
                           <div
                             style={{ height: `${Math.min(100, issuedVal)}%` }}
                             className="w-full bg-gradient-to-t from-blue-700 to-indigo-500 rounded-t-xl group-hover:brightness-110 transition-all duration-300"
                           />
                         </div>
-                        {/* Bar 2: Fines */}
                         <div className="w-1/2 bg-slate-100/80 rounded-t-xl h-full flex items-end">
                           <div
                             style={{ height: `${Math.min(100, Math.round(finesVal / 10))}%` }}
@@ -157,50 +287,37 @@ export default function ReportsAnalytics() {
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
-          {/* Integrated Search Button & Module Filter Toolbar */}
-          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-            {/* Search Input Bar with Action Button */}
-            <form onSubmit={(e) => e.preventDefault()} className="flex items-center w-full md:w-auto shrink-0">
-              <div className="relative flex-1 md:w-80">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search audit logs by user, action, module, or details..."
-                  value={auditSearchTerm}
-                  onChange={(e) => setAuditSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-8 py-2.5 rounded-l-xl border border-r-0 border-slate-200 text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 bg-white"
-                />
-                {auditSearchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setAuditSearchTerm('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100 cursor-pointer"
-                    title="Clear search"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-              <button
-                type="submit"
-                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-r-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-              >
-                <Search className="w-3.5 h-3.5" />
-                <span>Search</span>
-              </button>
-            </form>
+        <div className="space-y-4 animate-fadeIn">
+          {/* Easy Filter & Search Toolbar */}
+          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
+            {/* Search Box */}
+            <div className="relative w-full lg:w-96">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search logs by name, action (e.g. Issued Book), or details..."
+                value={auditSearchTerm}
+                onChange={(e) => setAuditSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-8 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 bg-slate-50/50"
+              />
+              {auditSearchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setAuditSearchTerm('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
 
-            {/* Module Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto text-xs">
-              <span className="text-slate-700 font-extrabold text-xs mr-1">Module:</span>
-              {[
-                { id: 'ALL', label: 'All Modules' },
-                { id: 'CIRCULATION', label: 'Circulation' },
-                { id: 'INVENTORY', label: 'Inventory' },
-                { id: 'FINES', label: 'Fines' },
-                { id: 'AUTH', label: 'Security & Auth' },
-              ].map((mod) => (
+            {/* Simple Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto text-xs py-1">
+              <span className="text-slate-500 font-bold text-xs mr-1 shrink-0 flex items-center gap-1">
+                <Filter className="h-3.5 w-3.5 text-blue-600" /> Filter By:
+              </span>
+              {moduleFilters.map((mod) => (
                 <button
                   key={mod.id}
                   type="button"
@@ -217,55 +334,80 @@ export default function ReportsAnalytics() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6">
-            {state.auditLogs.filter((log) => {
-              const q = auditSearchTerm.toLowerCase().trim();
-              const matchesSearch =
-                !q ||
-                log.userName.toLowerCase().includes(q) ||
-                log.action.toLowerCase().includes(q) ||
-                log.module.toLowerCase().includes(q) ||
-                log.details.toLowerCase().includes(q);
-              const matchesModule = auditModuleFilter === 'ALL' || log.module === auditModuleFilter;
-              return matchesSearch && matchesModule;
-            }).length > 0 ? (
-              <table className="w-full text-left border-collapse font-mono text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b text-slate-500">
-                    <th className="py-2 px-3">Timestamp</th>
-                    <th className="py-2 px-3">User & Role</th>
-                    <th className="py-2 px-3">Module</th>
-                    <th className="py-2 px-3">Action</th>
-                    <th className="py-2 px-3">Details</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y text-slate-700">
-                  {state.auditLogs
-                    .filter((log) => {
-                      const q = auditSearchTerm.toLowerCase().trim();
-                      const matchesSearch =
-                        !q ||
-                        log.userName.toLowerCase().includes(q) ||
-                        log.action.toLowerCase().includes(q) ||
-                        log.module.toLowerCase().includes(q) ||
-                        log.details.toLowerCase().includes(q);
-                      const matchesModule = auditModuleFilter === 'ALL' || log.module === auditModuleFilter;
-                      return matchesSearch && matchesModule;
-                    })
-                    .map((log) => (
-                      <tr key={log.id}>
-                        <td className="py-3 px-3 font-mono text-slate-500">({log.timestamp})</td>
-                        <td className="py-3 px-3 font-bold text-slate-900">{log.userName} ({log.userRole})</td>
-                        <td className="py-3 px-3"><span className="bg-slate-100 px-2 py-0.5 rounded">{log.module}</span></td>
-                        <td className="py-3 px-3 font-bold text-blue-700">{log.action}</td>
-                        <td className="py-3 px-3 text-slate-600">{log.details}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+          {/* Simple Clean Table */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6">
+            {filteredLogs.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+                      <th className="py-3 px-4">Date & Time</th>
+                      <th className="py-3 px-4">User</th>
+                      <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4">Action Performed</th>
+                      <th className="py-3 px-4">Activity Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {filteredLogs.map((log) => {
+                      const isStudent = log.userRole === 'STUDENT';
+                      const isAdmin = log.userRole === 'ADMIN' || log.userRole === 'STAFF';
+
+                      return (
+                        <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3.5 px-4 font-mono text-slate-500 whitespace-nowrap flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                            <span>{log.timestamp}</span>
+                          </td>
+
+                          <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-600 text-[10px]">
+                                <User className="h-3 w-3" />
+                              </span>
+                              <div>
+                                <span>{log.userName}</span>
+                                <span
+                                  className={`ml-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase ${
+                                    isAdmin
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : isStudent
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-purple-100 text-purple-800'
+                                  }`}
+                                >
+                                  {log.userRole}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4 whitespace-nowrap">
+                            <span className="bg-slate-100 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-xl text-[11px] font-semibold">
+                              {getFriendlyModuleName(log.module)}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4 font-bold text-blue-700 whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 px-2.5 py-1 rounded-xl text-[11px]">
+                              {getFriendlyActionName(log.action)}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4 text-slate-600 max-w-md leading-relaxed font-medium">
+                            {log.details}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             ) : (
-              <div className="py-10 text-center text-slate-400 text-sm font-sans">
-                No audit log entries match your search query or module filter.
+              <div className="py-12 text-center text-slate-400 space-y-2">
+                <FileText className="h-8 w-8 mx-auto text-slate-300" />
+                <p className="text-sm font-semibold text-slate-600">No logs found matching your filters</p>
+                <p className="text-xs text-slate-400">Try clearing your search query or selecting "All Activity".</p>
               </div>
             )}
           </div>

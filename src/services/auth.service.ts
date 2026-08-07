@@ -74,21 +74,29 @@ export const authService = {
         }
 
         const token = btoa(JSON.stringify({ id: user.id, role: user.role, email: user.email, exp: Date.now() + 86400000 }));
-        localStorage.setItem('library_token', token);
-        localStorage.setItem('library_user', JSON.stringify(user));
+        sessionStorage.setItem('library_token', token);
+        sessionStorage.setItem('library_user', JSON.stringify(user));
         resolve({ token, user });
       }, 300);
     });
   },
 
   logout() {
+    sessionStorage.removeItem('library_token');
+    sessionStorage.removeItem('library_user');
     localStorage.removeItem('library_token');
     localStorage.removeItem('library_user');
   },
 
   getCurrentUser(): User | null {
-    const token = localStorage.getItem('library_token');
-    const storedUser = localStorage.getItem('library_user');
+    // Clear any legacy persistent auth items from localStorage if present
+    if (localStorage.getItem('library_token') || localStorage.getItem('library_user')) {
+      localStorage.removeItem('library_token');
+      localStorage.removeItem('library_user');
+    }
+
+    const token = sessionStorage.getItem('library_token');
+    const storedUser = sessionStorage.getItem('library_user');
 
     if (storedUser) {
       try {
@@ -114,7 +122,7 @@ export const authService = {
         }
 
         const updatedUser: User = { ...u, name: resolvedName, role: resolvedRole };
-        localStorage.setItem('library_user', JSON.stringify(updatedUser));
+        sessionStorage.setItem('library_user', JSON.stringify(updatedUser));
         return updatedUser;
       } catch (e) {
         // Fallback

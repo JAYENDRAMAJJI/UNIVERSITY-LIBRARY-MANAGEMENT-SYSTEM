@@ -102,7 +102,7 @@ export default function Profile() {
 
     if (user) {
       const updatedUser = { ...user, name: formData.name, department: formData.department };
-      localStorage.setItem('library_user', JSON.stringify(updatedUser));
+      sessionStorage.setItem('library_user', JSON.stringify(updatedUser));
     }
 
     setIsEditing(false);
