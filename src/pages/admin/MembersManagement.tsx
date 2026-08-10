@@ -374,17 +374,26 @@ export default function MembersManagement() {
 
               <div className="flex items-center gap-2">
                 <button
+                  onClick={() => libraryStore.printMemberCompleteProfileReport(selectedCardModal.id)}
+                  className="px-3 py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="Print / Save PDF Member Dossier Report"
+                >
+                  <Printer className="h-3.5 w-3.5 text-purple-600" /> Report PDF
+                </button>
+
+                <button
                   onClick={() => libraryStore.exportMemberCompleteProfileReportCSV(selectedCardModal.id)}
-                  className="px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="Export Raw CSV Data"
                 >
                   <Download className="h-3.5 w-3.5 text-blue-600" /> Export CSV
                 </button>
 
                 <button
                   onClick={() => handlePrintMemberCard(selectedCardModal)}
-                  className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Printer className="h-4 w-4" /> Print Pass
+                  Print Pass
                 </button>
               </div>
             </div>

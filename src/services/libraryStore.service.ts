@@ -4654,6 +4654,278 @@ class LibraryStoreService {
     };
   }
 
+  public printMemberCompleteProfileReport(memberIdOrCardNoOrEmail: string): void {
+    const current = this.snapshot;
+    const term = (memberIdOrCardNoOrEmail || '').trim().toLowerCase();
+    const dateStr = getLocalDateStr(new Date());
+
+    const member = current.members.find(
+      (m) =>
+        m.id.toLowerCase() === term ||
+        m.memberCardNo.toLowerCase() === term ||
+        m.email.toLowerCase() === term ||
+        m.name.toLowerCase() === term
+    ) || current.members[0];
+
+    if (!member) return;
+
+    const uEmail = member.email.toLowerCase();
+    const uCard = member.memberCardNo.toLowerCase();
+    const uName = member.name.toLowerCase();
+    const mId = member.id;
+
+    // Filter Borrowing Transactions
+    const memberTransactions = (current.transactions || []).filter((t) => {
+      const matchId = t.memberId === mId;
+      const matchCard = Boolean(t.memberCardNo && t.memberCardNo.toLowerCase() === uCard);
+      const matchName = Boolean(t.memberName && t.memberName.toLowerCase() === uName);
+      const matchEmail = Boolean(uEmail && (t.memberCardNo.toLowerCase() === uEmail || (t as any).email?.toLowerCase() === uEmail));
+      return matchId || matchCard || matchName || matchEmail;
+    });
+
+    // Filter Attendance Records
+    const memberAttendance = (current.attendanceRecords || []).filter((r) => {
+      const matchId = r.memberId === mId;
+      const matchCard = Boolean(r.memberCardNo && r.memberCardNo.toLowerCase() === uCard);
+      const matchName = Boolean(r.memberName && r.memberName.toLowerCase() === uName);
+      const matchEmail = Boolean(r.email && r.email.toLowerCase() === uEmail);
+      return matchId || matchCard || matchName || matchEmail;
+    });
+
+    // Filter Fines
+    const memberFines = (current.fines || []).filter((f) => {
+      const matchId = f.memberId === mId;
+      const matchCard = Boolean(f.memberCardNo && f.memberCardNo.toLowerCase() === uCard);
+      const matchName = Boolean(f.memberName && f.memberName.toLowerCase() === uName);
+      return matchId || matchCard || matchName;
+    });
+
+    const activeLoansCount = memberTransactions.filter((t) => t.status === 'ISSUED' || t.status === 'OVERDUE').length;
+    const unpaidFinesSum = memberFines.filter((f) => f.status === 'UNPAID').reduce((sum, f) => sum + (f.amount || 0), 0);
+
+    const printWindow = window.open('', '_blank', 'width=1000,height=800');
+    if (!printWindow) return;
+
+    const borrowingRowsHtml = memberTransactions.length === 0
+      ? `<tr><td colspan="7" style="text-align: center; padding: 12px; color: #64748b;">No borrowing records on file.</td></tr>`
+      : memberTransactions.map((t) => {
+          const start = new Date(t.issueDate);
+          const end = t.returnDate ? new Date(t.returnDate) : new Date();
+          const durationDays = Math.max(1, Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+          const statusBg = t.status === 'ISSUED' ? '#dbeafe' : t.status === 'RETURNED' ? '#dcfce7' : '#ffe4e6';
+          const statusColor = t.status === 'ISSUED' ? '#1e40af' : t.status === 'RETURNED' ? '#166534' : '#991b1b';
+          return `
+            <tr>
+              <td><strong>${t.bookTitle}</strong><br/><small style="color: #64748b;">ACC: ${t.accessionNo} | BC: ${t.barcode}</small></td>
+              <td>${t.issueDate}</td>
+              <td>${t.dueDate}</td>
+              <td>${t.returnDate || '<span style="color:#d97706; font-weight:bold;">In Progress</span>'}</td>
+              <td>${durationDays} Days</td>
+              <td>₹${(t.fineAmount || 0).toFixed(2)}</td>
+              <td><span style="background:${statusBg}; color:${statusColor}; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:10px;">${t.status}</span></td>
+            </tr>
+          `;
+        }).join('');
+
+    const attendanceRowsHtml = memberAttendance.length === 0
+      ? `<tr><td colspan="7" style="text-align: center; padding: 12px; color: #64748b;">No attendance records on file.</td></tr>`
+      : memberAttendance.map((a) => `
+          <tr>
+            <td>${a.checkInTime}</td>
+            <td>${a.checkOutTime || '<span style="color:#16a34a; font-weight:bold;">Active In Library</span>'}</td>
+            <td>${a.durationMinutes || 0} mins</td>
+            <td>${a.purposeOfVisit || 'GENERAL_READING'}</td>
+            <td>${a.entryGate || 'Main Gate'}</td>
+            <td>${a.checkedInBy || 'Desk'}</td>
+            <td><span style="background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:10px;">${a.status}</span></td>
+          </tr>
+        `).join('');
+
+    const finesRowsHtml = memberFines.length === 0
+      ? `<tr><td colspan="6" style="text-align: center; padding: 12px; color: #64748b;">No fine records on file.</td></tr>`
+      : memberFines.map((f) => `
+          <tr>
+            <td>${f.reason || 'Late Book Return'}</td>
+            <td><strong>₹${(f.amount || 0).toFixed(2)}</strong></td>
+            <td>${f.issuedDate || f.date || 'N/A'}</td>
+            <td><span style="background:${f.status === 'PAID' ? '#dcfce7' : '#ffe4e6'}; color:${f.status === 'PAID' ? '#166534' : '#991b1b'}; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:10px;">${f.status}</span></td>
+            <td>${f.paidDate || 'N/A'}</td>
+            <td>${f.paymentMethod || 'N/A'}</td>
+          </tr>
+        `).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Member Profile & Activity Report - ${member.name}</title>
+          <style>
+            @page { size: A4 portrait; margin: 12mm; }
+            * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { margin: 0; padding: 20px; font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; background: #ffffff; font-size: 11px; }
+            .no-print { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 12px 20px; border-bottom: 1px solid #e2e8f0; margin: -20px -20px 20px -20px; }
+            @media print { .no-print { display: none !important; } }
+            .print-btn { background: #0f172a; color: #fff; border: none; padding: 8px 16px; font-weight: 700; border-radius: 8px; cursor: pointer; }
+            .header-banner { border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-start; }
+            .univ-title { font-size: 18px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; }
+            .sub-title { font-size: 11px; color: #475569; font-weight: 600; margin-top: 2px; }
+            .report-badge { font-size: 10px; font-weight: 800; background: #eff6ff; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; border: 1px solid #bfdbfe; }
+            
+            .profile-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+            .info-item { display: flex; flex-direction: column; }
+            .info-label { font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; }
+            .info-val { font-size: 11px; font-weight: 700; color: #0f172a; margin-top: 2px; }
+            
+            .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+            .stat-box { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; text-align: center; }
+            .stat-num { font-size: 16px; font-weight: 800; color: #0f172a; }
+            .stat-label { font-size: 9px; font-weight: 700; color: #475569; text-transform: uppercase; }
+
+            .section-title { font-size: 12px; font-weight: 800; color: #0f172a; text-transform: uppercase; border-left: 4px solid #2563eb; padding-left: 8px; margin: 16px 0 8px 0; }
+            
+            table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10px; }
+            th { background: #f1f5f9; color: #334155; text-align: left; padding: 6px 8px; font-weight: 700; border: 1px solid #cbd5e1; text-transform: uppercase; }
+            td { padding: 6px 8px; border: 1px solid #e2e8f0; color: #0f172a; }
+            tr:nth-child(even) { background: #f8fafc; }
+
+            .footer { margin-top: 24px; border-top: 1px solid #cbd5e1; padding-top: 8px; font-size: 9px; color: #64748b; display: flex; justify-content: space-between; }
+          </style>
+        </head>
+        <body>
+          <div class="no-print">
+            <span style="font-weight:bold; font-size:12px;">📊 University Library Official Member Profile Report</span>
+            <div>
+              <button onclick="window.print()" class="print-btn">🖨️ Print / Save PDF Report</button>
+            </div>
+          </div>
+
+          <div class="header-banner">
+            <div>
+              <h1 class="univ-title">Central University Library System</h1>
+              <div class="sub-title">Official Student & Faculty Academic Activity Dossier</div>
+            </div>
+            <div class="report-badge">REPORT DATE: ${dateStr}</div>
+          </div>
+
+          <div class="profile-card">
+            <div class="info-item">
+              <span class="info-label">Member Name</span>
+              <span class="info-val">${member.name}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Card Number</span>
+              <span class="info-val">${member.memberCardNo}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Role & Dept</span>
+              <span class="info-val">${member.role} - ${member.department}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Status</span>
+              <span class="info-val" style="color: #16a34a;">● ${member.status}</span>
+            </div>
+          </div>
+
+          <div class="stats-row">
+            <div class="stat-box">
+              <div class="stat-num">${activeLoansCount} / ${member.maxAllowedBooks}</div>
+              <div class="stat-label">Active Loans</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">${memberTransactions.length}</div>
+              <div class="stat-label">Total Borrowed</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">${memberAttendance.length}</div>
+              <div class="stat-label">Library Check-ins</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num" style="color: ${unpaidFinesSum > 0 ? '#dc2626' : '#0f172a'};">₹${unpaidFinesSum.toFixed(2)}</div>
+              <div class="stat-label">Pending Fine</div>
+            </div>
+          </div>
+
+          <div class="section-title">1. Book Borrowing & Circulation History</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Book Title & Details</th>
+                <th>Issue Date</th>
+                <th>Due Date</th>
+                <th>Return Date</th>
+                <th>Duration</th>
+                <th>Fine</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${borrowingRowsHtml}
+            </tbody>
+          </table>
+
+          <div class="section-title">2. Library Attendance & Access Logs</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Check-In Time</th>
+                <th>Check-Out Time</th>
+                <th>Duration</th>
+                <th>Visit Purpose</th>
+                <th>Entrance Gate</th>
+                <th>Checked In By</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${attendanceRowsHtml}
+            </tbody>
+          </table>
+
+          <div class="section-title">3. Financial Fines & Payment History</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Violation / Reason</th>
+                <th>Amount</th>
+                <th>Issued Date</th>
+                <th>Status</th>
+                <th>Paid Date</th>
+                <th>Payment Method</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${finesRowsHtml}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <span>Generated from Central Library Operations Database v2.4</span>
+            <span>Security Signature: _______________________</span>
+          </div>
+
+          <script>
+            window.onload = function() {
+              setTimeout(function() { window.print(); }, 400);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    this.addAuditLog(
+      member.id,
+      member.name,
+      member.role,
+      'PRINT_MEMBER_PROFILE_REPORT',
+      'PROFILE_MODULE',
+      `Printed complete profile report for ${member.name} (${member.memberCardNo})`
+    );
+  }
+
   public restoreFromBackup(backupData: StateSchema) {
     this.state$.next(backupData);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(backupData));
