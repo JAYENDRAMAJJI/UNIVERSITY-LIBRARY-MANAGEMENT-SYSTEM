@@ -28,7 +28,7 @@ import {
   X,
   ShieldCheck,
 } from 'lucide-react';
-import { libraryStore, getLocalDateStr } from '../../services/libraryStore.service';
+import { libraryStore, getLocalDateStr, getTransactionFineAmount } from '../../services/libraryStore.service';
 import { Book, IssueTransaction } from '../../types/library';
 
 const formatDateTime = (rawStr?: string, defaultTimeStr = '10:00 AM') => {
@@ -318,23 +318,26 @@ export default function BookBorrowHistory() {
       'Status',
     ];
 
-    const rows = filteredRecords.map((r) => [
-      r.id,
-      r.bookId,
-      `"${(r.bookTitle || '').replace(/"/g, '""')}"`,
-      r.accessionNo,
-      r.barcode,
-      r.memberCardNo,
-      `"${(r.memberName || '').replace(/"/g, '""')}"`,
-      r.memberType,
-      `"${(getMemberDept(r.memberCardNo) || '').replace(/"/g, '""')}"`,
-      r.issueDate,
-      r.dueDate,
-      r.returnDate || 'N/A (Still Borrowed)',
-      calculateBorrowDays(r.issueDate, r.returnDate),
-      `₹${r.fineAmount.toFixed(2)}`,
-      r.status,
-    ]);
+    const rows = filteredRecords.map((r) => {
+      const fineInfo = getTransactionFineAmount(r, storeState);
+      return [
+        r.id,
+        r.bookId,
+        `"${(r.bookTitle || '').replace(/"/g, '""')}"`,
+        r.accessionNo,
+        r.barcode,
+        r.memberCardNo,
+        `"${(r.memberName || '').replace(/"/g, '""')}"`,
+        r.memberType,
+        `"${(getMemberDept(r.memberCardNo) || '').replace(/"/g, '""')}"`,
+        r.issueDate,
+        r.dueDate,
+        r.returnDate || 'N/A (Still Borrowed)',
+        calculateBorrowDays(r.issueDate, r.returnDate),
+        `₹${fineInfo.fineAmount.toFixed(2)}`,
+        r.status,
+      ];
+    });
 
     const csvString = [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
@@ -791,14 +794,17 @@ export default function BookBorrowHistory() {
 
                       {/* Fine Amount */}
                       <td className="py-4 px-4 align-middle w-[110px] min-w-[110px] text-xs font-bold whitespace-nowrap">
-                        {record.fineAmount > 0 ? (
-                          <div className="flex flex-col">
-                            <span className="text-rose-700 font-mono">₹{record.fineAmount.toFixed(2)}</span>
-                            <span className="text-[10px] text-rose-600 font-sans uppercase font-extrabold tracking-wide">({record.fineStatus})</span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 font-mono">₹0.00</span>
-                        )}
+                        {(() => {
+                          const fineInfo = getTransactionFineAmount(record, storeState);
+                          return fineInfo.fineAmount > 0 ? (
+                            <div className="flex flex-col">
+                              <span className="text-rose-700 font-mono">₹{fineInfo.fineAmount.toFixed(2)}</span>
+                              <span className="text-[10px] text-rose-600 font-sans uppercase font-extrabold tracking-wide">({fineInfo.fineStatus})</span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 font-mono">₹0.00</span>
+                          );
+                        })()}
                       </td>
 
                       {/* Status Badge */}

@@ -22,7 +22,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { libraryStore } from '../services/libraryStore.service';
+import { libraryStore, getMemberPendingFines } from '../services/libraryStore.service';
 import { MemberProfile } from '../types/library';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -342,7 +342,7 @@ export default function Profile() {
 
             <div className="flex items-center justify-between p-3.5 rounded-2xl bg-rose-50/40 border border-rose-100">
               <span className="text-rose-700 font-bold">Pending Fine Balance</span>
-              <span className="font-bold text-rose-900 font-mono text-sm">₹{(currentMember?.pendingFines || 0).toFixed(2)}</span>
+              <span className="font-bold text-rose-900 font-mono text-sm">₹{getMemberPendingFines(currentMember?.id || user?.email || '', storeState).toFixed(2)}</span>
             </div>
 
             <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-100">

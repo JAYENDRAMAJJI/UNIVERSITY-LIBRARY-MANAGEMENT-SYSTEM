@@ -18,7 +18,7 @@ import {
   FileText,
   UserCheck,
 } from 'lucide-react';
-import { libraryStore, formatOnlyTimeInBracket } from '../../../services/libraryStore.service';
+import { libraryStore, formatOnlyTimeInBracket, getMemberPendingFines, getTransactionFineAmount } from '../../../services/libraryStore.service';
 import { useAuth } from '../../../context/AuthContext';
 import { Link } from 'react-router-dom';
 import { IssueTransaction } from '../../../types/library';
@@ -260,23 +260,28 @@ export default function StudentDashboard() {
         </div>
 
         {/* Metric 3: Fine Ledger Balance */}
-        <div className="bg-white p-5 rounded-3xl shadow-xs border border-rose-200/80 bg-rose-50/20 space-y-3 flex flex-col justify-between min-w-0">
-          <div className="flex items-center justify-between">
-            <div className="p-3 bg-rose-100 text-rose-600 rounded-2xl">
-              <CreditCard className="w-6 h-6" />
+        {(() => {
+          const calculatedPendingFine = getMemberPendingFines(studentMember.id, state);
+          return (
+            <div className="bg-white p-5 rounded-3xl shadow-xs border border-rose-200/80 bg-rose-50/20 space-y-3 flex flex-col justify-between min-w-0">
+              <div className="flex items-center justify-between">
+                <div className="p-3 bg-rose-100 text-rose-600 rounded-2xl">
+                  <CreditCard className="w-6 h-6" />
+                </div>
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${calculatedPendingFine > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                  {calculatedPendingFine > 0 ? 'Unpaid Dues' : 'Clear Account'}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-rose-700 uppercase tracking-wider truncate">Pending Fines Balance</p>
+                <div className="flex items-baseline gap-1.5 mt-0.5">
+                  <span className="text-2xl font-extrabold font-poppins text-rose-900">₹{calculatedPendingFine.toFixed(2)}</span>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 truncate">Overdue rate: ₹{(state.config?.fineRatePerDay || 10).toFixed(2)} / day</p>
             </div>
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${studentMember.pendingFines > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-              {studentMember.pendingFines > 0 ? 'Unpaid Dues' : 'Clear Account'}
-            </span>
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold text-rose-700 uppercase tracking-wider truncate">Pending Fines Balance</p>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-2xl font-extrabold font-poppins text-rose-900">₹{studentMember.pendingFines.toFixed(2)}</span>
-            </div>
-          </div>
-          <p className="text-xs text-slate-500 truncate">Overdue rate: ₹{(state.config?.fineRatePerDay || 10).toFixed(2)} / day</p>
-        </div>
+          );
+        })()}
 
         {/* Metric 4: Acquisition Requests */}
         <div className="bg-white p-5 rounded-3xl shadow-xs border border-emerald-200/80 bg-emerald-50/20 space-y-3 flex flex-col justify-between min-w-0">
@@ -644,32 +649,45 @@ export default function StudentDashboard() {
                   <th className="p-3.5">Issued On</th>
                   <th className="p-3.5">Due On</th>
                   <th className="p-3.5">Returned On</th>
+                  <th className="p-3.5">Fine Amount</th>
                   <th className="p-3.5 text-right rounded-r-xl">Borrowing Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {studentHistoryTransactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-3.5 font-semibold text-slate-900">
-                      <p className="text-slate-900 font-bold text-sm">{tx.bookTitle}</p>
-                      <p className="font-mono text-[10px] text-slate-400">ACC: {tx.accessionNo}</p>
-                    </td>
-                    <td className="p-3.5 font-mono">{formatOnlyTimeInBracket(tx.issueDate)}</td>
-                    <td className="p-3.5 font-mono">{formatOnlyTimeInBracket(tx.dueDate)}</td>
-                    <td className="p-3.5 font-mono font-bold text-slate-800">{formatOnlyTimeInBracket(tx.returnDate)}</td>
-                    <td className="p-3.5 text-right font-bold">
-                      <span className={`px-3 py-1 rounded-full text-[10px] uppercase ${
-                        tx.status === 'RETURNED'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : tx.status === 'OVERDUE'
-                          ? 'bg-rose-100 text-rose-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {tx.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {studentHistoryTransactions.map((tx) => {
+                  const fineInfo = getTransactionFineAmount(tx, state);
+                  return (
+                    <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-3.5 font-semibold text-slate-900">
+                        <p className="text-slate-900 font-bold text-sm">{tx.bookTitle}</p>
+                        <p className="font-mono text-[10px] text-slate-400">ACC: {tx.accessionNo} | BC: {tx.barcode}</p>
+                      </td>
+                      <td className="p-3.5 font-mono">{formatOnlyTimeInBracket(tx.issueDate)}</td>
+                      <td className="p-3.5 font-mono">{formatOnlyTimeInBracket(tx.dueDate)}</td>
+                      <td className="p-3.5 font-mono font-bold text-slate-800">{formatOnlyTimeInBracket(tx.returnDate)}</td>
+                      <td className="p-3.5 font-mono font-bold">
+                        {fineInfo.fineAmount > 0 ? (
+                          <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                            ₹{fineInfo.fineAmount.toFixed(2)} ({fineInfo.fineStatus})
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">₹0.00</span>
+                        )}
+                      </td>
+                      <td className="p-3.5 text-right font-bold">
+                        <span className={`px-3 py-1 rounded-full text-[10px] uppercase ${
+                          tx.status === 'RETURNED'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : tx.status === 'OVERDUE'
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {tx.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

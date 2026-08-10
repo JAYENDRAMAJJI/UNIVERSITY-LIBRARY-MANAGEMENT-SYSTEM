@@ -49,10 +49,111 @@ export const getLocalTimeMinutesStr = (d: Date = new Date()): string => {
 
 export const getTodayOffsetStr = (offsetDays: number = 0): string => {
   const d = new Date();
-  if (offsetDays !== 0) {
-    d.setDate(d.getDate() + offsetDays);
-  }
+  d.setDate(d.getDate() + offsetDays);
   return getLocalDateStr(d);
+};
+
+export const getTransactionFineAmount = (
+  tx: IssueTransaction,
+  state: any
+): { fineAmount: number; fineStatus: 'UNPAID' | 'PAID' | 'WAIVED' | 'CLEARED' } => {
+  if (!tx) return { fineAmount: 0, fineStatus: 'CLEARED' };
+
+  // 1. Check if there's an explicit FineRecord in state.fines for this transaction ID
+  const fineRecord = (state.fines || []).find((f: any) => f.transactionId === tx.id);
+  if (fineRecord) {
+    return {
+      fineAmount: fineRecord.amount || 0,
+      fineStatus: fineRecord.status === 'PAID' ? 'PAID' : fineRecord.status === 'WAIVED' ? 'WAIVED' : 'UNPAID',
+    };
+  }
+
+  // 2. If transaction itself has returnDate & fineAmount
+  if (tx.status === 'RETURNED') {
+    if (tx.fineAmount && tx.fineAmount > 0) {
+      return {
+        fineAmount: tx.fineAmount,
+        fineStatus: tx.fineStatus || 'UNPAID',
+      };
+    }
+    return { fineAmount: 0, fineStatus: 'CLEARED' };
+  }
+
+  // 3. Dynamic Calculation for OVERDUE / active ISSUED books past due date
+  const due = new Date(tx.dueDate.replace(' ', 'T'));
+  const now = new Date();
+
+  if (tx.status === 'OVERDUE' || (tx.status === 'ISSUED' && !isNaN(due.getTime()) && now > due)) {
+    if (!isNaN(due.getTime()) && now > due) {
+      const diffDays = Math.ceil((now.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
+      const rate = state.config?.fineRatePerDay || 10;
+      const calculatedFine = Math.max(0, diffDays * rate);
+      if (calculatedFine > 0) {
+        return {
+          fineAmount: calculatedFine,
+          fineStatus: 'UNPAID',
+        };
+      }
+    }
+  }
+
+  if (tx.fineAmount && tx.fineAmount > 0) {
+    return {
+      fineAmount: tx.fineAmount,
+      fineStatus: tx.fineStatus || 'UNPAID',
+    };
+  }
+
+  return { fineAmount: 0, fineStatus: 'CLEARED' };
+};
+
+export const getMemberPendingFines = (
+  memberIdOrCardNoOrEmail: string,
+  state: any
+): number => {
+  const term = (memberIdOrCardNoOrEmail || '').trim().toLowerCase();
+  if (!term) return 0;
+
+  const member = (state.members || []).find(
+    (m: any) =>
+      m.id.toLowerCase() === term ||
+      m.memberCardNo.toLowerCase() === term ||
+      m.email.toLowerCase() === term ||
+      m.name.toLowerCase() === term
+  );
+
+  if (!member) return 0;
+
+  const mId = member.id;
+  const mCard = member.memberCardNo.toLowerCase();
+  const uEmail = member.email.toLowerCase();
+
+  // Find all transactions for this member
+  const memberTransactions = (state.transactions || []).filter((t: any) => {
+    const matchId = t.memberId === mId;
+    const matchCard = Boolean(t.memberCardNo && t.memberCardNo.toLowerCase() === mCard);
+    const matchEmail = Boolean(uEmail && (t.memberCardNo.toLowerCase() === uEmail || (t as any).email?.toLowerCase() === uEmail));
+    return matchId || matchCard || matchEmail;
+  });
+
+  let totalPending = 0;
+  memberTransactions.forEach((tx: any) => {
+    const fineInfo = getTransactionFineAmount(tx, state);
+    if (fineInfo.fineStatus === 'UNPAID') {
+      totalPending += fineInfo.fineAmount;
+    }
+  });
+
+  // Also include any standalone UNPAID fine records in state.fines not linked to transaction list
+  (state.fines || []).forEach((f: any) => {
+    const isMember = f.memberId === mId || (f.memberCardNo && f.memberCardNo.toLowerCase() === mCard);
+    const alreadyCountedInTx = memberTransactions.some((tx: any) => tx.id === f.transactionId);
+    if (isMember && f.status === 'UNPAID' && !alreadyCountedInTx) {
+      totalPending += f.amount || 0;
+    }
+  });
+
+  return totalPending;
 };
 
 export const getTodayOffsetDateTimeStr = (offsetDays: number = 0, timePart: string = '10:00'): string => {

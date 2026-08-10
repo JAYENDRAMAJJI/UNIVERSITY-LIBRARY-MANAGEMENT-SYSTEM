@@ -24,7 +24,7 @@ import {
   Tag,
   Barcode,
 } from 'lucide-react';
-import { libraryStore, getLocalDateStr, formatOnlyTimeInBracket } from '../../services/libraryStore.service';
+import { libraryStore, getLocalDateStr, formatOnlyTimeInBracket, getTransactionFineAmount } from '../../services/libraryStore.service';
 import { Book, IssueTransaction } from '../../types/library';
 
 interface BookBorrowHistoryModalProps {
@@ -802,13 +802,16 @@ export default function BookBorrowHistoryModal({
 
                         {/* Fine Amount */}
                         <td className="py-3.5 px-4 font-mono font-bold">
-                          {tx.fineAmount && tx.fineAmount > 0 ? (
-                            <span className="text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                              ₹{tx.fineAmount.toFixed(2)}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400">₹0.00</span>
-                          )}
+                          {(() => {
+                            const fineInfo = getTransactionFineAmount(tx, storeState);
+                            return fineInfo.fineAmount > 0 ? (
+                              <span className="text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                ₹{fineInfo.fineAmount.toFixed(2)} ({fineInfo.fineStatus})
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">₹0.00</span>
+                            );
+                          })()}
                         </td>
 
                         {/* Status */}

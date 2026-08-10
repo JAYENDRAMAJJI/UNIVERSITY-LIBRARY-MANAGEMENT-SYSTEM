@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, Search, CreditCard, Printer, Download, CheckCircle, Shield, AlertTriangle, UserPlus, RotateCw, Barcode, BookOpen } from 'lucide-react';
-import { libraryStore } from '../../services/libraryStore.service';
+import { libraryStore, getMemberPendingFines } from '../../services/libraryStore.service';
 import { MemberProfile } from '../../types/library';
 import RegisterAccountModal from '../../components/common/RegisterAccountModal';
 import { generateQrSvgString, generateBarcodeSvgString, svgToDataUrl } from '../../utils/barcodeQrGenerator';
@@ -251,9 +251,14 @@ export default function MembersManagement() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Pending Fines:</span>
-                <span className={`font-bold ${member.pendingFines > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                  ₹{member.pendingFines.toFixed(2)}
-                </span>
+                {(() => {
+                  const pf = getMemberPendingFines(member.id, state);
+                  return (
+                    <span className={`font-bold ${pf > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      ₹{pf.toFixed(2)}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
 
