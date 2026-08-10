@@ -1252,11 +1252,11 @@ export default function AttendanceManagement() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3">
               {/* Search Bar */}
-              <div className="md:col-span-4 relative">
+              <div className={`${isAdminOrStaff ? 'md:col-span-3' : 'md:col-span-5'} relative`}>
                 <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search name, card no, department, gate..."
+                  placeholder={isAdminOrStaff ? "Search name, card no, dept, gate..." : "Search timestamp, gate, visit purpose..."}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
@@ -1271,41 +1271,60 @@ export default function AttendanceManagement() {
                 )}
               </div>
 
-              {/* Role Filter */}
-              <div className="md:col-span-2 relative">
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value as any)}
-                  className="w-full pl-3.5 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/80 focus:bg-white appearance-none cursor-pointer truncate"
-                >
-                  <option value="ALL">All Roles</option>
-                  <option value="STUDENT">Student</option>
-                  <option value="FACULTY">Faculty</option>
-                  <option value="STAFF">Staff / Librarian</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-              </div>
+              {/* ADMIN ONLY: Role Filter */}
+              {isAdminOrStaff && (
+                <div className="md:col-span-2 relative">
+                  <select
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value as any)}
+                    className="w-full pl-3.5 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/80 focus:bg-white appearance-none cursor-pointer truncate"
+                  >
+                    <option value="ALL">All Roles</option>
+                    <option value="STUDENT">Student</option>
+                    <option value="FACULTY">Faculty</option>
+                    <option value="STAFF">Staff / Librarian</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                </div>
+              )}
 
-              {/* Department Filter */}
-              <div className="md:col-span-3 relative">
+              {/* ADMIN ONLY: Department Filter */}
+              {isAdminOrStaff && (
+                <div className="md:col-span-3 relative">
+                  <select
+                    value={selectedDepartment}
+                    onChange={(e) => setSelectedDepartment(e.target.value)}
+                    className="w-full pl-3.5 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/80 focus:bg-white appearance-none cursor-pointer truncate"
+                  >
+                    <option value="ALL">All Departments</option>
+                    {departmentOptions.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                </div>
+              )}
+
+              {/* Visit Status Filter */}
+              <div className={`${isAdminOrStaff ? 'md:col-span-2' : 'md:col-span-3'} relative`}>
                 <select
-                  value={selectedDepartment}
-                  onChange={(e) => setSelectedDepartment(e.target.value)}
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value as any)}
                   className="w-full pl-3.5 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/80 focus:bg-white appearance-none cursor-pointer truncate"
                 >
-                  <option value="ALL">All Departments</option>
-                  {departmentOptions.map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept}
-                    </option>
-                  ))}
+                  <option value="ALL">All Statuses</option>
+                  <option value="IN_LIBRARY">Currently In Library</option>
+                  <option value="COMPLETED">Completed Visit</option>
+                  <option value="AUTO_CHECK_OUT">Auto Checked Out</option>
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
               </div>
 
               {/* Date Filter */}
-              <div className="md:col-span-3 relative">
+              <div className={`${isAdminOrStaff ? 'md:col-span-2' : 'md:col-span-4'} relative`}>
                 <select
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value as any)}
