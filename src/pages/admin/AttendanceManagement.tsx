@@ -507,21 +507,6 @@ export default function AttendanceManagement() {
         </div>
       </div>
 
-      {/* Non-Admin Notice Banner */}
-      {!isAdminOrStaff && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 sm:p-5 flex items-start gap-3 shadow-xs">
-          <ShieldCheck className="h-6 w-6 text-blue-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h3 className="text-xs font-extrabold text-blue-950 uppercase tracking-wider">
-              Admin-Managed Library Attendance System
-            </h3>
-            <p className="text-xs text-blue-900 font-medium leading-relaxed">
-              Attendance check-in and check-out entries can <strong>only be marked by the Library Admin</strong> at the entrance desk counter.
-              Your attendance records below are strictly private and visible <strong>only to you</strong>.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Telemetry Dashboard Cards - High-End Premium Layout */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">

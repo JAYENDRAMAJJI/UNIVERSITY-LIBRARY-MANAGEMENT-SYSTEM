@@ -446,15 +446,6 @@ export default function BookBorrowHistory() {
         </div>
       </div>
 
-      {/* Non-Admin Notice Banner */}
-      {!isAdminOrStaff && (
-        <div className="bg-purple-50/90 border border-purple-200/90 rounded-2xl p-4 flex items-center gap-3 shadow-2xs">
-          <ShieldCheck className="h-5 w-5 text-purple-600 shrink-0" />
-          <p className="text-xs text-purple-950 font-semibold leading-relaxed">
-            Showing borrowing history strictly for active user <strong>{user?.name || user?.email}</strong> ({user?.role}). Personal circulation records are private to your account.
-          </p>
-        </div>
-      )}
 
       {/* Toast Alert */}
       {toastMessage && (
