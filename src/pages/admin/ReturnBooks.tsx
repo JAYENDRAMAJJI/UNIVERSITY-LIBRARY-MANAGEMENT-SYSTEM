@@ -8,7 +8,7 @@ import {
   Camera,
   X,
 } from 'lucide-react';
-import { libraryStore, formatOnlyTimeInBracket } from '../../services/libraryStore.service';
+import { libraryStore, formatOnlyTimeInBracket, getTransactionFineAmount } from '../../services/libraryStore.service';
 import { CopyCondition, IssueTransaction } from '../../types/library';
 import BarcodeScannerModal from '../../components/common/BarcodeScannerModal';
 
@@ -312,8 +312,10 @@ export default function ReturnBooks() {
                   <div className="mt-2 bg-rose-50 border border-rose-200 p-2.5 rounded-xl text-rose-800 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
                     <div>
-                      <p className="font-bold text-xs">Overdue Fine Will Be Assessed</p>
-                      <p className="text-[11px] text-rose-600">Calculated based on daily rate ({state.config.fineRatePerDay}/day).</p>
+                      <p className="font-bold text-xs">
+                        Overdue Fine Assessed: <span className="font-mono text-rose-700">₹{getTransactionFineAmount(returnModalTx, state).fineAmount.toFixed(2)}</span>
+                      </p>
+                      <p className="text-[11px] text-rose-600">Calculated based on daily rate (₹{state.config.fineRatePerDay}/day).</p>
                     </div>
                   </div>
                 )}

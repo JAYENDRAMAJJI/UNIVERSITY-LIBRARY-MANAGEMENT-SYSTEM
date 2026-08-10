@@ -2456,6 +2456,29 @@ class LibraryStoreService {
       });
     }
 
+    // Auto-synchronize member active loan counts and pending fines with transactions & fine ledgers
+    if (initialState.members && initialState.transactions) {
+      initialState.members = initialState.members.map((m) => {
+        const uId = m.id;
+        const uCard = (m.memberCardNo || '').toLowerCase();
+        const uEmail = (m.email || '').toLowerCase();
+
+        const activeLoansCount = (initialState.transactions || []).filter(
+          (t) =>
+            (t.status === 'ISSUED' || t.status === 'OVERDUE' || t.status === 'RENEWED') &&
+            (t.memberId === uId || (t.memberCardNo && t.memberCardNo.toLowerCase() === uCard) || (uEmail && (t.memberCardNo?.toLowerCase() === uEmail || (t as any).email?.toLowerCase() === uEmail)))
+        ).length;
+
+        const livePendingFines = getMemberPendingFines(m.id, initialState);
+
+        return {
+          ...m,
+          currentActiveLoans: activeLoansCount,
+          pendingFines: livePendingFines,
+        };
+      });
+    }
+
     this.state$ = new SimpleBehaviorSubject<StateSchema>(initialState);
     this.state$.subscribe((state) => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));

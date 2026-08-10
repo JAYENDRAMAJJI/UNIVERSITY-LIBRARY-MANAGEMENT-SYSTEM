@@ -19,7 +19,7 @@ import {
   History,
   UserCheck,
 } from 'lucide-react';
-import { libraryStore } from '../../../services/libraryStore.service';
+import { libraryStore, getMemberPendingFines } from '../../../services/libraryStore.service';
 import { Link, useNavigate } from 'react-router-dom';
 
 function ChartCard({
@@ -117,7 +117,7 @@ export default function AdminDashboard() {
   const issuedTx = txList.filter((t) => t.status === 'ISSUED' || t.status === 'OVERDUE').length;
 
   const totalFinesSum = fineList.reduce((acc, f) => acc + (f.amount || 0), 0);
-  const pendingFinesSum = fineList.filter((f) => f.status === 'UNPAID').reduce((acc, f) => acc + (f.amount || 0), 0);
+  const pendingFinesSum = (state.members || []).reduce((acc, m) => acc + getMemberPendingFines(m.id, state), 0);
 
   // REAL-TIME DYNAMIC GRAPH TELEMETRY CONNECTED TO STORE STATE
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];

@@ -28,7 +28,7 @@ export default function ReportsAnalytics() {
   }, []);
 
   const totalBooks = state.books.reduce((sum, b) => sum + b.totalCopies, 0);
-  const issuedCount = state.transactions.filter((t) => t.status === 'ISSUED').length;
+  const issuedCount = state.transactions.filter((t) => t.status === 'ISSUED' || t.status === 'OVERDUE').length;
   const returnedCount = state.transactions.filter((t) => t.status === 'RETURNED').length;
   const fineCollected = state.fines.filter((f) => f.status === 'PAID').reduce((sum, f) => sum + f.amount, 0);
 
