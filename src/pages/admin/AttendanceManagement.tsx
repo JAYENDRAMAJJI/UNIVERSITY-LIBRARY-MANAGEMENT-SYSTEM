@@ -401,108 +401,109 @@ export default function AttendanceManagement() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="space-y-2 relative z-10">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-blue-300 bg-white/10 px-3.5 py-1 rounded-full">
-              <UserCheck className="h-4 w-4" /> University Library Attendance Portal
-            </div>
-            <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-100 bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15 shadow-sm">
-              <Clock className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-              <span>{nowClock.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
-              <span className="text-white/40">•</span>
-              <span className="font-bold text-amber-300 font-mono tracking-wide">{nowClock.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}</span>
-            </div>
-          </div>
-          <h1 className="text-2xl sm:text-3xl xl:text-4xl font-extrabold font-poppins tracking-tight">
-            Library Attendance Management
-          </h1>
-          <p className="text-slate-300 text-xs sm:text-sm max-w-2xl">
-            Real-time Barcode & QR Card Check-In/Out desk, live capacity occupancy monitoring, student & faculty access verification, and attendance reports.
-          </p>
-        </div>
+      {/* Combined Unified Hero Banner */}
+      <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-2xl border border-slate-800/80 relative overflow-hidden space-y-6">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex flex-wrap items-center gap-2.5 relative z-10">
-          {isAdminOrStaff && (
-            <>
-              <button
-                onClick={() => setActiveTab('DESK')}
-                className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  activeTab === 'DESK'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-              >
-                <ScanBarcode className="h-4 w-4" /> Check-In Counter
-              </button>
-              <button
-                onClick={() => setActiveTab('LIVE')}
-                className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  activeTab === 'LIVE'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-              >
-                <Users className="h-4 w-4 text-emerald-300" /> Live Occupancy ({activeVisitors.length})
-              </button>
-            </>
-          )}
-          <button
-            onClick={handleExportCSV}
-            className="px-4 py-2.5 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs shadow-sm transition-all flex items-center gap-2 cursor-pointer"
-          >
-            <Download className="h-4 w-4 text-blue-600" /> Export CSV
-          </button>
-        </div>
-      </div>
-
-      {/* Official Central Library Building Location & Operating Hours Banner */}
-      <div className="bg-slate-900 border border-slate-800 text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <div className="p-3.5 rounded-2xl bg-blue-600/20 border border-blue-500/30 text-blue-400 shrink-0">
-            <Building2 className="w-7 h-7 text-blue-400" />
-          </div>
-          <div className="space-y-1">
+        {/* Top Header Row */}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 relative z-10">
+          <div className="space-y-2.5">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base sm:text-lg font-extrabold font-poppins text-white">Central University Library Building</h2>
-              <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                Academic Block A, Ground Floor
-              </span>
+              <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-blue-300 bg-white/10 px-3.5 py-1 rounded-full border border-white/10">
+                <UserCheck className="h-4 w-4 text-blue-400" /> University Library Attendance Portal
+              </div>
+
+              {/* Operating Status Badge */}
+              {operatingStatus.isOpen ? (
+                <div className="px-3.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-2 text-xs font-extrabold shadow-xs">
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                  <span className="tracking-wide">LIBRARY OPEN NOW</span>
+                </div>
+              ) : (
+                <div className="px-3.5 py-1 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-2 text-xs font-extrabold shadow-xs">
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                  </span>
+                  <span className="tracking-wide">LIBRARY CLOSED ({operatingStatus.statusText})</span>
+                </div>
+              )}
+
+              {/* Live Real-time Clock Badge */}
+              <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-100 bg-white/10 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/15 shadow-xs">
+                <Clock className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                <span>{nowClock.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                <span className="text-white/40">•</span>
+                <span className="font-bold text-amber-300 font-mono tracking-wide">{nowClock.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}</span>
+              </div>
             </div>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium">
-              Circulation Desk & Reading Rooms | <strong>Operating Hours: Mon – Sat (8:00 AM – 10:00 PM) | Closed on National Holidays</strong>
+
+            <h1 className="text-2xl sm:text-3xl xl:text-4xl font-extrabold font-poppins tracking-tight text-white">
+              Library Attendance Management
+            </h1>
+            <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
+              Real-time Barcode & QR Card Check-In/Out desk, live capacity occupancy monitoring, student & faculty access verification, and attendance reports.
             </p>
           </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 relative z-10 shrink-0">
+            {isAdminOrStaff && (
+              <>
+                <button
+                  onClick={() => setActiveTab('DESK')}
+                  className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    activeTab === 'DESK'
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  <ScanBarcode className="h-4 w-4" /> Check-In Counter
+                </button>
+                <button
+                  onClick={() => setActiveTab('LIVE')}
+                  className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    activeTab === 'LIVE'
+                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  <Users className="h-4 w-4 text-emerald-300" /> Live Occupancy ({activeVisitors.length})
+                </button>
+              </>
+            )}
+            <button
+              onClick={handleExportCSV}
+              className="px-4 py-2.5 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <Download className="h-4 w-4 text-blue-600" /> Export CSV
+            </button>
+          </div>
         </div>
 
-        {/* Live Operating Status Badge & Auto Check-Out Notice */}
-        <div className="flex items-center gap-3 shrink-0 self-stretch md:self-auto justify-between md:justify-end border-t md:border-t-0 border-slate-800 pt-3 md:pt-0">
-          <div className="text-right hidden sm:block">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-              Auto Check-Out Scheduler
-            </span>
-            <span className="text-xs font-semibold text-slate-300">
-              Active at 10:00 PM Closing
-            </span>
+        {/* Bottom Integrated Building & Schedule Bar */}
+        <div className="pt-4 border-t border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-400/20 shrink-0">
+              <Building2 className="w-4 h-4 text-blue-400" />
+            </div>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-slate-300">
+              <span className="font-extrabold text-white">Central University Library Building</span>
+              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                Academic Block A, Ground Floor
+              </span>
+              <span className="text-white/30 hidden sm:inline">•</span>
+              <span className="text-slate-300">
+                Mon – Sat (8:00 AM – 10:00 PM) | Closed on National Holidays
+              </span>
+            </div>
           </div>
-          {operatingStatus.isOpen ? (
-            <div className="px-4 py-2.5 rounded-2xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 flex items-center gap-2.5 text-xs font-extrabold shadow-sm">
-              <span className="relative flex h-2.5 w-2.5 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-              </span>
-              <span className="tracking-wide uppercase">LIBRARY OPEN NOW</span>
-            </div>
-          ) : (
-            <div className="px-4 py-2.5 rounded-2xl bg-rose-500/10 text-rose-300 border border-rose-500/30 flex items-center gap-2.5 text-xs font-extrabold shadow-sm">
-              <span className="relative flex h-2.5 w-2.5 shrink-0">
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
-              </span>
-              <span className="tracking-wide uppercase">LIBRARY CLOSED ({operatingStatus.statusText})</span>
-            </div>
-          )}
+
+          <div className="flex items-center gap-2 text-slate-400 text-[11px] shrink-0 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Auto Check-Out Scheduler: <strong className="text-slate-200">Active at 10:00 PM Closing</strong></span>
+          </div>
         </div>
       </div>
 
