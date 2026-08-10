@@ -17,6 +17,7 @@ export default function ReturnBooks() {
   const [returnQuery, setReturnQuery] = useState('');
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isStudentScannerOpen, setIsStudentScannerOpen] = useState(false);
 
   // Return Processing Modal State
   const [returnModalTx, setReturnModalTx] = useState<IssueTransaction | null>(null);
@@ -81,19 +82,39 @@ export default function ReturnBooks() {
           <p className="text-sm text-slate-500 mt-1">Search, scan barcodes, enter optional remarks, and process book check-ins into library inventory.</p>
         </div>
 
-        <button
-          onClick={() => setIsScannerOpen(true)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-md hover:opacity-95 transition-all cursor-pointer"
-        >
-          <Camera className="w-4 h-4" />
-          <span>Barcode Return Scanner</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setIsStudentScannerOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all cursor-pointer"
+          >
+            <Camera className="w-4 h-4" />
+            <span>Scan Student ID</span>
+          </button>
+          <button
+            onClick={() => setIsScannerOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-md hover:opacity-95 transition-all cursor-pointer"
+          >
+            <Camera className="w-4 h-4" />
+            <span>Book Barcode Scanner</span>
+          </button>
+        </div>
       </div>
+
+      <BarcodeScannerModal
+        isOpen={isStudentScannerOpen}
+        onClose={() => setIsStudentScannerOpen(false)}
+        onScanSuccess={(scannedCode) => {
+          setReturnQuery(scannedCode);
+        }}
+        scannerType="STUDENT_ID"
+        title="Scan Student / Library Member ID Card"
+      />
 
       <BarcodeScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onScanSuccess={handleScannedBarcode}
+        scannerType="COPY_BARCODE"
         title="Return Barcode Reader Simulator"
       />
 

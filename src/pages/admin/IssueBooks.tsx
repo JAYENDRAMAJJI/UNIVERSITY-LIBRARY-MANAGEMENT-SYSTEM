@@ -29,6 +29,7 @@ export default function IssueBooks() {
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [lastIssuedReceipt, setLastIssuedReceipt] = useState<IssueTransaction | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isMemberScannerOpen, setIsMemberScannerOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'STUDENT' | 'FACULTY' | 'STAFF'>('ALL');
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -186,7 +187,37 @@ export default function IssueBooks() {
           <form onSubmit={handleIssueBook} className="space-y-5">
             {/* Step 1: Select Member */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">1. Select Library Member *</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-semibold text-slate-700">1. Select Library Member *</label>
+                <button
+                  type="button"
+                  onClick={() => setIsMemberScannerOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1 rounded-full transition-colors cursor-pointer"
+                >
+                  <Camera className="w-3.5 h-3.5" /> Scan Student ID
+                </button>
+              </div>
+
+              <BarcodeScannerModal
+                isOpen={isMemberScannerOpen}
+                onClose={() => setIsMemberScannerOpen(false)}
+                onScanSuccess={(scannedCode) => {
+                  const m = state.members.find(
+                    (mem) =>
+                      mem.memberCardNo.toLowerCase() === scannedCode.toLowerCase() ||
+                      mem.id.toLowerCase() === scannedCode.toLowerCase() ||
+                      mem.email.toLowerCase() === scannedCode.toLowerCase()
+                  );
+                  if (m) {
+                    setSelectedMemberId(m.id);
+                  } else {
+                    setSelectedMemberId(scannedCode);
+                  }
+                  setMemberSearchTerm('');
+                }}
+                scannerType="STUDENT_ID"
+                title="Scan Student / Member Library ID Card"
+              />
 
               {/* Role Filter Tabs */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
@@ -418,6 +449,7 @@ export default function IssueBooks() {
               isOpen={isScannerOpen}
               onClose={() => setIsScannerOpen(false)}
               onScanSuccess={(scannedCode) => handleSelectCode(scannedCode)}
+              scannerType="COPY_BARCODE"
               title="Barcode Reader Simulator (Issue Desk)"
             />
 

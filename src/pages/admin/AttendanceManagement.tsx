@@ -26,9 +26,11 @@ import {
   ChevronDown,
   Calendar,
   Zap,
+  Camera,
 } from 'lucide-react';
 import { libraryStore, getLocalDateTimeStr, getLocalDateStr, formatOnlyTimeInBracket, getLibraryOperatingStatus } from '../../services/libraryStore.service';
 import { useAuth } from '../../context/AuthContext';
+import BarcodeScannerModal from '../../components/common/BarcodeScannerModal';
 import {
   AttendanceRecord,
   AttendanceStatus,
@@ -48,6 +50,7 @@ export default function AttendanceManagement() {
 
   // Check-In / Out Desk States
   const [scanInput, setScanInput] = useState('');
+  const [isStudentScannerOpen, setIsStudentScannerOpen] = useState(false);
   const [verificationMethod, setVerificationMethod] = useState<VerificationMethod>('BARCODE');
   const [purposeOfVisit, setPurposeOfVisit] = useState<VisitPurpose>('GENERAL_READING');
   const [entryGate, setEntryGate] = useState('Main Gate - Central Library');
@@ -290,6 +293,20 @@ export default function AttendanceManagement() {
       return matchesSearch && matchesRole && matchesDept && matchesStatus && matchesDate;
     });
   }, [attendanceRecords, searchTerm, selectedRole, selectedDepartment, selectedStatus, dateFilter, todayStr]);
+
+  const matchedMember = useMemo(() => {
+    const term = scanInput.trim().toLowerCase();
+    if (!term) return null;
+    return (
+      state.members.find(
+        (m) =>
+          m.memberCardNo.toLowerCase() === term ||
+          m.email.toLowerCase() === term ||
+          m.id.toLowerCase() === term ||
+          m.name.toLowerCase().includes(term)
+      ) || null
+    );
+  }, [scanInput, state.members]);
 
   // Handle Scan Submit (Check-In or Check-Out toggle)
   const handleScanSubmit = (e: React.FormEvent) => {
@@ -661,16 +678,55 @@ export default function AttendanceManagement() {
       {activeTab === 'DESK' && isAdminOrStaff && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold font-poppins text-slate-900 flex items-center gap-2">
-                  <ScanBarcode className="h-5 w-5 text-blue-600" /> Library Check-In & Check-Out Desk
+                  <ScanBarcode className="h-5 w-5 text-blue-600 shrink-0" />
+                  <span className="truncate">Library Check-In & Check-Out Desk</span>
                 </h2>
-                <p className="text-xs text-slate-500 mt-1 whitespace-nowrap truncate">
-                  Scan member barcode / QR card or enter Member Card Number (e.g. STU-2026-7326 or FAC-2023-1102).
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Scan student ID barcode/QR or enter Member Card Number (e.g. STU-2026-7326 or FAC-2023-1102).
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsStudentScannerOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 hover:shadow-lg transition-all cursor-pointer shrink-0 self-start sm:self-auto"
+              >
+                <Camera className="w-4 h-4 shrink-0" />
+                <span className="whitespace-nowrap">Scan Student ID</span>
+              </button>
             </div>
+
+            <BarcodeScannerModal
+              isOpen={isStudentScannerOpen}
+              onClose={() => setIsStudentScannerOpen(false)}
+              onScanSuccess={(scannedCode) => {
+                setScanInput(scannedCode);
+                const activeSession = activeVisitors.find(
+                  (v) =>
+                    v.memberCardNo.toLowerCase() === scannedCode.toLowerCase() ||
+                    v.email.toLowerCase() === scannedCode.toLowerCase() ||
+                    v.memberId.toLowerCase() === scannedCode.toLowerCase()
+                );
+                let res;
+                if (activeSession) {
+                  res = libraryStore.checkOutMember(activeSession.id, user?.name || 'Scan Kiosk');
+                } else {
+                  res = libraryStore.checkInMember(
+                    scannedCode,
+                    verificationMethod,
+                    purposeOfVisit,
+                    entryGate,
+                    user?.name || 'Scan Kiosk'
+                  );
+                }
+                setLastScanResult(res);
+                setScanInput('');
+              }}
+              scannerType="STUDENT_ID"
+              title="Scan Student / Library Member ID Card"
+            />
 
             {/* Scan / Manual Entry Form */}
             <form onSubmit={handleScanSubmit} className="space-y-4">
@@ -694,6 +750,48 @@ export default function AttendanceManagement() {
                     className="w-full pl-12 pr-4 shadow-2xs py-3 rounded-2xl border-2 border-blue-200 bg-blue-50/20 text-slate-900 font-mono text-base font-bold focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all"
                   />
                 </div>
+
+                {/* Auto-Populated Scanned Student Identity Card Preview */}
+                {matchedMember && (
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white border border-blue-400/30 shadow-md space-y-3 animate-fadeIn mt-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={matchedMember.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'}
+                          alt={matchedMember.name}
+                          className="w-11 h-11 rounded-full object-cover border-2 border-blue-400 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-sm text-white truncate">{matchedMember.name}</h4>
+                            <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-400/30 shrink-0">
+                              {matchedMember.memberCardNo}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-300 truncate mt-0.5">
+                            {matchedMember.department} &bull; <span className="uppercase text-[10px] font-bold text-amber-300">{matchedMember.role}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="shrink-0">
+                        {activeVisitors.some((v) => v.memberCardNo.toLowerCase() === matchedMember.memberCardNo.toLowerCase()) ? (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" /> Currently In Library
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-slate-800 text-slate-300 border border-slate-700">
+                            Checked Out
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-300 pt-2 border-t border-white/10">
+                      <span>Loans: <strong className="text-white">{matchedMember.currentActiveLoans} Active</strong></span>
+                      <span>Status: <strong className="text-emerald-400">{matchedMember.status}</strong></span>
+                      <span>Fines: <strong className={matchedMember.pendingFines > 0 ? "text-rose-300" : "text-emerald-300"}>${matchedMember.pendingFines.toFixed(2)}</strong></span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-3 gap-2 mt-3">
                   <button

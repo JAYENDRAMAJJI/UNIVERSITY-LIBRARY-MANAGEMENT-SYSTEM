@@ -112,70 +112,137 @@ export default function Profile() {
   };
 
   const handlePrintLibraryCard = () => {
-    const printWindow = window.open('', '_blank', 'width=800,height=650');
+    const printWindow = window.open('', '_blank', 'width=850,height=700');
     if (!printWindow) return;
+
+    const qrSvg = generateQrSvgString(cardNo, 75);
+    const barcodeSvg = generateBarcodeSvgString(cardNo, { height: 45 });
 
     const html = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Print Digital Library Card - ${formData.name}</title>
+          <title>Print Digital Library Pass - ${formData.name}</title>
           <style>
-            @page { size: A4; margin: 15mm; }
-            body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 85vh; }
-            .card-container {
-              width: 440px;
-              background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-              border-radius: 18px;
-              padding: 20px;
-              color: #ffffff;
-              box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-              border: 2px solid rgba(255, 255, 255, 0.2);
-              box-sizing: border-box;
+            @page { size: A4; margin: 10mm; }
+            * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { margin: 0; padding: 24px; background: #f1f5f9; font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; color: #0f172a; }
+            @media print {
+              body { background: #ffffff; padding: 0; }
+              .no-print { display: none !important; }
             }
-            .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid rgba(255,255,255,0.15); padding-bottom: 10px; margin-bottom: 14px; }
-            .univ-title { font-size: 12px; font-weight: 800; letter-spacing: 1px; color: #60a5fa; text-transform: uppercase; }
-            .card-title { font-size: 9px; font-weight: 700; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 10px; text-transform: uppercase; color: #f59e0b; }
-            .card-body { display: flex; gap: 14px; align-items: center; }
-            .avatar { width: 85px; height: 85px; border-radius: 16px; object-fit: cover; border: 3px solid rgba(255,255,255,0.3); }
-            .info { flex: 1; }
-            .name { font-size: 18px; font-weight: 800; margin: 0 0 4px 0; color: #ffffff; }
-            .role { display: inline-block; font-size: 10px; font-weight: 800; background: #3b82f6; color: #ffffff; padding: 2px 8px; border-radius: 6px; text-transform: uppercase; margin-bottom: 6px; }
-            .detail-line { font-size: 11px; margin: 3px 0; color: #cbd5e1; }
-            .detail-line strong { color: #ffffff; }
-            .card-footer { margin-top: 14px; padding: 10px; background: #ffffff; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-            .barcode-box { flex: 1; display: flex; justify-content: center; }
-            .barcode-box svg { max-width: 100%; height: auto; }
-            .qr-box { width: 65px; height: 65px; display: flex; justify-content: center; align-items: center; }
-            .qr-box svg { width: 65px; height: 65px; }
-            .notice { margin-top: 16px; font-size: 10px; color: #64748b; text-align: center; }
+            .page-title { text-align: center; margin-bottom: 20px; }
+            .print-btn { background: #0f172a; color: #ffffff; border: none; padding: 12px 24px; font-size: 13px; font-weight: 700; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2); }
+            .print-btn:hover { background: #1e293b; }
+            
+            .cards-container { display: flex; flex-direction: column; align-items: center; gap: 24px; max-width: 480px; margin: 0 auto; }
+            
+            /* STANDARD CR80 ID CARD BOX (400px x 240px) */
+            .id-card {
+              width: 400px;
+              height: 240px;
+              border-radius: 16px;
+              background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #090d16 100%);
+              color: #ffffff;
+              padding: 16px 20px;
+              position: relative;
+              overflow: hidden;
+              box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
+              border: 2px solid rgba(255, 255, 255, 0.15);
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              page-break-inside: avoid;
+            }
+            
+            .card-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.15); padding-bottom: 8px; }
+            .univ-name { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; color: #93c5fd; text-transform: uppercase; white-space: nowrap; }
+            .pass-subtitle { font-size: 8.5px; color: #94a3b8; font-weight: 600; white-space: nowrap; }
+            .role-badge { font-size: 9px; font-weight: 800; text-transform: uppercase; background: rgba(59, 130, 246, 0.3); border: 1px solid rgba(147, 197, 253, 0.4); color: #bfdbfe; padding: 3px 9px; border-radius: 6px; white-space: nowrap; }
+            
+            .card-body-front { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
+            .avatar-photo { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; border: 2px solid #f59e0b; box-shadow: 0 4px 10px rgba(0,0,0,0.3); flex-shrink: 0; }
+            .member-details { flex: 1; min-width: 0; }
+            .member-name { font-size: 15px; font-weight: 800; color: #ffffff; margin: 0 0 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .card-no { font-family: 'Courier New', Courier, monospace; font-size: 13px; font-weight: 800; color: #f59e0b; white-space: nowrap; margin-bottom: 2px; }
+            .dept-text { font-size: 10px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .status-pill { font-size: 9px; font-weight: 700; color: #34d399; margin-top: 2px; }
+            
+            .qr-code-box { width: 72px; height: 72px; background: #ffffff; padding: 4px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+            .qr-code-box svg { width: 100%; height: 100%; display: block; }
+            
+            .card-footer { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255, 255, 255, 0.15); padding-top: 6px; font-size: 8.5px; color: #94a3b8; font-family: monospace; }
+            
+            .card-body-back { display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 6px 0; }
+            .barcode-wrapper { width: 100%; background: #ffffff; padding: 8px 12px 4px 12px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+            .barcode-wrapper svg { width: 100%; max-width: 320px; height: 48px; display: block; }
+            .rules-notice { font-size: 8px; color: #94a3b8; text-align: center; line-height: 1.3; margin-top: 4px; }
           </style>
         </head>
         <body>
-          <div class="card-container">
-            <div class="card-header">
-              <div class="univ-title">🎓 UNIVERSITY CENTRAL LIBRARY</div>
-              <div class="card-title">DIGITAL MEMBER ID PASS</div>
-            </div>
-            <div class="card-body">
-              <img src="${formData.avatarUrl}" class="avatar" alt="${formData.name}" />
-              <div class="info">
-                <h2 class="name">${formData.name}</h2>
-                <span class="role">${user?.role || 'MEMBER'}</span>
-                <div class="detail-line">Card No: <strong style="font-family: monospace; color: #f59e0b;">${cardNo}</strong></div>
-                <div class="detail-line">Department: <strong>${formData.department}</strong></div>
-                <div class="detail-line">Valid Thru: <strong>DEC 2028</strong></div>
+          <div class="no-print page-title">
+            <button onclick="window.print()" class="print-btn">🖨️ Print Digital Library Pass (Front & Back)</button>
+          </div>
+          
+          <div class="cards-container">
+            <!-- FRONT SIDE -->
+            <div class="id-card">
+              <div class="card-header">
+                <div>
+                  <div class="univ-name">University Central Library</div>
+                  <div class="pass-subtitle">Official Student / Member Pass</div>
+                </div>
+                <div class="role-badge">${user?.role || 'MEMBER'}</div>
+              </div>
+              
+              <div class="card-body-front">
+                <img src="${formData.avatarUrl}" class="avatar-photo" alt="${formData.name}" />
+                <div class="member-details">
+                  <h3 class="member-name">${formData.name}</h3>
+                  <div class="card-no">${cardNo}</div>
+                  <div class="dept-text">Dept: ${formData.department}</div>
+                  <div class="status-pill">● ACTIVE MEMBER</div>
+                </div>
+                <div class="qr-code-box">
+                  ${qrSvg}
+                </div>
+              </div>
+              
+              <div class="card-footer">
+                <span>Issued: ${currentMember?.registeredDate || '2026-01-15'}</span>
+                <span>Valid Thru: DEC 2028</span>
+                <span style="color: #f59e0b; font-weight: bold;">SECURITY VERIFIED</span>
               </div>
             </div>
-            <div class="card-footer">
-              <div class="barcode-box">${barcodeSvgString}</div>
-              <div class="qr-box">${qrSvgString}</div>
+
+            <!-- BACK SIDE -->
+            <div class="id-card">
+              <div class="card-header">
+                <div class="univ-name" style="color: #f59e0b;">BARCODE & TURNSTILE ACCESS</div>
+                <div class="card-no" style="font-size: 11px; margin: 0;">${cardNo}</div>
+              </div>
+              
+              <div class="card-body-back">
+                <div class="barcode-wrapper">
+                  ${barcodeSvg}
+                </div>
+              </div>
+              
+              <div class="rules-notice">
+                • Present card at library turnstiles, borrowing counters, and RFID gates.<br/>
+                • Non-transferable official pass. Max Quota: ${currentMember?.maxAllowedBooks || 5} Books.
+              </div>
+              
+              <div class="card-footer" style="padding-top: 4px;">
+                <span>Library System v2.4</span>
+                <span>Help: library@university.edu</span>
+              </div>
             </div>
           </div>
-          <div class="notice">Official Digital Library Pass • University Library Management System</div>
+
           <script>
             window.onload = function() {
-              setTimeout(function() { window.print(); }, 400);
+              setTimeout(function() { window.print(); }, 300);
             };
           </script>
         </body>
