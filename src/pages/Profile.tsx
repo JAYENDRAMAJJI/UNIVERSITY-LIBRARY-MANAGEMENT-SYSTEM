@@ -13,6 +13,7 @@ import {
   LogOut,
   Sparkles,
   Printer,
+  Download,
   Copy,
   Check,
   RotateCw,
@@ -87,6 +88,15 @@ export default function Profile() {
     setToastMessage(`Library Card Number (${cardNo}) copied to clipboard!`);
     setTimeout(() => setCopiedCard(false), 2000);
     setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleExportProfileReport = () => {
+    const targetId = currentMember?.id || user?.email || cardNo;
+    const res = libraryStore.exportMemberCompleteProfileReportCSV(targetId);
+    if (res.success) {
+      setToastMessage(res.message);
+      setTimeout(() => setToastMessage(null), 5000);
+    }
   };
 
   const handleSaveProfile = (e: React.FormEvent) => {
@@ -279,6 +289,12 @@ export default function Profile() {
 
         <div className="relative z-10 hidden sm:flex items-center gap-3">
           <button
+            onClick={handleExportProfileReport}
+            className="px-4 py-2.5 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold transition-all flex items-center gap-2 shadow-md cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-blue-600" /> Export Profile Activity (CSV)
+          </button>
+          <button
             onClick={handlePrintLibraryCard}
             className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white backdrop-blur-md transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
@@ -324,7 +340,13 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100">
+          <div className="pt-4 border-t border-slate-100 space-y-2">
+            <button
+              onClick={handleExportProfileReport}
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-white" /> Export Activity Dossier (CSV)
+            </button>
             <button
               onClick={() => {
                 logout();

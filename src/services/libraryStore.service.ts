@@ -4512,6 +4512,148 @@ class LibraryStoreService {
     return { success: true, filename: `University_Library_Attendance_Report_${dateStr}.csv` };
   }
 
+  public exportMemberCompleteProfileReportCSV(memberIdOrCardNoOrEmail: string): { success: boolean; filename: string; message: string } {
+    const current = this.snapshot;
+    const term = (memberIdOrCardNoOrEmail || '').trim().toLowerCase();
+    const dateStr = getLocalDateStr(new Date());
+
+    const member = current.members.find(
+      (m) =>
+        m.id.toLowerCase() === term ||
+        m.memberCardNo.toLowerCase() === term ||
+        m.email.toLowerCase() === term ||
+        m.name.toLowerCase() === term
+    ) || current.members[0];
+
+    if (!member) {
+      return { success: false, filename: '', message: 'Member profile not found for export.' };
+    }
+
+    const uEmail = member.email.toLowerCase();
+    const uCard = member.memberCardNo.toLowerCase();
+    const uName = member.name.toLowerCase();
+    const mId = member.id;
+
+    // Filter Borrowing Transactions
+    const memberTransactions = (current.transactions || []).filter((t) => {
+      const matchId = t.memberId === mId;
+      const matchCard = Boolean(t.memberCardNo && t.memberCardNo.toLowerCase() === uCard);
+      const matchName = Boolean(t.memberName && t.memberName.toLowerCase() === uName);
+      const matchEmail = Boolean(uEmail && (t.memberCardNo.toLowerCase() === uEmail || (t as any).email?.toLowerCase() === uEmail));
+      return matchId || matchCard || matchName || matchEmail;
+    });
+
+    // Filter Attendance Records
+    const memberAttendance = (current.attendanceRecords || []).filter((r) => {
+      const matchId = r.memberId === mId;
+      const matchCard = Boolean(r.memberCardNo && r.memberCardNo.toLowerCase() === uCard);
+      const matchName = Boolean(r.memberName && r.memberName.toLowerCase() === uName);
+      const matchEmail = Boolean(r.email && r.email.toLowerCase() === uEmail);
+      return matchId || matchCard || matchName || matchEmail;
+    });
+
+    // Filter Fines
+    const memberFines = (current.fines || []).filter((f) => {
+      const matchId = f.memberId === mId;
+      const matchCard = Boolean(f.memberCardNo && f.memberCardNo.toLowerCase() === uCard);
+      const matchName = Boolean(f.memberName && f.memberName.toLowerCase() === uName);
+      return matchId || matchCard || matchName;
+    });
+
+    const activeLoansCount = memberTransactions.filter((t) => t.status === 'ISSUED' || t.status === 'OVERDUE').length;
+    const returnedCount = memberTransactions.filter((t) => t.status === 'RETURNED').length;
+    const overdueCount = memberTransactions.filter((t) => t.status === 'OVERDUE').length;
+    const totalFinesAccrued = memberFines.reduce((sum, f) => sum + (f.amount || 0), 0);
+    const unpaidFinesSum = memberFines.filter((f) => f.status === 'UNPAID').reduce((sum, f) => sum + (f.amount || 0), 0);
+
+    let csv = '';
+    csv += '========================================================================================\n';
+    csv += `UNIVERSITY CENTRAL LIBRARY - COMPLETE MEMBER PROFILE & ACTIVITY DOSSIER REPORT\n`;
+    csv += '========================================================================================\n';
+    csv += `Report Generated Date,${dateStr}\n`;
+    csv += `Member Card ID,${member.memberCardNo}\n`;
+    csv += `Full Name,"${member.name}"\n`;
+    csv += `Account Role,${member.role}\n`;
+    csv += `Department,"${member.department || 'General Academic'}"\n`;
+    csv += `Institutional Email,${member.email}\n`;
+    csv += `Phone Number,${member.phone || '+91 98765 43210'}\n`;
+    csv += `Account Status,${member.status}\n`;
+    csv += `Registration Date,${member.registeredDate || '2026-01-15'}\n\n`;
+
+    csv += '--- 1. PROFILE ACCOUNT PRIVILEGES & METRICS SUMMARY ---\n';
+    csv += `Max Borrowing Books Quota,${member.maxAllowedBooks}\n`;
+    csv += `Current Active Loans,${activeLoansCount}\n`;
+    csv += `Total Books Borrowed All Time,${memberTransactions.length}\n`;
+    csv += `Returned Circulations,${returnedCount}\n`;
+    csv += `Overdue Circulations,${overdueCount}\n`;
+    csv += `Total Attendance Check-In Visits,${memberAttendance.length}\n`;
+    csv += `Total Fines Accrued (INR),INR ${totalFinesAccrued.toFixed(2)}\n`;
+    csv += `Outstanding Unpaid Fine Balance (INR),INR ${unpaidFinesSum.toFixed(2)}\n\n`;
+
+    csv += '--- 2. BOOK BORROWING & CIRCULATION HISTORY LOGS ---\n';
+    csv += 'Transaction ID,Book Title,Accession No,Barcode,Issue Date,Due Date,Return Date,Duration (Days),Fine Amount (INR),Status\n';
+
+    if (memberTransactions.length === 0) {
+      csv += 'No borrowing records found for this member account.\n';
+    } else {
+      memberTransactions.forEach((t) => {
+        const start = new Date(t.issueDate);
+        const end = t.returnDate ? new Date(t.returnDate) : new Date();
+        const durationDays = Math.max(1, Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+        csv += `"${t.id}","${(t.bookTitle || '').replace(/"/g, '""')}","${t.accessionNo}","${t.barcode}","${t.issueDate}","${t.dueDate}","${t.returnDate || 'IN PROGRESS'}","${durationDays}","INR ${(t.fineAmount || 0).toFixed(2)}","${t.status}"\n`;
+      });
+    }
+    csv += '\n';
+
+    csv += '--- 3. LIBRARY ATTENDANCE & VISITOR CHECK-IN LOGS ---\n';
+    csv += 'Attendance ID,Check-In Time,Check-Out Time,Duration (Mins),Status,Visit Purpose,Entrance Gate,Checked In By,Date\n';
+
+    if (memberAttendance.length === 0) {
+      csv += 'No attendance check-in records found for this member account.\n';
+    } else {
+      memberAttendance.forEach((a) => {
+        csv += `"${a.id}","${a.checkInTime}","${a.checkOutTime || 'IN PROGRESS'}","${a.durationMinutes || 0}","${a.status}","${a.purposeOfVisit || 'GENERAL_READING'}","${(a.entryGate || 'Main Gate').replace(/"/g, '""')}","${a.checkedInBy || 'Desk'}","${a.date}"\n`;
+      });
+    }
+    csv += '\n';
+
+    csv += '--- 4. FINANCIAL FINE TRANSACTIONS & PAYMENT LEDGER ---\n';
+    csv += 'Fine ID,Reason / Violation,Amount (INR),Assessed Date,Payment Status,Payment Date,Payment Method\n';
+
+    if (memberFines.length === 0) {
+      csv += 'No financial fine records on file for this member account.\n';
+    } else {
+      memberFines.forEach((f) => {
+        csv += `"${f.id}","${(f.reason || 'Late Book Return').replace(/"/g, '""')}","INR ${(f.amount || 0).toFixed(2)}","${f.issuedDate || f.date || 'N/A'}","${f.status}","${f.paidDate || 'N/A'}","${f.paymentMethod || 'N/A'}"\n`;
+      });
+    }
+
+    const filename = `Member_Profile_Report_${member.memberCardNo}_${dateStr}.csv`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    this.addAuditLog(
+      member.id,
+      member.name,
+      member.role,
+      'EXPORT_MEMBER_PROFILE_DOSSIER',
+      'PROFILE_MODULE',
+      `Exported complete consolidated profile dossier (Borrowing history, attendance logs, fines) to CSV`
+    );
+
+    return {
+      success: true,
+      filename,
+      message: `Successfully exported complete profile report for ${member.name} (${member.memberCardNo})!`,
+    };
+  }
+
   public restoreFromBackup(backupData: StateSchema) {
     this.state$.next(backupData);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(backupData));

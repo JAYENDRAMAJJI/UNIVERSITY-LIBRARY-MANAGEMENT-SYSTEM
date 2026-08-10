@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Search, CreditCard, Printer, CheckCircle, Shield, AlertTriangle, UserPlus, RotateCw, Barcode, BookOpen } from 'lucide-react';
+import { Users, Search, CreditCard, Printer, Download, CheckCircle, Shield, AlertTriangle, UserPlus, RotateCw, Barcode, BookOpen } from 'lucide-react';
 import { libraryStore } from '../../services/libraryStore.service';
 import { MemberProfile } from '../../types/library';
 import RegisterAccountModal from '../../components/common/RegisterAccountModal';
@@ -257,15 +257,23 @@ export default function MembersManagement() {
               </div>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex items-center gap-2">
               <button
                 onClick={() => {
                   setSelectedCardModal(member);
                   setCardSide('front');
                 }}
-                className="w-full py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-800 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-800 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <CreditCard className="h-4 w-4 text-blue-600" /> Digital Library Card
+                <CreditCard className="h-4 w-4 text-blue-600" /> Digital Card
+              </button>
+
+              <button
+                onClick={() => libraryStore.exportMemberCompleteProfileReportCSV(member.id)}
+                className="p-2.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-all cursor-pointer flex items-center justify-center"
+                title="Export Complete Member Activity Report (CSV)"
+              >
+                <Download className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -359,17 +367,26 @@ export default function MembersManagement() {
             <div className="flex items-center justify-between gap-2 pt-2">
               <button
                 onClick={() => setCardSide(cardSide === 'front' ? 'back' : 'front')}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+                className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <RotateCw className="h-3.5 w-3.5 text-blue-600" /> Flip to {cardSide === 'front' ? 'Back (Barcode)' : 'Front (QR Code)'}
+                <RotateCw className="h-3.5 w-3.5 text-blue-600" /> Flip Pass
               </button>
 
-              <button
-                onClick={() => handlePrintMemberCard(selectedCardModal)}
-                className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <Printer className="h-4 w-4" /> Print Pass
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => libraryStore.exportMemberCompleteProfileReportCSV(selectedCardModal.id)}
+                  className="px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="h-3.5 w-3.5 text-blue-600" /> Export CSV
+                </button>
+
+                <button
+                  onClick={() => handlePrintMemberCard(selectedCardModal)}
+                  className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Printer className="h-4 w-4" /> Print Pass
+                </button>
+              </div>
             </div>
           </div>
         </div>
