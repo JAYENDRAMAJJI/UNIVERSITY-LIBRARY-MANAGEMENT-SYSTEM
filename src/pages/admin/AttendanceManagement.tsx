@@ -481,30 +481,6 @@ export default function AttendanceManagement() {
             </button>
           </div>
         </div>
-
-        {/* Bottom Integrated Building & Schedule Bar */}
-        <div className="pt-5 border-t border-white/10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 relative z-10">
-          <div className="flex items-center gap-3.5 flex-wrap sm:flex-nowrap">
-            <div className="p-2.5 rounded-2xl bg-blue-500/20 text-blue-300 border border-blue-400/30 shrink-0">
-              <Building2 className="w-5 h-5 text-blue-400" />
-            </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-slate-200">
-              <span className="font-extrabold text-white text-sm sm:text-base font-poppins">Central University Library Building</span>
-              <span className="text-xs font-extrabold px-3 py-1 rounded-lg bg-blue-500/25 text-blue-200 border border-blue-400/30 shadow-xs">
-                Academic Block A, Ground Floor
-              </span>
-              <span className="text-white/40 hidden sm:inline">•</span>
-              <span className="text-xs sm:text-sm font-semibold text-slate-200">
-                Operating Hours: Mon – Sat (8:00 AM – 10:00 PM) | Closed on National Holidays
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-300 shrink-0 font-medium bg-white/5 px-4 py-2 rounded-2xl border border-white/10 shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <span>Auto Check-Out Scheduler: <strong className="text-white font-bold">Active at 10:00 PM Closing</strong></span>
-          </div>
-        </div>
       </div>
 
 
