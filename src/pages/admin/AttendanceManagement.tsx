@@ -409,9 +409,11 @@ export default function AttendanceManagement() {
             <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-blue-300 bg-white/10 px-3.5 py-1 rounded-full">
               <UserCheck className="h-4 w-4" /> University Library Attendance Portal
             </div>
-            <div className="inline-flex items-center gap-2 text-xs font-mono font-bold text-amber-300 bg-white/10 px-3.5 py-1.5 rounded-full border border-amber-300/20 shadow-xs">
-              <Clock className="h-3.5 w-3.5 text-amber-400" />
-              <span>{nowClock.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })} ({nowClock.toLocaleTimeString()})</span>
+            <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-100 bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15 shadow-sm">
+              <Clock className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <span>{nowClock.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              <span className="text-white/40">•</span>
+              <span className="font-bold text-amber-300 font-mono tracking-wide">{nowClock.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}</span>
             </div>
           </div>
           <h1 className="text-2xl sm:text-3xl xl:text-4xl font-extrabold font-poppins tracking-tight">
@@ -486,14 +488,19 @@ export default function AttendanceManagement() {
             </span>
           </div>
           {operatingStatus.isOpen ? (
-            <div className="px-4 py-2 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-2 text-xs font-extrabold">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-              <span>🟢 LIBRARY OPEN NOW</span>
+            <div className="px-4 py-2.5 rounded-2xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 flex items-center gap-2.5 text-xs font-extrabold shadow-sm">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="tracking-wide uppercase">LIBRARY OPEN NOW</span>
             </div>
           ) : (
-            <div className="px-4 py-2 rounded-2xl bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-2 text-xs font-extrabold">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
-              <span>🔴 LIBRARY CLOSED ({operatingStatus.statusText})</span>
+            <div className="px-4 py-2.5 rounded-2xl bg-rose-500/10 text-rose-300 border border-rose-500/30 flex items-center gap-2.5 text-xs font-extrabold shadow-sm">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+              </span>
+              <span className="tracking-wide uppercase">LIBRARY CLOSED ({operatingStatus.statusText})</span>
             </div>
           )}
         </div>
