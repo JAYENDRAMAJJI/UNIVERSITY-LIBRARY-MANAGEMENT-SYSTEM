@@ -4748,7 +4748,7 @@ class LibraryStoreService {
       csv += 'No financial fine records on file for this member account.\n';
     } else {
       memberFines.forEach((f) => {
-        csv += `"${f.id}","${(f.reason || 'Late Book Return').replace(/"/g, '""')}","INR ${(f.amount || 0).toFixed(2)}","${f.issuedDate || f.date || 'N/A'}","${f.status}","${f.paidDate || 'N/A'}","${f.paymentMethod || 'N/A'}"\n`;
+        csv += `"${f.id}","${(f.reason || 'Late Book Return').replace(/"/g, '""')}","INR ${(f.amount || 0).toFixed(2)}","${f.createdDate || 'N/A'}","${f.status}","${f.paidDate || 'N/A'}","${f.receiptNo || 'DESK_PAYMENT'}"\n`;
       });
     }
 
@@ -4871,10 +4871,10 @@ class LibraryStoreService {
           <tr>
             <td>${f.reason || 'Late Book Return'}</td>
             <td><strong>₹${(f.amount || 0).toFixed(2)}</strong></td>
-            <td>${f.issuedDate || f.date || 'N/A'}</td>
+            <td>${f.createdDate || 'N/A'}</td>
             <td><span style="background:${f.status === 'PAID' ? '#dcfce7' : '#ffe4e6'}; color:${f.status === 'PAID' ? '#166534' : '#991b1b'}; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:10px;">${f.status}</span></td>
             <td>${f.paidDate || 'N/A'}</td>
-            <td>${f.paymentMethod || 'N/A'}</td>
+            <td>${f.receiptNo || 'DESK_PAYMENT'}</td>
           </tr>
         `).join('');
 
