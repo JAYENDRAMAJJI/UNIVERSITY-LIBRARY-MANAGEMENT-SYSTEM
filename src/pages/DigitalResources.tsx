@@ -334,7 +334,7 @@ ${350 + streamLength}
     { type: 'SYLLABUS', label: 'Syllabus', icon: FileCode },
     { type: 'LECTURE_NOTES', label: 'Lecture Notes', icon: FileText },
     { type: 'RESEARCH_PAPER', label: 'Research Papers', icon: Sparkles },
-    { type: 'THESIS_DISSERTATION', label: 'Thesis & Dissertation', icon: Award },
+    { type: 'THESIS_DISSERTATION', label: 'Research & Academic Theses', icon: Award },
     { type: 'PROJECT_REPORT', label: 'Project Reports', icon: Database },
     { type: 'FACULTY_PUBLICATION', label: 'Faculty Publications', icon: GraduationCap },
     { type: 'MAGAZINE', label: 'Digital Magazines', icon: BookMarked },
@@ -360,14 +360,14 @@ ${350 + streamLength}
         <div className="relative z-10 space-y-3 max-w-3xl">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-purple-300 bg-white/10 px-3.5 py-1 rounded-full">
-              <Sparkles className="h-4 w-4 text-purple-400" /> Enterprise Digital Library Vault
+              <Sparkles className="h-4 w-4 text-purple-400" /> Digital Resource Hub & Control
             </span>
             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 bg-emerald-500/20 px-3 py-1 rounded-full border border-emerald-500/30">
               <Globe className="h-3.5 w-3.5 text-emerald-400" /> Open & Subscribed Access
             </span>
           </div>
           <h1 className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-poppins tracking-tight text-white leading-tight">
-            Institutional Digital Library & Learning Repositories
+            Digital Resource Hub & Learning Repositories
           </h1>
           <p className="text-purple-200 text-xs sm:text-sm leading-relaxed max-w-2xl">
             20+ integrated digital asset modules including IEEE Xplore, ACM, SpringerLink, ScienceDirect, NPTEL, SWAYAM, NDLI, daily e-newspapers, question banks, and faculty research thesis.
@@ -773,7 +773,7 @@ ${350 + streamLength}
                       <option value="LECTURE_NOTES">Lecture Notes</option>
                       <option value="QUESTION_PAPER">Question Paper</option>
                       <option value="EBOOK">E-Book</option>
-                      <option value="THESIS_DISSERTATION">Thesis & Dissertation</option>
+                      <option value="THESIS_DISSERTATION">Research & Academic Theses</option>
                       <option value="PROJECT_REPORT">Project Report</option>
                       <option value="JOURNAL">E-Journal</option>
                       <option value="NEWSPAPER">Digital Newspaper</option>

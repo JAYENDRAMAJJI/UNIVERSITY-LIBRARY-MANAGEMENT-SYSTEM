@@ -41,6 +41,7 @@ export default function BookBorrowHistoryModal({
   const [storeState, setStoreState] = useState(libraryStore.snapshot);
   const [selectedBookId, setSelectedBookId] = useState<string>(initialBookId || '');
   const [searchTerm, setSearchTerm] = useState('');
+  const [nameSearchTerm, setNameSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'CURRENT' | 'RETURNED' | 'OVERDUE' | 'LOST'>('ALL');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'STUDENT' | 'FACULTY'>('ALL');
   const [startDate, setStartDate] = useState('');
@@ -169,6 +170,14 @@ export default function BookBorrowHistoryModal({
           record.accessionNo.toLowerCase().includes(term) ||
           record.barcode.toLowerCase().includes(term);
 
+        // Dedicated Search by Borrower Name
+        const nameTerm = nameSearchTerm.toLowerCase().trim();
+        const matchesNameSearch =
+          !nameTerm ||
+          record.memberName.toLowerCase().includes(nameTerm) ||
+          record.memberCardNo.toLowerCase().includes(nameTerm) ||
+          (record.issuedByName && record.issuedByName.toLowerCase().includes(nameTerm));
+
         // Status Filter
         let matchesStatus = true;
         if (statusFilter === 'CURRENT') {
@@ -192,17 +201,17 @@ export default function BookBorrowHistoryModal({
         const issueTime = new Date(record.issueDate).getTime();
         if (startDate) {
           const startTime = new Date(startDate).getTime();
-          if (issueTime < startTime) matchesDate = false;
+          matchesDate = matchesDate && issueTime >= startTime;
         }
         if (endDate) {
-          const endTime = new Date(endDate + 'T23:59:59').getTime();
-          if (issueTime > endTime) matchesDate = false;
+          const endTime = new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1);
+          matchesDate = matchesDate && issueTime <= endTime;
         }
 
-        return matchesSearch && matchesStatus && matchesRole && matchesDate;
+        return matchesSearch && matchesNameSearch && matchesStatus && matchesRole && matchesDate;
       })
       .sort((a, b) => new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime());
-  }, [bookTransactions, searchTerm, statusFilter, roleFilter, startDate, endDate]);
+  }, [bookTransactions, searchTerm, nameSearchTerm, statusFilter, roleFilter, startDate, endDate]);
 
   // Reset to page 1 on filter change
   useEffect(() => {
@@ -609,25 +618,23 @@ export default function BookBorrowHistoryModal({
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* Search, Filter & Date Controls */}
+          </div>          {/* Search, Filter & Date Controls */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {/* Search Bar */}
-              <div className="lg:col-span-2 relative">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+              {/* Single Combined Unified Search Bar */}
+              <div className="lg:col-span-7 relative">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search by Book ID, Title, User ID, Name..."
+                  placeholder="Search by Book Name, Borrower Name, Book ID, Member ID, Card No, Barcode..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
+                  className="w-full pl-10 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all placeholder:text-slate-400"
                 />
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
                   >
                     &times;
                   </button>
@@ -635,7 +642,7 @@ export default function BookBorrowHistoryModal({
               </div>
 
               {/* Status Filter */}
-              <div>
+              <div className="lg:col-span-3">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as any)}
@@ -649,30 +656,19 @@ export default function BookBorrowHistoryModal({
                 </select>
               </div>
 
-              {/* User Role Filter */}
-              <div>
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value as any)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
-                >
-                  <option value="ALL">All Member Roles</option>
-                  <option value="STUDENT">Student Only</option>
-                  <option value="FACULTY">Faculty Only</option>
-                </select>
-              </div>
-
               {/* Reset Filters */}
-              <div className="flex items-center gap-2">
+              <div className="lg:col-span-2 flex items-center">
                 <button
+                  type="button"
                   onClick={() => {
                     setSearchTerm('');
+                    setNameSearchTerm('');
                     setStatusFilter('ALL');
                     setRoleFilter('ALL');
                     setStartDate('');
                     setEndDate('');
                   }}
-                  className="w-full px-3 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  className="w-full px-3 py-2 bg-slate-100 text-slate-700 hover:bg-rose-50 hover:text-rose-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
                   <RotateCcw className="h-3.5 w-3.5" /> Reset Filters
                 </button>
@@ -817,7 +813,7 @@ export default function BookBorrowHistoryModal({
                         {/* Status */}
                         <td className="py-3.5 px-4 text-center">
                           <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase border ${
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase border whitespace-nowrap ${
                               tx.status === 'RETURNED'
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 : tx.status === 'OVERDUE'

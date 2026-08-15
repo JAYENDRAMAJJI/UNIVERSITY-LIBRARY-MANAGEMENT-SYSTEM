@@ -11,6 +11,7 @@ export interface User {
   phone?: string;
   avatarUrl?: string;
   department?: string;
+  memberCardNo?: string;
 }
 
 export type BookStatus = 'AVAILABLE' | 'ISSUED' | 'RESERVED' | 'MAINTENANCE' | 'LOST' | 'DISPOSED';

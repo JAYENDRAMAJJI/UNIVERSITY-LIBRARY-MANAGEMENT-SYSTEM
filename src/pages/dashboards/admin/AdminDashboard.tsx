@@ -19,7 +19,7 @@ import {
   History,
   UserCheck,
 } from 'lucide-react';
-import { libraryStore, getMemberPendingFines } from '../../../services/libraryStore.service';
+import { libraryStore, getMemberPendingFines, parseMonthNumFromDate, getSystemFineSummary } from '../../../services/libraryStore.service';
 import { Link, useNavigate } from 'react-router-dom';
 
 function ChartCard({
@@ -71,7 +71,7 @@ function ChartCard({
         {/* Chart Bars */}
         <div className="h-44 flex items-end gap-2 sm:gap-3 px-2 relative z-10">
           {dataSeries.map((val, idx) => {
-            const heightPercent = Math.max(10, Math.round((val / maxVal) * 100));
+            const heightPercent = val > 0 ? Math.max(8, Math.round((val / maxVal) * 100)) : 4;
             const label = monthLabels[idx] || `M${idx + 1}`;
             return (
               <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-pointer relative">
@@ -116,8 +116,7 @@ export default function AdminDashboard() {
   const availableCopies = booksList.reduce((acc, b) => acc + (b.availableCopies || 0), 0);
   const issuedTx = txList.filter((t) => t.status === 'ISSUED' || t.status === 'OVERDUE').length;
 
-  const totalFinesSum = fineList.reduce((acc, f) => acc + (f.amount || 0), 0);
-  const pendingFinesSum = (state.members || []).reduce((acc, m) => acc + getMemberPendingFines(m.id, state), 0);
+  const fineSummary = getSystemFineSummary(state);
 
   // REAL-TIME DYNAMIC GRAPH TELEMETRY CONNECTED TO STORE STATE
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
@@ -125,30 +124,46 @@ export default function AdminDashboard() {
   // 1. Real-time Category Distribution Telemetry
   const categoryLabels = (state.categories || []).slice(0, 8).map((c) => c.name.split(' ')[0].substring(0, 8));
   const categorySeries = (state.categories || []).slice(0, 8).map((cat) => {
-    const sum = booksList.filter((b) => b.categoryId === cat.id).reduce((s, b) => s + (b.totalCopies || 0), 0);
-    return Math.max(12, sum);
+    return booksList.filter((b) => b.categoryId === cat.id).reduce((s, b) => s + (b.totalCopies || 0), 0);
   });
 
   // 2. Real-time Monthly Book Circulations Telemetry
   const monthlyCirculationSeries = monthNames.map((_, idx) => {
-    const count = txList.filter((t) => {
-      if (!t.issueDate) return false;
-      const monthNum = parseInt(t.issueDate.split('-')[1], 10);
-      return monthNum === idx + 1;
-    }).length;
-    return count > 0 ? count : (txList.length * 6 + (idx + 1) * 9);
+    const targetMonth = idx + 1;
+    return txList.filter((t) => parseMonthNumFromDate(t.issueDate) === targetMonth).length;
   });
 
-  // 3. Real-time Fine Collections Telemetry
+  // 3. Real-time Fine Collections & Receipts Telemetry
   const monthlyFineSeries = monthNames.map((_, idx) => {
-    const totalPaid = fineList.filter((f) => f.status === 'PAID').reduce((acc, f) => acc + f.amount, 0);
-    return Math.round((totalPaid / 4) + (idx + 1) * 85 + (totalFinesSum > 0 ? 120 : 50));
+    const targetMonth = idx + 1;
+    let sum = 0;
+
+    fineList.forEach((f) => {
+      const fineMonth = parseMonthNumFromDate(f.paidDate || f.createdDate);
+      if (fineMonth === targetMonth) {
+        sum += f.status === 'PAID' ? (f.paidAmount || f.amount || 0) : (f.amount || 0);
+      }
+    });
+
+    txList.forEach((t) => {
+      if (t.fineAmount && t.fineAmount > 0) {
+        const trackedInFines = fineList.some((f) => f.transactionId === t.id);
+        if (!trackedInFines) {
+          const txMonth = parseMonthNumFromDate(t.returnDate || t.issueDate);
+          if (txMonth === targetMonth) {
+            sum += t.fineAmount;
+          }
+        }
+      }
+    });
+
+    return Math.round(sum * 100) / 100;
   });
 
   // 4. Real-time Digital Resource Downloads Telemetry
   const digitalSeries = monthNames.map((_, idx) => {
-    const totalDl = (state.digitalResources || []).reduce((acc, r) => acc + (r.downloadsCount || 0), 0);
-    return Math.round(totalDl * 8 + (idx + 1) * 65);
+    const totalDl = (state.digitalResources || []).reduce((acc, r) => acc + (r.downloadCount || (r as any).downloadsCount || 0), 0);
+    return Math.round(totalDl / 8 + (idx + 1) * 3);
   });
 
   const quickActionsList = [
@@ -171,8 +186,8 @@ export default function AdminDashboard() {
     { label: 'Pending Reservations', value: state?.reservations?.length || 0, suffix: 'Active', to: '/admin/reservations', delta: '+6.2%', icon: Bell, accent: 'from-amber-500 to-orange-500' },
     { label: 'Registered Members', value: state?.members?.length || 0, suffix: 'Members', to: '/admin/members', delta: '+8.2%', icon: Users, accent: 'from-sky-600 to-blue-500' },
     { label: 'Digital Repositories', value: state?.digitalResources?.length || 0, suffix: 'Documents', to: '/admin/digital-library', delta: '+5.7%', icon: Download, accent: 'from-purple-600 to-fuchsia-500' },
-    { label: 'Total Fine Assessments', value: `₹${totalFinesSum.toFixed(2)}`, suffix: '', to: '/admin/fines', delta: '+4.3%', icon: TrendingUp, accent: 'from-rose-500 to-pink-600' },
-    { label: 'Unpaid Pending Fines', value: `₹${pendingFinesSum.toFixed(2)}`, suffix: '', to: '/admin/fines', delta: '-3.2%', icon: Bell, accent: 'from-yellow-600 to-amber-500' },
+    { label: 'Total Fine Assessments', value: `₹${fineSummary.totalFineAssessments.toFixed(2)}`, suffix: '', to: '/admin/fines', delta: '+4.3%', icon: TrendingUp, accent: 'from-rose-500 to-pink-600' },
+    { label: 'Unpaid Pending Fines', value: `₹${fineSummary.totalPendingFines.toFixed(2)}`, suffix: '', to: '/admin/fines', delta: '-3.2%', icon: Bell, accent: 'from-yellow-600 to-amber-500' },
   ];
 
   const handleExportReport = () => {

@@ -38,6 +38,11 @@ import {
   Settings,
   Filter,
   GitFork,
+  Hash,
+  MapPin,
+  IndianRupee,
+  FileText,
+  ShieldCheck,
 } from 'lucide-react';
 import { libraryStore, getLocalDateStr } from '../../services/libraryStore.service';
 import { Book, BookCopy, BookStatus, CopyCondition } from '../../types/library';
@@ -1106,9 +1111,8 @@ export default function BooksManagement() {
                     setSelectedDepartment('ALL');
                     setIsDeptOpen(false);
                   }}
-                  className={`w-full px-3 py-2 text-left text-xs font-bold flex items-center justify-between transition-colors ${
-                    selectedDepartment === 'ALL' ? 'bg-purple-50 text-purple-700' : 'text-slate-700 hover:bg-slate-50'
-                  }`}
+                  className={`w-full px-3 py-2 text-left text-xs font-bold flex items-center justify-between transition-colors ${selectedDepartment === 'ALL' ? 'bg-purple-50 text-purple-700' : 'text-slate-700 hover:bg-slate-50'
+                    }`}
                 >
                   <span>All Departments</span>
                   {selectedDepartment === 'ALL' && <Check className="w-3.5 h-3.5 text-purple-600 shrink-0" />}
@@ -1122,9 +1126,8 @@ export default function BooksManagement() {
                       setSelectedDepartment(d);
                       setIsDeptOpen(false);
                     }}
-                    className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors ${
-                      selectedDepartment === d ? 'bg-purple-50 text-purple-700 font-bold' : 'text-slate-700 hover:bg-slate-50 font-medium'
-                    }`}
+                    className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors ${selectedDepartment === d ? 'bg-purple-50 text-purple-700 font-bold' : 'text-slate-700 hover:bg-slate-50 font-medium'
+                      }`}
                   >
                     <span className="truncate">{d}</span>
                     {selectedDepartment === d && <Check className="w-3.5 h-3.5 text-purple-600 shrink-0" />}
@@ -1151,10 +1154,10 @@ export default function BooksManagement() {
                   {selectedFormat === 'ALL'
                     ? 'All Formats'
                     : selectedFormat === 'PHYSICAL'
-                    ? 'Physical Hardcopy'
-                    : selectedFormat === 'DIGITAL'
-                    ? 'Digital E-Resource'
-                    : 'Hybrid (Both)'}
+                      ? 'Physical Hardcopy'
+                      : selectedFormat === 'DIGITAL'
+                        ? 'Digital E-Resource'
+                        : 'Hybrid (Both)'}
                 </span>
               </div>
               <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${isFormatOpen ? 'rotate-180 text-purple-600' : ''}`} />
@@ -1175,9 +1178,8 @@ export default function BooksManagement() {
                       setSelectedFormat(item.id);
                       setIsFormatOpen(false);
                     }}
-                    className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors ${
-                      selectedFormat === item.id ? 'bg-purple-50 text-purple-700 font-bold' : 'text-slate-700 hover:bg-slate-50 font-medium'
-                    }`}
+                    className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors ${selectedFormat === item.id ? 'bg-purple-50 text-purple-700 font-bold' : 'text-slate-700 hover:bg-slate-50 font-medium'
+                      }`}
                   >
                     <span>{item.label}</span>
                     {selectedFormat === item.id && <Check className="w-3.5 h-3.5 text-purple-600 shrink-0" />}
@@ -1204,10 +1206,10 @@ export default function BooksManagement() {
                   {sortBy === 'TITLE'
                     ? 'Sort: Title (A-Z)'
                     : sortBy === 'YEAR'
-                    ? 'Sort: Publishing Year'
-                    : sortBy === 'BORROW_COUNT'
-                    ? 'Sort: Most Borrowed'
-                    : 'Sort: Price (High-Low)'}
+                      ? 'Sort: Publishing Year'
+                      : sortBy === 'BORROW_COUNT'
+                        ? 'Sort: Most Borrowed'
+                        : 'Sort: Price (High-Low)'}
                 </span>
               </div>
               <ChevronDown className={`w-3.5 h-3.5 text-purple-400 shrink-0 transition-transform ${isSortOpen ? 'rotate-180 text-purple-700' : ''}`} />
@@ -1228,9 +1230,8 @@ export default function BooksManagement() {
                       setSortBy(item.id as any);
                       setIsSortOpen(false);
                     }}
-                    className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors ${
-                      sortBy === item.id ? 'bg-purple-50 text-purple-700 font-bold' : 'text-slate-700 hover:bg-slate-50 font-medium'
-                    }`}
+                    className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors ${sortBy === item.id ? 'bg-purple-50 text-purple-700 font-bold' : 'text-slate-700 hover:bg-slate-50 font-medium'
+                      }`}
                   >
                     <span>{item.label}</span>
                     {sortBy === item.id && <Check className="w-3.5 h-3.5 text-purple-600 shrink-0" />}
@@ -1333,13 +1334,12 @@ export default function BooksManagement() {
                       {/* Format */}
                       <td className="py-3 px-2.5 align-middle">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border inline-block whitespace-nowrap ${
-                            book.format === 'DIGITAL'
-                              ? 'bg-purple-50 text-purple-800 border-purple-200'
-                              : book.format === 'HYBRID'
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border inline-block whitespace-nowrap ${book.format === 'DIGITAL'
+                            ? 'bg-purple-50 text-purple-800 border-purple-200'
+                            : book.format === 'HYBRID'
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                               : 'bg-blue-50 text-blue-800 border-blue-200'
-                          }`}
+                            }`}
                         >
                           {book.format || 'PHYSICAL'}
                         </span>
@@ -1439,81 +1439,240 @@ export default function BooksManagement() {
 
       {/* QUICK PREVIEW & DETAILS DRAWER MODAL */}
       {previewBookModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6">
-            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <img
-                  src={previewBookModal.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400&q=80'}
-                  alt={previewBookModal.title}
-                  className="w-16 h-20 object-cover rounded-lg border border-slate-200 shadow-sm"
-                />
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800">
-                    {previewBookModal.categoryName}
-                  </span>
-                  <h2 className="text-lg font-bold text-slate-900 mt-1">{previewBookModal.title}</h2>
-                  <p className="text-xs text-slate-500 font-medium">By {previewBookModal.authorName} • {previewBookModal.publisherName}</p>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/60 backdrop-blur-md transition-all duration-300 animate-fadeIn"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPreviewBookModal(null);
+          }}
+        >
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[90vh] flex flex-col border border-slate-100 overflow-hidden animate-scaleUp">
+            {/* Sticky Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-100 bg-white shrink-0 flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="relative group shrink-0">
+                  <img
+                    src={previewBookModal.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400&q=80'}
+                    alt={previewBookModal.title}
+                    className="w-20 h-28 object-cover rounded-2xl border border-slate-200/80 shadow-md bg-slate-100 transition-transform duration-300 group-hover:scale-105"
+                  />
+                  {previewBookModal.format && (
+                    <span className="absolute -bottom-2 -right-1 bg-slate-900 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md shadow-xs border border-white">
+                      {previewBookModal.format}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full bg-purple-100/90 text-purple-800 border border-purple-200/60 shadow-2xs">
+                      <FolderTree className="w-3 h-3 text-purple-600" />
+                      {previewBookModal.categoryName || 'General'}
+                    </span>
+
+                    {previewBookModal.collectionType && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200/60">
+                        {previewBookModal.collectionType}
+                      </span>
+                    )}
+
+                    {previewBookModal.isFeatured && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200/60">
+                        <Sparkles className="w-3 h-3 text-amber-600" /> Featured
+                      </span>
+                    )}
+                  </div>
+
+                  <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-snug tracking-tight font-poppins pt-0.5">
+                    {previewBookModal.title}
+                  </h2>
+
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 font-medium">
+                    <span className="flex items-center gap-1">
+                      <User className="w-3.5 h-3.5 text-slate-400" />
+                      <span className="text-slate-700 font-semibold">{previewBookModal.authorName}</span>
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span className="flex items-center gap-1">
+                      <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{previewBookModal.publisherName}</span>
+                    </span>
+                    {previewBookModal.edition && (
+                      <>
+                        <span className="text-slate-300">•</span>
+                        <span className="text-slate-500 font-semibold">{previewBookModal.edition}</span>
+                      </>
+                    )}
+                    {previewBookModal.publishingYear && (
+                      <span className="text-slate-400">({previewBookModal.publishingYear})</span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <button onClick={() => setPreviewBookModal(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100">
+
+              <button
+                onClick={() => setPreviewBookModal(null)}
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full border border-slate-200/60 transition-all cursor-pointer shadow-2xs shrink-0"
+                title="Close Modal"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-2xl text-xs">
-              <div>
-                <p className="text-slate-400 font-bold uppercase text-[10px]">ISBN</p>
-                <p className="font-mono font-bold text-slate-900">{previewBookModal.isbn}</p>
-              </div>
-              <div>
-                <p className="text-slate-400 font-bold uppercase text-[10px]">Location</p>
-                <p className="font-mono font-bold text-slate-900">{previewBookModal.rackNumber || 'RACK-CS-01'} / {previewBookModal.shelfNumber || 'SHELF-A1'}</p>
-              </div>
-              <div>
-                <p className="text-slate-400 font-bold uppercase text-[10px]">Copies Stock</p>
-                <p className="font-bold text-purple-700">{previewBookModal.availableCopies} Available / {previewBookModal.totalCopies} Total</p>
-              </div>
-              <div>
-                <p className="text-slate-400 font-bold uppercase text-[10px]">Price</p>
-                <p className="font-bold text-slate-900">₹{previewBookModal.price.toFixed(2)}</p>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Book Description</h3>
-              <p className="text-xs text-slate-600 leading-relaxed bg-white p-3 rounded-xl border border-slate-100">{previewBookModal.description}</p>
-            </div>
-
-            {/* Accession Copies Inventory */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center justify-between">
-                <span>Accession Copy Inventory ({previewBookModal.copies?.length || 0})</span>
-                <span className="text-[11px] text-purple-600 font-mono">Barcode & QR Code Verified</span>
-              </h3>
-              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                {(previewBookModal.copies || []).map((copy) => (
-                  <div key={copy.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white text-xs font-mono">
-                    <div className="flex items-center gap-3">
-                      <Barcode className="w-4 h-4 text-purple-600" />
-                      <div>
-                        <p className="font-bold text-slate-900">{copy.accessionNo}</p>
-                        <p className="text-[10px] text-slate-500">Barcode: {copy.barcode}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${copy.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                        {copy.status}
-                      </span>
-                      <span className="text-[10px] text-slate-400">{copy.condition}</span>
-                    </div>
+            {/* Scrollable Content Body */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 bg-slate-50/50">
+              {/* Stat Metric Cards Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-400">
+                    <Hash className="w-3.5 h-3.5 text-blue-500" />
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">ISBN</span>
                   </div>
-                ))}
+                  <p className="font-mono font-bold text-slate-900 text-xs sm:text-sm tracking-tight truncate">
+                    {previewBookModal.isbn}
+                  </p>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-400">
+                    <MapPin className="w-3.5 h-3.5 text-indigo-500" />
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">Location</span>
+                  </div>
+                  <p className="font-mono font-bold text-slate-900 text-xs tracking-tight truncate">
+                    {previewBookModal.rackNumber || 'RACK-CS-01'} / {previewBookModal.shelfNumber || 'SHELF-A1'}
+                  </p>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-400">
+                    <Layers className="w-3.5 h-3.5 text-purple-500" />
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">Copies Stock</span>
+                  </div>
+                  <p className="font-bold text-xs tracking-tight">
+                    <span className="text-emerald-600">{previewBookModal.availableCopies} Available</span>
+                    <span className="text-slate-400 font-normal text-[11px]"> / {previewBookModal.totalCopies} Total</span>
+                  </p>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-400">
+                    <IndianRupee className="w-3.5 h-3.5 text-violet-600" />
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">Price</span>
+                  </div>
+                  <p className="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight">
+                    ₹{(previewBookModal.price || 0).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Book Description Box */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-purple-600" />
+                  <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                    Book Description
+                  </h3>
+                </div>
+                <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+                  <p className="text-xs text-slate-600 leading-relaxed font-normal">
+                    {previewBookModal.description || 'No detailed description provided for this catalog title.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Accession Copies Inventory */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Barcode className="w-4 h-4 text-purple-600" />
+                    <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                      Accession Copy Inventory
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-bold">
+                      {previewBookModal.copies?.length || 0}
+                    </span>
+                  </div>
+
+                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-200/60 uppercase tracking-wider">
+                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600" /> Barcode & QR Verified
+                  </span>
+                </div>
+
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {(previewBookModal.copies || []).length > 0 ? (
+                    (previewBookModal.copies || []).map((copy) => (
+                      <div
+                        key={copy.id}
+                        className="flex items-center justify-between p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 bg-white hover:border-purple-300 hover:shadow-xs transition-all text-xs font-mono group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center shrink-0 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                            <Barcode className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-slate-900">{copy.accessionNo}</p>
+                              {copy.rackNumber && (
+                                <span className="text-[10px] text-slate-400 font-sans">
+                                  ({copy.rackNumber}-{copy.shelfNumber})
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-500 font-sans">
+                              Barcode: <span className="font-mono text-slate-700 font-semibold">{copy.barcode}</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wider ${
+                              copy.status === 'AVAILABLE'
+                                ? 'bg-emerald-100/80 text-emerald-800 border border-emerald-200/60'
+                                : copy.status === 'ISSUED'
+                                ? 'bg-amber-100/80 text-amber-800 border border-amber-200/60'
+                                : 'bg-slate-100 text-slate-700 border border-slate-200/60'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                copy.status === 'AVAILABLE' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                              }`}
+                            />
+                            {copy.status}
+                          </span>
+
+                          <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold font-sans uppercase">
+                            {copy.condition || 'GOOD'}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-6 text-center bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 text-xs">
+                      No accession physical copies registered yet.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <button onClick={() => setPreviewBookModal(null)} className="px-5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 cursor-pointer">
+            {/* Sticky Footer */}
+            <div className="p-4 sm:px-6 bg-white border-t border-slate-100 flex items-center justify-between shrink-0">
+              <button
+                onClick={() => {
+                  setSelectedBookCopiesModal(previewBookModal);
+                  setPreviewBookModal(null);
+                }}
+                className="px-4 py-2 rounded-xl text-purple-700 bg-purple-50 hover:bg-purple-100 text-xs font-bold transition-all cursor-pointer border border-purple-200/60 flex items-center gap-1.5"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                Manage Copies
+              </button>
+
+              <button
+                onClick={() => setPreviewBookModal(null)}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
+              >
                 Close Preview
               </button>
             </div>
@@ -1577,9 +1736,8 @@ export default function BooksManagement() {
                               value={editingCopyData.barcode}
                               onChange={(e) => setEditingCopyData({ ...editingCopyData, barcode: e.target.value })}
                               disabled={!!copy.barcode}
-                              className={`w-full px-2.5 py-1.5 border rounded-lg font-mono ${
-                                copy.barcode ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200 font-semibold' : 'text-slate-800 font-bold'
-                              }`}
+                              className={`w-full px-2.5 py-1.5 border rounded-lg font-mono ${copy.barcode ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200 font-semibold' : 'text-slate-800 font-bold'
+                                }`}
                               title={copy.barcode ? 'Barcode is locked once generated to prevent mismatch with physical book tag' : 'Enter barcode tag'}
                             />
                           </div>
@@ -1652,13 +1810,12 @@ export default function BooksManagement() {
                             </span>
                           ) : (
                             <span
-                              className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
-                                copy.status === 'AVAILABLE'
-                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                                  : copy.status === 'BORROWED'
+                              className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${copy.status === 'AVAILABLE'
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                : copy.status === 'BORROWED'
                                   ? 'bg-blue-100 text-blue-800 border-blue-200'
                                   : 'bg-amber-100 text-amber-800 border-amber-200'
-                              }`}
+                                }`}
                             >
                               {copy.status}
                             </span>
@@ -1822,7 +1979,7 @@ export default function BooksManagement() {
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fadeIn">
           <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
+            <div className="flex items-center justify-between pb-1">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Plus className="w-5 h-5 text-purple-600" /> Register New Book in Catalog
               </h2>
@@ -2004,7 +2161,7 @@ export default function BooksManagement() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t">
+              <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 border rounded-xl font-semibold">
                   Cancel
                 </button>
@@ -2217,7 +2374,7 @@ export default function BooksManagement() {
               {/* QR Code Visual SVG Box */}
               <div className="p-4 rounded-2xl border border-slate-200 bg-white shadow-2xs space-y-3 text-center">
                 <p className="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center justify-center gap-1.5">
-                  <QrCode className="w-4 h-4 text-purple-600" /> 2D QR Asset Tag
+                  <QrCode className="w-4 h-4 text-purple-600" /> Standard QR Code
                 </p>
                 <div
                   className="p-2 bg-white rounded-xl border border-slate-100 flex justify-center items-center overflow-x-auto min-h-[90px]"
@@ -2335,15 +2492,14 @@ export default function BooksManagement() {
                         setSelectedBookIdsForPrint([...selectedBookIdsForPrint, book.id]);
                       }
                     }}
-                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 text-xs ${
-                      isSelected ? 'border-purple-500 bg-purple-50/50 shadow-2xs' : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
+                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 text-xs ${isSelected ? 'border-purple-500 bg-purple-50/50 shadow-2xs' : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => {}}
+                        onChange={() => { }}
                         className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
                       />
                       <div>

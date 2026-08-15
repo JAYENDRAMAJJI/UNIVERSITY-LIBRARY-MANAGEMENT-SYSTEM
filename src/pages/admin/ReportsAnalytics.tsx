@@ -14,7 +14,7 @@ import {
   CheckCircle2,
   Filter,
 } from 'lucide-react';
-import { libraryStore, getLocalDateStr } from '../../services/libraryStore.service';
+import { libraryStore, getLocalDateStr, parseMonthNumFromDate, getSystemFineSummary } from '../../services/libraryStore.service';
 
 export default function ReportsAnalytics() {
   const [state, setState] = useState(libraryStore.snapshot);
@@ -27,10 +27,45 @@ export default function ReportsAnalytics() {
     return () => sub.unsubscribe();
   }, []);
 
+  const fineSummary = getSystemFineSummary(state);
   const totalBooks = state.books.reduce((sum, b) => sum + b.totalCopies, 0);
   const issuedCount = state.transactions.filter((t) => t.status === 'ISSUED' || t.status === 'OVERDUE').length;
   const returnedCount = state.transactions.filter((t) => t.status === 'RETURNED').length;
-  const fineCollected = state.fines.filter((f) => f.status === 'PAID').reduce((sum, f) => sum + f.amount, 0);
+  const fineCollected = fineSummary.totalPaidFines;
+
+  // Compute month maxes for relative bar scaling
+  const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+  const monthData = allMonths.map((monthName, idx) => {
+    const monthNum = idx + 1;
+    const monthTxCount = state.transactions.filter((t) => parseMonthNumFromDate(t.issueDate) === monthNum).length;
+
+    let monthFineSum = 0;
+    state.fines.forEach((f) => {
+      if (parseMonthNumFromDate(f.paidDate || f.createdDate) === monthNum) {
+        monthFineSum += f.status === 'PAID' ? (f.paidAmount || f.amount || 0) : (f.amount || 0);
+      }
+    });
+
+    state.transactions.forEach((t) => {
+      if (t.fineAmount && t.fineAmount > 0) {
+        const trackedInFines = state.fines.some((f) => f.transactionId === t.id);
+        if (!trackedInFines) {
+          if (parseMonthNumFromDate(t.returnDate || t.issueDate) === monthNum) {
+            monthFineSum += t.fineAmount;
+          }
+        }
+      }
+    });
+
+    return {
+      monthName,
+      issuedVal: monthTxCount,
+      finesVal: Math.round(monthFineSum * 100) / 100,
+    };
+  });
+
+  const maxIssued = Math.max(...monthData.map((d) => d.issuedVal), 10);
+  const maxFines = Math.max(...monthData.map((d) => d.finesVal), 100);
 
   const exportAuditCSV = () => {
     const headers = ['ID', 'User', 'Role', 'Action', 'Module', 'Details', 'Timestamp'];
@@ -248,36 +283,34 @@ export default function ReportsAnalytics() {
 
             <div className="relative pt-6 pb-2">
               <div className="h-48 flex items-end gap-3 sm:gap-6 px-4 relative z-10">
-                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((monthName, idx) => {
-                  const activeTxCount = state.transactions.filter((t) => t.status === 'ISSUED' || t.status === 'OVERDUE').length;
-                  const totalFinePaid = state.fines.filter((f) => f.status === 'PAID').reduce((sum, f) => sum + f.amount, 0);
-                  const issuedVal = Math.max(15, activeTxCount * 9 + (idx + 1) * 11);
-                  const finesVal = Math.max(150, Math.round((totalFinePaid > 0 ? totalFinePaid : 450) / 4 + (idx + 1) * 125));
+                {monthData.map((item) => {
+                  const issuedPct = item.issuedVal > 0 ? Math.max(6, Math.round((item.issuedVal / maxIssued) * 100)) : 3;
+                  const finesPct = item.finesVal > 0 ? Math.max(6, Math.round((item.finesVal / maxFines) * 100)) : 3;
 
                   return (
-                    <div key={monthName} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-pointer relative">
+                    <div key={item.monthName} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-pointer relative">
                       <div className="opacity-0 group-hover:opacity-100 transition-all duration-200 absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[11px] font-mono font-bold px-2.5 py-1.5 rounded-xl shadow-2xl pointer-events-none z-30 whitespace-nowrap">
-                        <div>Issued: <span className="text-blue-300">{issuedVal} Books</span></div>
-                        <div>Revenue: <span className="text-emerald-300">₹{finesVal}</span></div>
+                        <div>Issued: <span className="text-blue-300">{item.issuedVal} Books</span></div>
+                        <div>Revenue: <span className="text-emerald-300">₹{item.finesVal}</span></div>
                       </div>
 
                       <div className="w-full flex items-end justify-center gap-1.5 h-full">
                         <div className="w-1/2 bg-slate-100/80 rounded-t-xl h-full flex items-end">
                           <div
-                            style={{ height: `${Math.min(100, issuedVal)}%` }}
+                            style={{ height: `${issuedPct}%` }}
                             className="w-full bg-gradient-to-t from-blue-700 to-indigo-500 rounded-t-xl group-hover:brightness-110 transition-all duration-300"
                           />
                         </div>
                         <div className="w-1/2 bg-slate-100/80 rounded-t-xl h-full flex items-end">
                           <div
-                            style={{ height: `${Math.min(100, Math.round(finesVal / 10))}%` }}
+                            style={{ height: `${finesPct}%` }}
                             className="w-full bg-gradient-to-t from-emerald-600 to-teal-400 rounded-t-xl group-hover:brightness-110 transition-all duration-300"
                           />
                         </div>
                       </div>
 
                       <span className="text-xs font-bold text-slate-600 group-hover:text-blue-600 transition-colors">
-                        {monthName}
+                        {item.monthName}
                       </span>
                     </div>
                   );

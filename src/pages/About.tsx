@@ -113,22 +113,36 @@ export default function About() {
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold font-poppins text-slate-900">Campus Infrastructure</h2>
-          <ul className="space-y-2 text-xs font-medium text-slate-700">
-            <li className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> Central Air-conditioned Reading Hall (300+ seating capacity)
-            </li>
-            <li className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> Digital Workstation Lab with 50 high-speed PCs
-            </li>
-            <li className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> Dedicated Group Study & Research Discussion Pods
-            </li>
-            <li className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> Automated Kiosks for Self-Service OPAC Search
-            </li>
-          </ul>
+        {/* Facilities & Features List */}
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold font-poppins text-slate-900">Key Library Infrastructure & Amenities</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold text-slate-700">
+            <ul className="space-y-3">
+              <li className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> RFID & Barcode Scanning Automated Circulation System
+              </li>
+              <li className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> Full-text Institutional Repository & E-Journals Database
+              </li>
+              <li className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> High-speed Wi-Fi Access Points across all reading floors
+              </li>
+            </ul>
+            <ul className="space-y-3">
+              <li className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> Central Air-conditioned Reading Hall (300+ seating capacity)
+              </li>
+              <li className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> Digital Workstation Lab with 50 high-speed PCs
+              </li>
+              <li className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> Dedicated Group Study & Research Discussion Pods
+              </li>
+              <li className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> Automated Kiosks for Self-Service Catalog Search
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>

@@ -108,8 +108,9 @@ export default function AttendanceManagement() {
     return () => sub.unsubscribe();
   }, []);
 
-  // Auto focus scan input when on Desk tab
+  // Auto focus scan input & close scanner modal when switching section tabs
   useEffect(() => {
+    setIsStudentScannerOpen(false);
     if (activeTab === 'DESK' && isAdminOrStaff) {
       scanInputRef.current?.focus();
     }
@@ -406,16 +407,12 @@ export default function AttendanceManagement() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Top Header Row */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 relative z-10">
-          <div className="space-y-2.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-blue-300 bg-white/10 px-3.5 py-1 rounded-full border border-white/10">
-                <UserCheck className="h-4 w-4 text-blue-400" /> University Library Attendance Portal
-              </div>
-
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
+          <div className="space-y-3 max-w-2xl">
+            <div className="flex items-center flex-nowrap gap-3 overflow-x-auto pb-1 sm:pb-0 whitespace-nowrap no-scrollbar">
               {/* Operating Status Badge */}
               {operatingStatus.isOpen ? (
-                <div className="px-3.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-2 text-xs font-extrabold shadow-xs">
+                <div className="px-3.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-2 text-xs font-extrabold shadow-xs backdrop-blur-md shrink-0 whitespace-nowrap">
                   <span className="relative flex h-2.5 w-2.5 shrink-0">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
@@ -423,16 +420,18 @@ export default function AttendanceManagement() {
                   <span className="tracking-wide">LIBRARY OPEN NOW</span>
                 </div>
               ) : (
-                <div className="px-3.5 py-1 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-2 text-xs font-extrabold shadow-xs">
+                <div className="px-3.5 py-1 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-2 text-xs font-extrabold shadow-xs backdrop-blur-md shrink-0 whitespace-nowrap">
                   <span className="relative flex h-2.5 w-2.5 shrink-0">
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
                   </span>
-                  <span className="tracking-wide">LIBRARY CLOSED ({operatingStatus.statusText})</span>
+                  <span className="tracking-wide">
+                    LIBRARY CLOSED ({operatingStatus.holidayName || operatingStatus.statusText.replace(/^CLOSED\s*\(?|\)?$/gi, '') || 'Closed'})
+                  </span>
                 </div>
               )}
 
               {/* Live Real-time Clock Badge */}
-              <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-100 bg-white/10 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/15 shadow-xs">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-100 bg-white/10 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/15 shadow-xs shrink-0 whitespace-nowrap">
                 <Clock className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                 <span>{nowClock.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
                 <span className="text-white/40">•</span>
@@ -440,44 +439,24 @@ export default function AttendanceManagement() {
               </div>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl xl:text-4xl font-extrabold font-poppins tracking-tight text-white">
-              Library Attendance Management
-            </h1>
-            <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-              Real-time Barcode & QR Card Check-In/Out desk, live capacity occupancy monitoring, student & faculty access verification, and attendance reports.
-            </p>
+            <div>
+              <h1 className="text-2xl sm:text-3xl xl:text-4xl font-extrabold font-poppins tracking-tight text-white">
+                Library Attendance Management
+              </h1>
+              <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed mt-1.5">
+                Real-time Barcode & QR Card Check-In/Out desk, live capacity occupancy monitoring, student & faculty access verification, and attendance reports.
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 relative z-10 shrink-0">
-            {isAdminOrStaff && (
-              <>
-                <button
-                  onClick={() => setActiveTab('DESK')}
-                  className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                    activeTab === 'DESK'
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                      : 'bg-white/10 text-white hover:bg-white/20'
-                  }`}
-                >
-                  <ScanBarcode className="h-4 w-4" /> Check-In Counter
-                </button>
-                <button
-                  onClick={() => setActiveTab('LIVE')}
-                  className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                    activeTab === 'LIVE'
-                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
-                      : 'bg-white/10 text-white hover:bg-white/20'
-                  }`}
-                >
-                  <Users className="h-4 w-4 text-emerald-300" /> Live Occupancy ({activeVisitors.length})
-                </button>
-              </>
-            )}
+          <div className="relative z-10 shrink-0 self-start sm:self-center">
             <button
+              type="button"
               onClick={handleExportCSV}
-              className="px-4 py-2.5 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+              className="px-5 py-3 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs shadow-lg shadow-black/20 hover:shadow-xl transition-all flex items-center gap-2.5 cursor-pointer active:scale-95 whitespace-nowrap border border-white/80"
             >
-              <Download className="h-4 w-4 text-blue-600" /> Export CSV
+              <Download className="h-4 w-4 text-blue-600 shrink-0" />
+              <span>Export CSV</span>
             </button>
           </div>
         </div>
@@ -492,7 +471,7 @@ export default function AttendanceManagement() {
             <Users className="h-6 w-6 text-indigo-600" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest truncate">
+            <p className="text-xs sm:text-sm font-extrabold text-slate-700 leading-tight">
               {isAdminOrStaff ? 'Total Visits Today' : 'My Visits Today'}
             </p>
             <div className="flex items-baseline gap-2 mt-1">
@@ -510,7 +489,7 @@ export default function AttendanceManagement() {
             <UserCheck className="h-6 w-6 text-emerald-600" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest truncate">
+            <p className="text-xs sm:text-sm font-extrabold text-slate-700 leading-tight">
               {isAdminOrStaff ? 'Live Occupancy' : 'My Library Status'}
             </p>
             <div className="flex items-center gap-2.5 mt-1">
@@ -544,7 +523,7 @@ export default function AttendanceManagement() {
             <Building2 className="h-6 w-6 text-purple-600" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest truncate">
+            <p className="text-xs sm:text-sm font-extrabold text-slate-700 leading-tight">
               {isAdminOrStaff ? 'Student & Faculty Visits' : 'Total Visits Logged'}
             </p>
             {isAdminOrStaff ? (
@@ -576,7 +555,7 @@ export default function AttendanceManagement() {
             <Clock className="h-6 w-6 text-amber-600" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest truncate">
+            <p className="text-xs sm:text-sm font-extrabold text-slate-700 leading-tight">
               Avg Stay Duration
             </p>
             <div className="mt-1">
@@ -654,7 +633,7 @@ export default function AttendanceManagement() {
                   <span className="truncate">Library Check-In & Check-Out Desk</span>
                 </h2>
                 <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                  Scan student ID barcode/QR or enter Member Card Number (e.g. STU-2026-7326 or FAC-2023-1102).
+                  Scan Member ID barcode/QR or enter Member Card Number.
                 </p>
               </div>
               <button
@@ -663,7 +642,7 @@ export default function AttendanceManagement() {
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 hover:shadow-lg transition-all cursor-pointer shrink-0 self-start sm:self-auto"
               >
                 <Camera className="w-4 h-4 shrink-0" />
-                <span className="whitespace-nowrap">Scan Student ID</span>
+                <span className="whitespace-nowrap">Scan Member ID</span>
               </button>
             </div>
 
@@ -672,12 +651,28 @@ export default function AttendanceManagement() {
               onClose={() => setIsStudentScannerOpen(false)}
               onScanSuccess={(scannedCode) => {
                 setScanInput(scannedCode);
-                const activeSession = activeVisitors.find(
-                  (v) =>
-                    v.memberCardNo.toLowerCase() === scannedCode.toLowerCase() ||
-                    v.email.toLowerCase() === scannedCode.toLowerCase() ||
-                    v.memberId.toLowerCase() === scannedCode.toLowerCase()
-                );
+                const qClean = scannedCode.trim().toLowerCase();
+                const qNorm = qClean.replace(/[^a-z0-9]/g, '');
+                const qNoPrefix = qClean.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
+
+                const activeSession = activeVisitors.find((v) => {
+                  const cLower = v.memberCardNo.toLowerCase();
+                  const idLower = v.memberId.toLowerCase();
+                  const eLower = v.email.toLowerCase();
+
+                  if (cLower === qClean || idLower === qClean || eLower === qClean) return true;
+
+                  const cNorm = cLower.replace(/[^a-z0-9]/g, '');
+                  const idNorm = idLower.replace(/[^a-z0-9]/g, '');
+                  const eNorm = eLower.replace(/[^a-z0-9]/g, '');
+
+                  if (qNorm.length > 0 && (cNorm === qNorm || idNorm === qNorm || eNorm === qNorm)) return true;
+
+                  const cNoPrefix = cLower.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
+                  const idNoPrefix = idLower.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
+
+                  return qNoPrefix.length > 0 && (cNoPrefix === qNoPrefix || idNoPrefix === qNoPrefix || cNorm === qNoPrefix);
+                });
                 let res;
                 if (activeSession) {
                   res = libraryStore.checkOutMember(activeSession.id, user?.name || 'Scan Kiosk');
@@ -694,7 +689,7 @@ export default function AttendanceManagement() {
                 setScanInput('');
               }}
               scannerType="STUDENT_ID"
-              title="Scan Student / Library Member ID Card"
+              title="Scan Member / ID Card Pass"
             />
 
             {/* Scan / Manual Entry Form */}
@@ -713,7 +708,7 @@ export default function AttendanceManagement() {
                   <input
                     ref={scanInputRef}
                     type="text"
-                    placeholder="Scan card barcode (e.g. STU-2026-7326) or type email..."
+                    placeholder="Scan card barcode or type email..."
                     value={scanInput}
                     onChange={(e) => setScanInput(e.target.value)}
                     className="w-full pl-12 pr-4 shadow-2xs py-3 rounded-2xl border-2 border-blue-200 bg-blue-50/20 text-slate-900 font-mono text-base font-bold focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all"
@@ -722,17 +717,19 @@ export default function AttendanceManagement() {
 
                 {/* Auto-Populated Scanned Student Identity Card Preview */}
                 {matchedMember && (
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white border border-blue-400/30 shadow-md space-y-3 animate-fadeIn mt-3">
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white border border-blue-400/30 shadow-md space-y-3 animate-fadeIn mt-3 overflow-hidden">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <img
                           src={matchedMember.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'}
                           alt={matchedMember.name}
                           className="w-11 h-11 rounded-full object-cover border-2 border-blue-400 shrink-0"
                         />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-sm text-white truncate">{matchedMember.name}</h4>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <h4 className="font-bold text-sm text-white truncate min-w-0 flex-1" title={matchedMember.name}>
+                              {matchedMember.name}
+                            </h4>
                             <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-400/30 shrink-0">
                               {matchedMember.memberCardNo}
                             </span>
@@ -1136,7 +1133,7 @@ export default function AttendanceManagement() {
                         </td>
                         <td className="py-3.5 px-4">
                           <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase whitespace-nowrap inline-block ${
                               r.role === 'FACULTY'
                                 ? 'bg-purple-50 text-purple-700 border border-purple-100'
                                 : r.role === 'ADMIN'
@@ -1152,7 +1149,7 @@ export default function AttendanceManagement() {
                         <td className="py-3.5 px-4 font-mono text-emerald-700 font-bold">{formatStayDuration(r)}</td>
                         <td className="py-3.5 px-4 text-slate-600">{r.entryGate}</td>
                         <td className="py-3.5 px-4">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 whitespace-nowrap inline-block">
                             {r.purposeOfVisit || 'GENERAL_READING'}
                           </span>
                         </td>
@@ -1160,12 +1157,12 @@ export default function AttendanceManagement() {
                           {isAdminOrStaff ? (
                             <button
                               onClick={() => handleManualCheckOut(r.id)}
-                              className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1"
+                              className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1 whitespace-nowrap"
                             >
                               <LogOut className="h-3.5 w-3.5" /> Check-Out
                             </button>
                           ) : (
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-100 whitespace-nowrap inline-block">
                               Active In Library
                             </span>
                           )}
@@ -1363,22 +1360,27 @@ export default function AttendanceManagement() {
                           <td className="py-3.5 px-4 font-mono font-bold text-slate-800">{formatStayDuration(r)}</td>
                           <td className="py-3.5 px-4">
                             <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                              className={`px-3 py-1 rounded-xl text-[10px] font-extrabold uppercase inline-flex flex-col items-center justify-center leading-tight shadow-2xs ${
                                 r.status === 'IN_LIBRARY'
                                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                   : r.status === 'COMPLETED'
                                   ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                   : r.status === 'AUTO_CHECK_OUT'
-                                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                  ? 'bg-amber-50 text-amber-800 border border-amber-200/80'
                                   : 'bg-slate-100 text-slate-700 border border-slate-200'
                               }`}
                               title={r.notes}
                             >
-                              {r.status === 'IN_LIBRARY'
-                                ? 'IN LIBRARY'
-                                : r.status === 'AUTO_CHECK_OUT'
-                                ? 'AUTO CHECK-OUT (10 PM)'
-                                : r.status}
+                              {r.status === 'IN_LIBRARY' ? (
+                                'IN LIBRARY'
+                              ) : r.status === 'AUTO_CHECK_OUT' ? (
+                                <>
+                                  <span className="whitespace-nowrap font-extrabold">AUTO CHECK-OUT</span>
+                                  <span className="text-[9px] font-mono font-bold text-amber-700/90 tracking-normal">(10:00 PM)</span>
+                                </>
+                              ) : (
+                                r.status
+                              )}
                             </span>
                           </td>
                           <td className="py-3.5 px-4 space-y-0.5">
@@ -1495,7 +1497,7 @@ export default function AttendanceManagement() {
                   required
                   value={overrideForm.memberCardNo}
                   onChange={(e) => setOverrideForm({ ...overrideForm, memberCardNo: e.target.value })}
-                  placeholder="e.g. STU-2026-7326"
+                  placeholder="Enter member card number"
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono font-bold"
                 />
               </div>

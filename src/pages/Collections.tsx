@@ -39,10 +39,10 @@ export default function Collections() {
       bgColor: 'bg-purple-50',
     },
     {
-      title: 'Research & Dissertations',
+      title: 'Research & Academic Theses',
       icon: GraduationCap,
       count: '500+ Papers',
-      description: 'Doctoral thesis and master dissertations submitted by faculty and postgraduate scholars.',
+      description: 'Doctoral research papers and master theses submitted by faculty and postgraduate scholars.',
       color: 'text-indigo-600',
       bgColor: 'bg-indigo-50',
     },

@@ -6,6 +6,7 @@ import {
   BookOpen,
   Search,
   Filter,
+  SlidersHorizontal,
   Download,
   Printer,
   FileSpreadsheet,
@@ -71,6 +72,7 @@ export default function BookBorrowHistory() {
   const [storeState, setStoreState] = useState(libraryStore.snapshot);
   const [selectedBookId, setSelectedBookId] = useState<string>(initialBookId);
   const [searchTerm, setSearchTerm] = useState('');
+  const [nameSearchTerm, setNameSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'CURRENT' | 'RETURNED' | 'OVERDUE' | 'LOST'>('ALL');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'STUDENT' | 'FACULTY'>('ALL');
   const [startDate, setStartDate] = useState('');
@@ -191,6 +193,33 @@ export default function BookBorrowHistory() {
     return userScopedTransactions;
   }, [userScopedTransactions, currentBook]);
 
+  // Status Badge Record Counts
+  const statusCounts = useMemo(() => {
+    return {
+      all: baseTransactions.length,
+      current: baseTransactions.filter((t) => t.status === 'ISSUED' || t.status === 'OVERDUE').length,
+      returned: baseTransactions.filter((t) => t.status === 'RETURNED').length,
+      overdue: baseTransactions.filter((t) => t.status === 'OVERDUE').length,
+      lost: baseTransactions.filter((t) => t.status === 'LOST').length,
+    };
+  }, [baseTransactions]);
+
+  const hasActiveFilters = Boolean(
+    searchTerm || selectedBookId || statusFilter !== 'ALL' || roleFilter !== 'ALL' || startDate || endDate
+  );
+
+  const handleResetAllFilters = () => {
+    setSearchTerm('');
+    setSelectedBookId('');
+    setBookSelectSearchTerm('');
+    setStatusFilter('ALL');
+    setRoleFilter('ALL');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
+    setSearchParams({});
+  };
+
   // Statistics for Selection
   const stats = useMemo(() => {
     const totalBorrowCount = baseTransactions.length;
@@ -232,17 +261,18 @@ export default function BookBorrowHistory() {
   const filteredRecords = useMemo(() => {
     return baseTransactions
       .filter((record) => {
-        // Search by Book ID, Book Name, User ID, User Name, Accession No, Barcode
+        // Single Combined Unified Search (Book Name, Borrower Name, Book ID, Member ID, Card No, Accession No, Barcode, Issued By)
         const term = searchTerm.toLowerCase().trim();
         const matchesSearch =
           !term ||
-          record.bookId.toLowerCase().includes(term) ||
           record.bookTitle.toLowerCase().includes(term) ||
+          record.memberName.toLowerCase().includes(term) ||
+          record.bookId.toLowerCase().includes(term) ||
           record.memberId.toLowerCase().includes(term) ||
           record.memberCardNo.toLowerCase().includes(term) ||
-          record.memberName.toLowerCase().includes(term) ||
           record.accessionNo.toLowerCase().includes(term) ||
-          record.barcode.toLowerCase().includes(term);
+          record.barcode.toLowerCase().includes(term) ||
+          (record.issuedByName && record.issuedByName.toLowerCase().includes(term));
 
         // Status Filter
         let matchesStatus = true;
@@ -458,240 +488,176 @@ export default function BookBorrowHistory() {
         </div>
       )}
 
-      {/* Unified Filter Toolbar & Book Catalog Selection */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-        {/* Single Integrated Search & Book Selector Bar */}
-        <div className="space-y-1">
-          <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
-            Search Borrowing History & Filter Catalog:
-          </label>
-          <div className="relative" ref={bookSelectRef}>
-            <div
-              className={`w-full px-4 py-3 rounded-2xl border bg-white flex items-center justify-between gap-3 transition-all shadow-xs ${
-                isBookSelectOpen ? 'border-purple-500 ring-2 ring-purple-500/20' : 'border-slate-200 hover:border-purple-300'
-              }`}
-            >
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <Search className="h-4.5 w-4.5 text-purple-600 shrink-0" />
-                <input
-                  type="text"
-                  placeholder={
-                    currentBook
-                      ? `Filter: ${currentBook.title} (ISBN: ${currentBook.isbn}) — Type to search records...`
-                      : `Search borrowing records by Book ID, Book Name, Borrower ID, Borrower Name, Card No, Barcode...`
-                  }
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setBookSelectSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  onFocus={() => setIsBookSelectOpen(true)}
-                  className="w-full text-xs sm:text-sm font-semibold text-slate-900 bg-transparent outline-none placeholder:text-slate-400"
-                />
-              </div>
+      {/* Controls & Filters Bar (Matching Attendance Management Layout & Style) */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+        {/* Top Header Row */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4 text-purple-600" />
+            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Filter & Search Borrowing Records
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+              Showing {filteredRecords.length} of {baseTransactions.length} Total Logs
+            </span>
 
-              <div className="flex items-center gap-2 shrink-0">
-                {(selectedBookId || searchTerm) && (
+            {/* Combined Export Dropdown */}
+            <div className="relative" ref={exportDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                className="px-3.5 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-100 hover:bg-purple-100 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Download className="h-3.5 w-3.5" /> Export CSV <ChevronDown className="h-3 w-3" />
+              </button>
+
+              {isExportDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 p-1.5 space-y-1 animate-fadeIn">
                   <button
                     type="button"
                     onClick={() => {
-                      handleBookChange('');
-                      setSearchTerm('');
-                      setBookSelectSearchTerm('');
-                      setCurrentPage(1);
+                      setIsExportDropdownOpen(false);
+                      triggerToast('Generating CSV report...');
+                      setTimeout(() => {
+                        const headers = ['Transaction ID', 'Book Title', 'Borrower Name', 'Card No', 'Status', 'Issue Date', 'Due Date', 'Return Date'];
+                        const rows = filteredRecords.map((t) => [
+                          t.id,
+                          `"${t.bookTitle.replace(/"/g, '""')}"`,
+                          `"${t.memberName.replace(/"/g, '""')}"`,
+                          t.memberCardNo,
+                          t.status,
+                          t.issueDate,
+                          t.dueDate,
+                          t.returnDate || '',
+                        ]);
+                        const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+                        const encodedUri = encodeURI(csvContent);
+                        const link = document.createElement('a');
+                        link.setAttribute('href', encodedUri);
+                        link.setAttribute('download', `borrow_history_${new Date().toISOString().split('T')[0]}.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        triggerToast('CSV Report Downloaded Successfully');
+                      }, 500);
                     }}
-                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
-                    title="Reset all filters"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700 rounded-xl transition-colors text-left cursor-pointer"
                   >
-                    <X className="h-3.5 w-3.5" /> Clear Filter
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Export Filtered CSV
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setIsBookSelectOpen(!isBookSelectOpen)}
-                  className="p-1 text-slate-400 hover:text-purple-600 rounded-lg hover:bg-purple-50 transition-colors cursor-pointer"
-                  title="Select Book Catalog Record"
-                >
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform duration-200 ${
-                      isBookSelectOpen ? 'rotate-180 text-purple-600' : ''
-                    }`}
-                  />
-                </button>
-              </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsExportDropdownOpen(false);
+                      triggerToast('Preparing printable history report...');
+                      setTimeout(() => {
+                        window.print();
+                      }, 400);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700 rounded-xl transition-colors text-left cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4 text-purple-600" /> Print Record Log
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Book Catalog Dropdown Menu */}
-            {isBookSelectOpen && (
-              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200 z-30 max-h-64 overflow-y-auto divide-y divide-slate-100 animate-fadeIn">
-                <div
-                  onClick={() => {
-                    handleBookChange('');
-                    setIsBookSelectOpen(false);
-                  }}
-                  className={`p-3.5 cursor-pointer flex items-center justify-between transition-colors ${
-                    !selectedBookId ? 'bg-purple-50/80 text-purple-900 font-extrabold' : 'hover:bg-slate-50 text-slate-800'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0">
-                      📚
-                    </div>
-                    <div>
-                      <p className="text-xs font-extrabold text-slate-900">All Books (Complete Library-Wide Borrowing History)</p>
-                      <p className="text-[11px] text-slate-500">View borrowing transactions across all library books</p>
-                    </div>
-                  </div>
-                  {!selectedBookId && <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0 ml-2" />}
-                </div>
-
-                {filteredBookOptions.length > 0 ? (
-                  filteredBookOptions.map((b) => {
-                    const isSelected = selectedBookId === b.id;
-                    return (
-                      <div
-                        key={b.id}
-                        onClick={() => {
-                          handleBookChange(b.id);
-                          setIsBookSelectOpen(false);
-                        }}
-                        className={`p-3.5 cursor-pointer flex items-center justify-between transition-colors ${
-                          isSelected ? 'bg-purple-50/80 text-purple-900 font-semibold' : 'hover:bg-slate-50 text-slate-800'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <img
-                            src={b.coverUrl}
-                            alt={b.title}
-                            className="w-8 h-10 object-cover rounded border border-purple-100 shrink-0 shadow-xs"
-                          />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-900 truncate">{b.title}</span>
-                              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 shrink-0">
-                                ISBN: {b.isbn}
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                              by {b.authorName} &bull; <span className="font-semibold text-emerald-700">{b.availableCopies}/{b.totalCopies} Available</span>
-                            </div>
-                          </div>
-                        </div>
-                        {isSelected && <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0 ml-2" />}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="p-4 text-center text-xs text-slate-400">
-                    No books found matching &quot;{bookSelectSearchTerm}&quot;
-                  </div>
-                )}
-              </div>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleResetAllFilters}
+                className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-100 hover:bg-rose-100 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Reset
+              </button>
             )}
           </div>
         </div>
 
-        {/* Filter Pills: Status & Role */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-slate-100">
-          {/* Status Filter Pills */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-slate-700 font-extrabold text-xs sm:text-sm mr-1">Status:</span>
-            {[
-              { id: 'ALL', label: 'All Records' },
-              { id: 'CURRENT', label: 'Currently Borrowed' },
-              { id: 'RETURNED', label: 'Returned' },
-              { id: 'OVERDUE', label: 'Overdue' },
-              { id: 'LOST', label: 'Lost' },
-            ].map((s) => (
+        {/* Controls Row: Search Input + Status Dropdown + Book Catalog Dropdown + Role Filter Dropdown */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3">
+          {/* Search Bar */}
+          <div className={`${isAdminOrStaff ? 'md:col-span-4' : 'md:col-span-6'} relative`}>
+            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search timestamp, gate, visit purpose, book title, borrower..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 text-slate-800 font-medium"
+            />
+            {searchTerm && (
               <button
-                key={s.id}
                 type="button"
-                onClick={() => {
-                  setStatusFilter(s.id as any);
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Status Dropdown Filter */}
+          <div className="md:col-span-3 relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as any);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-3.5 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/80 focus:bg-white appearance-none cursor-pointer truncate"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="CURRENT">Currently Borrowed ({statusCounts.current})</option>
+              <option value="RETURNED">Returned Records ({statusCounts.returned})</option>
+              <option value="OVERDUE">Overdue Records ({statusCounts.overdue})</option>
+              <option value="LOST">Lost Records ({statusCounts.lost})</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+          </div>
+
+          {/* Book Catalog Dropdown Select */}
+          <div className={`${isAdminOrStaff ? 'md:col-span-3' : 'md:col-span-3'} relative`}>
+            <select
+              value={selectedBookId}
+              onChange={(e) => {
+                handleBookChange(e.target.value);
+              }}
+              className="w-full pl-3.5 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/80 focus:bg-white appearance-none cursor-pointer truncate"
+            >
+              <option value="">All Catalog Books</option>
+              {storeState.books.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.title}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+          </div>
+
+          {/* Role Filter Dropdown (Admin & Staff Exclusive) */}
+          {isAdminOrStaff && (
+            <div className="md:col-span-2 relative">
+              <select
+                value={roleFilter}
+                onChange={(e) => {
+                  setRoleFilter(e.target.value as any);
                   setCurrentPage(1);
                 }}
-                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                  statusFilter === s.id
-                    ? 'bg-purple-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
+                className="w-full pl-3.5 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/80 focus:bg-white appearance-none cursor-pointer truncate"
               >
-                {s.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Role Filter Pills (Admin & Staff Exclusive) */}
-          {isAdminOrStaff && (
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="text-slate-700 font-extrabold text-xs sm:text-sm mr-1">Role:</span>
-              {[
-                { id: 'ALL', label: 'All Members' },
-                { id: 'STUDENT', label: 'Students' },
-                { id: 'FACULTY', label: 'Faculty' },
-              ].map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => {
-                    setRoleFilter(r.id as any);
-                    setCurrentPage(1);
-                  }}
-                  className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                    roleFilter === r.id
-                      ? 'bg-purple-600 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {r.label}
-                </button>
-              ))}
+                <option value="ALL">All Roles</option>
+                <option value="STUDENT">Student</option>
+                <option value="FACULTY">Faculty</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
             </div>
-          )}
-        </div>
-
-        {/* Row 3: Date Range Controls */}
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs">
-          <span className="font-bold text-slate-500 flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5" /> Date Range Filter:
-          </span>
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                setStartDate(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-mono"
-            />
-            <span className="text-slate-400">to</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => {
-                setEndDate(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-mono"
-            />
-          </div>
-          {(startDate || endDate || searchTerm || statusFilter !== 'ALL' || roleFilter !== 'ALL' || selectedBookId) && (
-            <button
-              onClick={() => {
-                setStartDate('');
-                setEndDate('');
-                setSearchTerm('');
-                setStatusFilter('ALL');
-                setRoleFilter('ALL');
-                handleBookChange('');
-                setCurrentPage(1);
-              }}
-              className="text-xs text-purple-700 font-bold hover:underline cursor-pointer ml-auto"
-            >
-              Reset All Filters
-            </button>
           )}
         </div>
       </div>

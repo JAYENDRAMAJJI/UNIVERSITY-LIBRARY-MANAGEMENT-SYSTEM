@@ -20,7 +20,7 @@ const FAQ_DATA = [
   },
   {
     question: 'How does the book reservation queue work?',
-    answer: 'If a book is currently checked out, you can click "Reserve Hold" on the OPAC search page. When the copy is returned, you will be notified and placed in a 48-hour pickup window priority queue.',
+    answer: 'If a book is currently checked out, you can click "Reserve Hold" on the Library Catalog search page. When the copy is returned, you will be notified and placed in a 48-hour pickup window priority queue.',
   },
 ];
 
@@ -41,7 +41,7 @@ export default function FAQ() {
         </div>
         <h1 className="text-3xl md:text-4xl font-extrabold font-poppins tracking-tight">Frequently Asked Questions</h1>
         <p className="text-slate-300 text-sm md:text-base max-w-xl mx-auto mt-2">
-          Find clear answers regarding library policies, OPAC search, borrowing allowances, overdue fines, and digital downloads.
+          Find clear answers regarding library policies, catalog search, borrowing allowances, overdue fines, and digital downloads.
         </p>
       </div>
 

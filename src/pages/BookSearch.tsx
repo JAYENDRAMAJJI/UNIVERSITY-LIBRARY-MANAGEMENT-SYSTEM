@@ -15,6 +15,8 @@ import {
   ChevronUp,
   Sparkles,
   Building2,
+  Star,
+  Clock,
 } from 'lucide-react';
 import { libraryStore } from '../services/libraryStore.service';
 import { useAuth } from '../context/AuthContext';
@@ -29,6 +31,8 @@ export default function BookSearch() {
   const [searchBy, setSearchBy] = useState<'all' | 'title' | 'author' | 'isbn' | 'category'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('ALL');
+  const [collectionTab, setCollectionTab] = useState<'ALL' | 'NEW_ARRIVALS' | 'BOOK_OF_MONTH' | 'AVAILABLE'>('ALL');
+  const [showSpotlight, setShowSpotlight] = useState(true);
   const [reservationMessage, setReservationMessage] = useState<string | null>(null);
   const [cardMessages, setCardMessages] = useState<Record<string, string>>({});
   const [selectedBookModal, setSelectedBookModal] = useState<Book | null>(null);
@@ -37,6 +41,25 @@ export default function BookSearch() {
     const sub = libraryStore.getObservable().subscribe(setState);
     return () => sub.unsubscribe();
   }, []);
+
+  // Check URL parameters for initial tab selection (e.g. /catalog?filter=new-arrivals)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const filterParam = params.get('filter');
+    if (filterParam === 'new-arrivals' || filterParam === 'acquisitions') {
+      setCollectionTab('NEW_ARRIVALS');
+    }
+  }, [location.search]);
+
+  // Book of the Month Spotlight
+  const bookOfMonth = useMemo(() => {
+    return state.books.find((b) => b.isBookOfMonth) || state.books[0];
+  }, [state.books]);
+
+  // Count of new accessions
+  const newArrivalsCount = useMemo(() => {
+    return state.books.filter((b) => b.publishingYear >= 2024 || b.isBookOfMonth).length;
+  }, [state.books]);
 
   // Unique Departments from catalog
   const departmentOptions = useMemo(() => {
@@ -92,21 +115,32 @@ export default function BookSearch() {
       const matchesCat = selectedCategory === 'ALL' || book.categoryId === selectedCategory;
       const matchesDept = selectedDepartment === 'ALL' || book.department === selectedDepartment;
 
-      return matchesSearch && matchesCat && matchesDept;
+      let matchesTab = true;
+      if (collectionTab === 'NEW_ARRIVALS') {
+        matchesTab = book.publishingYear >= 2024 || book.isBookOfMonth;
+      } else if (collectionTab === 'BOOK_OF_MONTH') {
+        matchesTab = !!book.isBookOfMonth;
+      } else if (collectionTab === 'AVAILABLE') {
+        matchesTab = book.availableCopies > 0;
+      }
+
+      return matchesSearch && matchesCat && matchesDept && matchesTab;
     });
-  }, [state.books, searchTerm, searchBy, selectedCategory, selectedDepartment]);
+  }, [state.books, searchTerm, searchBy, selectedCategory, selectedDepartment, collectionTab]);
 
   const hasActiveFilters =
     searchTerm !== '' ||
     selectedCategory !== 'ALL' ||
     selectedDepartment !== 'ALL' ||
-    searchBy !== 'all';
+    searchBy !== 'all' ||
+    collectionTab !== 'ALL';
 
   const handleResetFilters = () => {
     setSearchTerm('');
     setSearchBy('all');
     setSelectedCategory('ALL');
     setSelectedDepartment('ALL');
+    setCollectionTab('ALL');
   };
 
   const handleReserve = (book: Book) => {
@@ -128,8 +162,6 @@ export default function BookSearch() {
       });
     }, 5000);
   };
-
-
 
   // Telemetry Calculations
   const totalBooks = state.books.length;
@@ -195,12 +227,12 @@ export default function BookSearch() {
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-xs flex items-center gap-3.5 min-w-0">
-          <div className="p-3 bg-purple-50 text-purple-600 rounded-xl shrink-0">
-            <Building2 className="h-5 w-5" />
+          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl shrink-0">
+            <Sparkles className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">Departments</p>
-            <p className="text-xl font-extrabold text-purple-700 font-poppins mt-0.5">{departmentOptions.length}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">New Acquisitions</p>
+            <p className="text-xl font-extrabold text-indigo-700 font-poppins mt-0.5">{newArrivalsCount}</p>
           </div>
         </div>
 
@@ -213,6 +245,100 @@ export default function BookSearch() {
             <p className="text-xl font-extrabold text-amber-700 font-poppins mt-0.5">{totalReservations}</p>
           </div>
         </div>
+      </div>
+
+      {/* BOOK OF THE MONTH & NEW ACCESSIONS SPOTLIGHT BANNER */}
+      {bookOfMonth && showSpotlight && (
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 rounded-3xl p-6 sm:p-8 text-white shadow-lg border border-blue-500/20 relative overflow-hidden animate-fadeIn">
+          <div className="flex justify-between items-start mb-4">
+            <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider bg-amber-400 text-slate-950 px-3 py-1 rounded-full shadow-xs">
+              <Star className="h-3.5 w-3.5 fill-slate-950" /> Book of the Month Spotlight
+            </div>
+            <button
+              onClick={() => setShowSpotlight(false)}
+              className="text-slate-400 hover:text-white text-xs font-semibold flex items-center gap-1 bg-white/10 px-2.5 py-1 rounded-full transition-colors cursor-pointer"
+            >
+              Dismiss Spotlight <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-6 items-center">
+            <img
+              src={bookOfMonth.coverUrl}
+              alt={bookOfMonth.title}
+              className="w-32 h-44 md:w-36 md:h-48 object-cover rounded-2xl border-2 border-white/20 shadow-2xl shrink-0"
+            />
+            <div className="space-y-2 flex-1 text-center md:text-left">
+              <span className="text-xs font-bold text-blue-300 uppercase tracking-wider bg-blue-500/20 px-2.5 py-0.5 rounded">
+                {bookOfMonth.categoryName} • {bookOfMonth.department || 'General'}
+              </span>
+              <h2 className="text-xl sm:text-2xl font-extrabold font-poppins text-white">{bookOfMonth.title}</h2>
+              <p className="text-blue-200 text-xs font-semibold">Author: {bookOfMonth.authorName} | Publisher: {bookOfMonth.publisherName}</p>
+              <p className="text-slate-300 text-xs leading-relaxed max-w-2xl line-clamp-2">{bookOfMonth.description}</p>
+              <div className="pt-2 flex items-center gap-3 justify-center md:justify-start">
+                <button
+                  onClick={() => handleReserve(bookOfMonth)}
+                  className="bg-white text-slate-950 hover:bg-blue-50 font-bold px-5 py-2 rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Bookmark className="h-4 w-4" /> Reserve Spotlight Copy
+                </button>
+                <button
+                  onClick={() => setCollectionTab('NEW_ARRIVALS')}
+                  className="bg-white/10 text-white hover:bg-white/20 font-bold px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-amber-300" /> View All New Arrivals ({newArrivalsCount})
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QUICK COLLECTION TABS BAR */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <button
+          onClick={() => setCollectionTab('ALL')}
+          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 cursor-pointer ${
+            collectionTab === 'ALL'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+          }`}
+        >
+          <BookIcon className="h-4 w-4" /> All Catalog Books ({totalBooks})
+        </button>
+
+        <button
+          onClick={() => setCollectionTab('NEW_ARRIVALS')}
+          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 cursor-pointer ${
+            collectionTab === 'NEW_ARRIVALS'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+          }`}
+        >
+          <Sparkles className="h-4 w-4 text-amber-400" /> New Acquisitions & Arrivals ({newArrivalsCount})
+        </button>
+
+        <button
+          onClick={() => setCollectionTab('BOOK_OF_MONTH')}
+          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 cursor-pointer ${
+            collectionTab === 'BOOK_OF_MONTH'
+              ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+          }`}
+        >
+          <Star className="h-4 w-4 text-amber-300" /> Book of the Month
+        </button>
+
+        <button
+          onClick={() => setCollectionTab('AVAILABLE')}
+          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 cursor-pointer ${
+            collectionTab === 'AVAILABLE'
+              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+          }`}
+        >
+          <CheckCircle className="h-4 w-4" /> Available Now ({availableCopies})
+        </button>
       </div>
 
       {/* SEARCH AND FILTER CONTROLS */}
@@ -312,6 +438,14 @@ export default function BookSearch() {
         {hasActiveFilters && (
           <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 text-xs">
             <span className="text-slate-400 font-medium">Active Filters:</span>
+            {collectionTab !== 'ALL' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100">
+                View: {collectionTab === 'NEW_ARRIVALS' ? '✨ New Acquisitions' : collectionTab === 'BOOK_OF_MONTH' ? '⭐ Book of the Month' : 'Available Now'}
+                <button onClick={() => setCollectionTab('ALL')} className="hover:text-indigo-900 cursor-pointer">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
             {searchTerm && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-semibold border border-blue-100">
                 Search: "{searchTerm}"
@@ -450,7 +584,7 @@ export default function BookSearch() {
             <div>
               <h3 className="text-base font-bold text-slate-900">No matching catalog books found</h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                No OPAC catalog records matched your search phrase or category filter. Try clearing your parameters.
+                No library catalog records matched your search phrase or category filter. Try clearing your parameters.
               </p>
             </div>
             <button

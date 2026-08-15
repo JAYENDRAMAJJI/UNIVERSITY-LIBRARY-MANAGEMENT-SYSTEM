@@ -13,7 +13,6 @@ import {
   LogOut,
   Sparkles,
   Printer,
-  Download,
   Copy,
   Check,
   RotateCw,
@@ -88,15 +87,6 @@ export default function Profile() {
     setToastMessage(`Library Card Number (${cardNo}) copied to clipboard!`);
     setTimeout(() => setCopiedCard(false), 2000);
     setTimeout(() => setToastMessage(null), 4000);
-  };
-
-  const handleExportProfileReport = () => {
-    const targetId = currentMember?.id || user?.email || cardNo;
-    const res = libraryStore.exportMemberCompleteProfileReportCSV(targetId);
-    if (res.success) {
-      setToastMessage(res.message);
-      setTimeout(() => setToastMessage(null), 5000);
-    }
   };
 
   const handlePrintProfileReport = () => {
@@ -300,12 +290,6 @@ export default function Profile() {
             <Printer className="w-4 h-4 text-blue-600" /> Print Profile Report (PDF)
           </button>
           <button
-            onClick={handleExportProfileReport}
-            className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white backdrop-blur-md transition-all flex items-center gap-2 shadow-sm cursor-pointer"
-          >
-            <Download className="w-4 h-4 text-amber-300" /> Export CSV Data
-          </button>
-          <button
             onClick={handlePrintLibraryCard}
             className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white backdrop-blur-md transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
@@ -357,12 +341,6 @@ export default function Profile() {
               className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Printer className="w-4 h-4 text-white" /> Print Complete Profile Report (PDF)
-            </button>
-            <button
-              onClick={handleExportProfileReport}
-              className="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Download className="w-4 h-4 text-blue-600" /> Export Raw CSV Log Data
             </button>
             <button
               onClick={() => {
@@ -576,9 +554,12 @@ export default function Profile() {
                   </div>
 
                   {/* QR Code */}
-                  <div className="bg-white p-1.5 rounded-xl shadow-md shrink-0">
-                    <img src={qrDataUrl} alt="Member QR Code" className="w-14 h-14 sm:w-16 sm:h-16 object-contain" />
-                  </div>
+                  <div
+                    className="bg-white p-2 rounded-2xl shadow-lg shrink-0 w-20 h-20 flex items-center justify-center overflow-hidden border border-white/40 ring-2 ring-white/10"
+                    dangerouslySetInnerHTML={{
+                      __html: generateQrSvgString(cardNo, 72),
+                    }}
+                  />
                 </div>
 
                 {/* Footer */}
@@ -601,8 +582,14 @@ export default function Profile() {
                 </div>
 
                 {/* Barcode Display */}
-                <div className="relative z-10 my-2 bg-white p-3 rounded-xl shadow-inner flex flex-col items-center justify-center">
-                  <img src={barcodeDataUrl} alt="Member Barcode" className="max-h-16 object-contain" />
+                <div className="relative z-10 my-2 bg-white p-3 rounded-2xl shadow-lg flex flex-col items-center justify-center overflow-x-auto border border-white/40 ring-2 ring-white/10">
+                  <div
+                    className="w-full flex justify-center"
+                    dangerouslySetInnerHTML={{
+                      __html: generateBarcodeSvgString(cardNo, { height: 44 }),
+                    }}
+                  />
+                  <p className="text-[10px] font-mono font-extrabold text-slate-900 tracking-widest mt-1">{cardNo}</p>
                 </div>
 
                 {/* Terms & Rules */}

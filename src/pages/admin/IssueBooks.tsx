@@ -70,9 +70,33 @@ export default function IssueBooks() {
     return matchesRole && matchesSearch;
   });
 
-  const selectedMember: MemberProfile | undefined = state.members.find(
-    (m) => m.id === selectedMemberId || m.memberCardNo === selectedMemberId
-  );
+  const selectedMember: MemberProfile | undefined = useMemo(() => {
+    if (!selectedMemberId) return undefined;
+    const qClean = selectedMemberId.trim().toLowerCase();
+    const qNorm = qClean.replace(/[^a-z0-9]/g, '');
+    const qNoPrefix = qClean.replace(/^(qr-|bc-|barcode-|bar-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
+
+    return state.members.find((m) => {
+      const cLower = m.memberCardNo.toLowerCase();
+      const idLower = m.id.toLowerCase();
+      const eLower = m.email.toLowerCase();
+
+      if (cLower === qClean || idLower === qClean || eLower === qClean) return true;
+
+      const cNorm = cLower.replace(/[^a-z0-9]/g, '');
+      const idNorm = idLower.replace(/[^a-z0-9]/g, '');
+      const eNorm = eLower.replace(/[^a-z0-9]/g, '');
+
+      if (qNorm.length > 0 && (cNorm === qNorm || idNorm === qNorm || eNorm === qNorm)) return true;
+
+      const cNoPrefix = cLower.replace(/^(qr-|bc-|barcode-|bar-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
+      const idNoPrefix = idLower.replace(/^(qr-|bc-|barcode-|bar-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
+
+      if (qNoPrefix.length > 0 && (cNoPrefix === qNoPrefix || idNoPrefix === qNoPrefix || cNorm === qNoPrefix)) return true;
+
+      return false;
+    });
+  }, [selectedMemberId, state.members]);
 
   const availableCopiesList = useMemo(() => {
     const list: Array<{ barcode: string; accessionNo: string; bookTitle: string; rack: string }> = [];
@@ -94,15 +118,21 @@ export default function IssueBooks() {
   const checkAndTriggerReferenceModal = (code: string): boolean => {
     const clean = code.trim().toLowerCase();
     if (!clean) return false;
+    const queryNorm = clean.replace(/^(qr-|bc-|acc-|card-|id-)/i, '').replace(/[^a-z0-9]/g, '');
 
     for (const b of state.books) {
       const isRefBook = b.isReferenceOnly || b.collectionType === 'REFERENCE';
       for (const c of b.copies || []) {
+        const bNorm = c.barcode.toLowerCase().replace(/^(bc-|qr-|acc-|card-|id-)/i, '').replace(/[^a-z0-9]/g, '');
+        const aNorm = c.accessionNo.toLowerCase().replace(/^(bc-|qr-|acc-|card-|id-)/i, '').replace(/[^a-z0-9]/g, '');
+        const qNorm = (c.qrCode || '').toLowerCase().replace(/^(bc-|qr-|acc-|card-|id-)/i, '').replace(/[^a-z0-9]/g, '');
+
         const match =
           c.barcode.toLowerCase() === clean ||
           c.accessionNo.toLowerCase() === clean ||
           c.id.toLowerCase() === clean ||
-          (c.qrCode && c.qrCode.toLowerCase() === clean);
+          (c.qrCode && c.qrCode.toLowerCase() === clean) ||
+          (queryNorm.length > 0 && (bNorm === queryNorm || aNorm === queryNorm || qNorm === queryNorm));
 
         if (match && (isRefBook || c.isReferenceOnly)) {
           setRefModalBook({
@@ -119,8 +149,31 @@ export default function IssueBooks() {
   };
 
   const handleSelectCode = (code: string) => {
-    setAccessionOrBarcode(code);
-    checkAndTriggerReferenceModal(code);
+    const clean = code.trim();
+    if (!clean) return;
+
+    const isMemberCard = state.members.some((m) => {
+      const cLower = m.memberCardNo.toLowerCase();
+      const idLower = m.id.toLowerCase();
+      const qClean = clean.toLowerCase();
+      if (cLower === qClean || idLower === qClean) return true;
+      const qNorm = qClean.replace(/[^a-z0-9]/g, '');
+      const cNorm = cLower.replace(/[^a-z0-9]/g, '');
+      const idNorm = idLower.replace(/[^a-z0-9]/g, '');
+      return qNorm.length > 0 && (cNorm === qNorm || idNorm === qNorm);
+    }) || clean.toLowerCase().startsWith('stu-') || clean.toLowerCase().startsWith('fac-') || clean.toLowerCase().startsWith('adm-');
+
+    if (isMemberCard) {
+      setAlert({
+        type: 'error',
+        message: 'INVALID BOOK CODE: You scanned/entered a Member ID Card. Step 2 requires a Book Barcode or Accession Number.',
+      });
+      setAccessionOrBarcode('');
+      return;
+    }
+
+    setAccessionOrBarcode(clean);
+    checkAndTriggerReferenceModal(clean);
   };
 
   const handleIssueBook = (e: React.FormEvent) => {
@@ -128,6 +181,25 @@ export default function IssueBooks() {
     const cleanCode = accessionOrBarcode.trim();
     if (!selectedMemberId || !cleanCode) {
       setAlert({ type: 'error', message: 'Please select a member and enter a book barcode / accession number.' });
+      return;
+    }
+
+    const isMemberCard = state.members.some((m) => {
+      const cLower = m.memberCardNo.toLowerCase();
+      const idLower = m.id.toLowerCase();
+      const qClean = cleanCode.toLowerCase();
+      if (cLower === qClean || idLower === qClean) return true;
+      const qNorm = qClean.replace(/[^a-z0-9]/g, '');
+      const cNorm = cLower.replace(/[^a-z0-9]/g, '');
+      const idNorm = idLower.replace(/[^a-z0-9]/g, '');
+      return qNorm.length > 0 && (cNorm === qNorm || idNorm === qNorm);
+    }) || cleanCode.toLowerCase().startsWith('stu-') || cleanCode.toLowerCase().startsWith('fac-') || cleanCode.toLowerCase().startsWith('adm-');
+
+    if (isMemberCard) {
+      setAlert({
+        type: 'error',
+        message: 'INVALID BOOK CODE: You entered a Member ID Card instead of a Book Barcode or Accession Number.',
+      });
       return;
     }
 
@@ -194,7 +266,7 @@ export default function IssueBooks() {
                   onClick={() => setIsMemberScannerOpen(true)}
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1 rounded-full transition-colors cursor-pointer"
                 >
-                  <Camera className="w-3.5 h-3.5" /> Scan Student ID
+                  <Camera className="w-3.5 h-3.5" /> Scan Member ID
                 </button>
               </div>
 
@@ -202,21 +274,47 @@ export default function IssueBooks() {
                 isOpen={isMemberScannerOpen}
                 onClose={() => setIsMemberScannerOpen(false)}
                 onScanSuccess={(scannedCode) => {
-                  const m = state.members.find(
-                    (mem) =>
-                      mem.memberCardNo.toLowerCase() === scannedCode.toLowerCase() ||
-                      mem.id.toLowerCase() === scannedCode.toLowerCase() ||
-                      mem.email.toLowerCase() === scannedCode.toLowerCase()
-                  );
+                  let clean = (scannedCode || '').trim();
+                  if ((clean.startsWith('{') && clean.endsWith('}')) || (clean.startsWith('[') && clean.endsWith(']'))) {
+                    try {
+                      const obj = JSON.parse(clean);
+                      clean = obj.memberCardNo || obj.id || obj.cardNo || obj.studentId || obj.code || clean;
+                    } catch {}
+                  }
+                  const qClean = clean.toLowerCase();
+                  const qNorm = qClean.replace(/[^a-z0-9]/g, '');
+                  const qNoPrefix = qClean.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
+
+                  const m = state.members.find((mem) => {
+                    const cLower = mem.memberCardNo.toLowerCase();
+                    const idLower = mem.id.toLowerCase();
+                    const eLower = mem.email.toLowerCase();
+
+                    if (cLower === qClean || idLower === qClean || eLower === qClean) return true;
+
+                    const cNorm = cLower.replace(/[^a-z0-9]/g, '');
+                    const idNorm = idLower.replace(/[^a-z0-9]/g, '');
+                    const eNorm = eLower.replace(/[^a-z0-9]/g, '');
+
+                    if (qNorm.length > 0 && (cNorm === qNorm || idNorm === qNorm || eNorm === qNorm)) return true;
+
+                    const cNoPrefix = cLower.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
+                    const idNoPrefix = idLower.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
+
+                    if (qNoPrefix.length > 0 && (cNoPrefix === qNoPrefix || idNoPrefix === qNoPrefix || cNorm === qNoPrefix)) return true;
+
+                    return false;
+                  });
+
                   if (m) {
                     setSelectedMemberId(m.id);
                   } else {
-                    setSelectedMemberId(scannedCode);
+                    setSelectedMemberId(clean);
                   }
                   setMemberSearchTerm('');
                 }}
                 scannerType="STUDENT_ID"
-                title="Scan Student / Member Library ID Card"
+                title="Scan Member Library ID Card"
               />
 
               {/* Role Filter Tabs */}
@@ -264,26 +362,41 @@ export default function IssueBooks() {
                 <div
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className={`w-full px-4 py-3 rounded-xl border bg-white flex items-center justify-between gap-3 cursor-pointer transition-all shadow-xs ${
-                    isDropdownOpen ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-200 hover:border-blue-300'
+                    isDropdownOpen ? 'border-blue-500 ring-2 ring-blue-500/20' : selectedMember ? 'border-emerald-400 bg-emerald-50/30' : 'border-slate-200 hover:border-blue-300'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 flex-1 min-w-0">
                     <Search className="h-4 w-4 text-blue-600 shrink-0" />
-                    <input
-                      type="text"
-                      placeholder={
-                        selectedMember
-                          ? `${selectedMember.name} (${selectedMember.memberCardNo}) — ${selectedMember.department}`
-                          : `-- Select Library Member (${filteredMembers.length} Available) --`
-                      }
-                      value={memberSearchTerm}
-                      onChange={(e) => {
-                        setMemberSearchTerm(e.target.value);
-                        if (!isDropdownOpen) setIsDropdownOpen(true);
-                      }}
-                      onFocus={() => setIsDropdownOpen(true)}
-                      className="w-full text-xs sm:text-sm font-semibold text-slate-900 bg-transparent outline-none placeholder:text-slate-500 placeholder:font-normal"
-                    />
+                    {selectedMember && !memberSearchTerm ? (
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-mono font-bold text-xs shrink-0 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3 text-emerald-600" />
+                          {selectedMember.memberCardNo}
+                        </span>
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                          {selectedMember.name}
+                        </span>
+                        <span className="text-xs text-slate-500 truncate hidden sm:inline">
+                          ({selectedMember.department || 'General'})
+                        </span>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder={
+                          selectedMember
+                            ? `${selectedMember.name} (${selectedMember.memberCardNo}) — ${selectedMember.department}`
+                            : `-- Select Library Member (${filteredMembers.length} Available) --`
+                        }
+                        value={memberSearchTerm}
+                        onChange={(e) => {
+                          setMemberSearchTerm(e.target.value);
+                          if (!isDropdownOpen) setIsDropdownOpen(true);
+                        }}
+                        onFocus={() => setIsDropdownOpen(true)}
+                        className="w-full text-xs sm:text-sm font-semibold text-slate-900 bg-transparent outline-none placeholder:text-slate-500 placeholder:font-normal"
+                      />
+                    )}
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -378,8 +491,33 @@ export default function IssueBooks() {
                   placeholder="e.g. ACC-2024-001, BC-99201 or BC-REF-001"
                   value={accessionOrBarcode}
                   onChange={(e) => {
-                    setAccessionOrBarcode(e.target.value);
-                    checkAndTriggerReferenceModal(e.target.value);
+                    const val = e.target.value;
+                    setAccessionOrBarcode(val);
+
+                    const clean = val.trim();
+                    const isMemberCard = clean.length >= 4 && (
+                      state.members.some((m) => {
+                        const cLower = m.memberCardNo.toLowerCase();
+                        const idLower = m.id.toLowerCase();
+                        const qClean = clean.toLowerCase();
+                        if (cLower === qClean || idLower === qClean) return true;
+                        const qNorm = qClean.replace(/[^a-z0-9]/g, '');
+                        const cNorm = cLower.replace(/[^a-z0-9]/g, '');
+                        const idNorm = idLower.replace(/[^a-z0-9]/g, '');
+                        return qNorm.length > 0 && (cNorm === qNorm || idNorm === qNorm);
+                      }) || clean.toLowerCase().startsWith('stu-') || clean.toLowerCase().startsWith('fac-') || clean.toLowerCase().startsWith('adm-')
+                    );
+
+                    if (isMemberCard) {
+                      setAlert({
+                        type: 'error',
+                        message: 'INVALID BOOK CODE: You scanned/entered a Member ID Card. Step 2 requires a Book Barcode or Accession Number.',
+                      });
+                      setAccessionOrBarcode('');
+                      return;
+                    }
+
+                    checkAndTriggerReferenceModal(val);
                   }}
                   className="w-full pl-11 pr-24 py-2.5 rounded-xl border border-slate-200 text-sm font-mono focus:ring-2 focus:ring-blue-500/20"
                 />
@@ -391,36 +529,13 @@ export default function IssueBooks() {
                   <ScanBarcode className="w-3.5 h-3.5" /> Scan
                 </button>
               </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Quick Barcode Shortcuts:</span>
+              {availableCopiesList.length > 0 && (
+                <div className="flex items-center justify-end pt-1">
                   <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                     {availableCopiesList.length} Copies Available On Shelf
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {['BC-99201', 'BC-99203', 'BC-99301', 'BC-99401', 'BC-REF-001', 'BC-99501'].map((code) => {
-                    const isRef = code === 'BC-REF-001';
-                    return (
-                      <button
-                        key={code}
-                        type="button"
-                        onClick={() => handleSelectCode(code)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border flex items-center gap-1 ${
-                          isRef
-                            ? 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-600 hover:text-white'
-                            : accessionOrBarcode.trim().toUpperCase() === code.toUpperCase()
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                            : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300'
-                        }`}
-                      >
-                        <span>{code}</span>
-                        {isRef && <span className="text-[9px] font-extrabold px-1 bg-rose-200 text-rose-900 rounded uppercase">REF ONLY</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              )}
 
               {/* Available Catalog Copies Dropdown Selector */}
               {availableCopiesList.length > 0 && (

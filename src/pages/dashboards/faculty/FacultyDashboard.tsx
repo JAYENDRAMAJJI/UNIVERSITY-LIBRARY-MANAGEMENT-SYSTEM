@@ -326,7 +326,7 @@ export default function FacultyDashboard() {
           </div>
         ) : (
           <p className="text-xs text-slate-500 py-6 text-center">
-            No borrowed books currently checked out. Search the OPAC catalog to reserve books.
+            No borrowed books currently checked out. Search the Library Catalog to reserve books.
           </p>
         )}
       </div>
@@ -396,7 +396,7 @@ export default function FacultyDashboard() {
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-slate-900 text-sm">{req.bookTitle}</h3>
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border whitespace-nowrap inline-block ${
                       req.status === 'AVAILABLE' || req.status === 'CATALOGED'
                         ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                         : req.status === 'REJECTED'

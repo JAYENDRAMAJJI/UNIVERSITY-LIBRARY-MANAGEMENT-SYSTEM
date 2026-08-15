@@ -67,30 +67,32 @@ export function generateBarcodeSvgString(text: string, options?: { height?: numb
     const width = widths[i] * barWidth;
     const isBar = i % 2 === 0;
     if (isBar) {
-      barsSvg += `<rect x="${x}" y="10" width="${width}" height="${height}" fill="#000000" />`;
+      barsSvg += `<rect x="${x}" y="10" width="${width}" height="${height}" fill="#000000" shape-rendering="crispEdges" />`;
     }
     x += width;
   }
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} ${height + 30}" width="${totalWidth}" height="${height + 30}" style="background-color: #ffffff;">
+  const totalHeight = height + 34;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} ${totalHeight}" width="100%" height="auto" style="max-width: ${totalWidth}px; width: 100%; height: auto; display: block; margin: 0 auto; background-color: #ffffff; shape-rendering: crispEdges;">
     <style>
-      .barcode-text { font-family: monospace; font-weight: 700; font-size: 13px; fill: #000000; text-anchor: middle; letter-spacing: 2px; }
+      .barcode-text { font-family: 'Courier New', Courier, monospace; font-weight: 800; font-size: 13px; fill: #000000; text-anchor: middle; letter-spacing: 2px; }
     </style>
-    <rect width="${totalWidth}" height="${height + 30}" fill="#ffffff" />
+    <rect width="${totalWidth}" height="${totalHeight}" fill="#ffffff" />
     ${barsSvg}
-    <text x="${totalWidth / 2}" y="${height + 24}" class="barcode-text">${text}</text>
+    <text x="${totalWidth / 2}" y="${height + 25}" class="barcode-text">${text}</text>
   </svg>`;
 
   return svg;
 }
 
 /**
- * Standard ISO/IEC 18004 2D QR Matrix Engine
+ * Standard ISO/IEC 18004 Standard QR Code Engine
  */
 class QrCodeGenerator {
   typeNumber: number;
   errorCorrectionLevel: number;
-  modules: boolean[][] | null = null;
+  modules: (boolean | null)[][] | null = null;
   moduleCount = 0;
   dataCache: number[] | null = null;
   dataList: Qr8BitByte[] = [];
@@ -105,6 +107,7 @@ class QrCodeGenerator {
   }
 
   make() {
+    this.dataCache = null;
     this.makeImpl(false, this.getBestMaskPattern());
   }
 
@@ -112,7 +115,7 @@ class QrCodeGenerator {
     this.moduleCount = this.typeNumber * 4 + 17;
     this.modules = new Array(this.moduleCount);
     for (let row = 0; row < this.moduleCount; row++) {
-      this.modules[row] = new Array(this.moduleCount).fill(false);
+      this.modules[row] = new Array(this.moduleCount).fill(null);
     }
     this.setupPositionProbePattern(0, 0);
     this.setupPositionProbePattern(this.moduleCount - 7, 0);
@@ -163,11 +166,11 @@ class QrCodeGenerator {
 
   setupTimingPattern() {
     for (let r = 8; r < this.moduleCount - 8; r++) {
-      if (this.modules![r][6] !== false) continue;
+      if (this.modules![r][6] !== null) continue;
       this.modules![r][6] = r % 2 === 0;
     }
     for (let c = 8; c < this.moduleCount - 8; c++) {
-      if (this.modules![6][c] !== false) continue;
+      if (this.modules![6][c] !== null) continue;
       this.modules![6][c] = c % 2 === 0;
     }
   }
@@ -178,7 +181,7 @@ class QrCodeGenerator {
       for (let j = 0; j < pos.length; j++) {
         const row = pos[i];
         const col = pos[j];
-        if (this.modules![row][col] !== false) continue;
+        if (this.modules![row][col] !== null) continue;
         for (let r = -2; r <= 2; r++) {
           for (let c = -2; c <= 2; c++) {
             if (r === -2 || r === 2 || c === -2 || c === 2 || (r === 0 && c === 0)) {
@@ -237,7 +240,7 @@ class QrCodeGenerator {
       if (col === 6) col--;
       while (true) {
         for (let c = 0; c < 2; c++) {
-          if (this.modules![row][col - c] === false) {
+          if (this.modules![row][col - c] === null) {
             let dark = false;
             if (byteIndex < data.length) {
               dark = ((data[byteIndex] >>> bitIndex) & 1) === 1;
@@ -546,13 +549,13 @@ class QrUtil {
     for (let row = 0; row < moduleCount; row++) {
       for (let col = 0; col < moduleCount; col++) {
         let sameCount = 0;
-        const dark = qrCode.modules![row][col];
+        const dark = Boolean(qrCode.modules![row][col]);
         for (let r = -1; r <= 1; r++) {
           if (row + r < 0 || moduleCount <= row + r) continue;
           for (let c = -1; c <= 1; c++) {
             if (col + c < 0 || moduleCount <= col + c) continue;
             if (r === 0 && c === 0) continue;
-            if (dark === qrCode.modules![row + r][col + c]) sameCount++;
+            if (dark === Boolean(qrCode.modules![row + r][col + c])) sameCount++;
           }
         }
         if (sameCount > 5) lostPoint += 3 + sameCount - 5;
@@ -563,41 +566,72 @@ class QrUtil {
 }
 
 /**
- * Standard ISO/IEC 18004 2D QR Matrix Generator
+ * Standard ISO/IEC 18004 Standard QR Code Matrix Generator
  */
 export function generateQrMatrix(dataStr: string): boolean[][] {
   const clean = (dataStr || 'LIB-0000').trim();
-  const typeNum = clean.length <= 14 ? 1 : clean.length <= 26 ? 2 : clean.length <= 42 ? 3 : 4;
-  const qr = new QrCodeGenerator(typeNum, 1); // Level L
-  qr.addData(clean);
-  qr.make();
-  return qr.modules || [];
+
+  // Dynamically select QR Version (1 to 10) to support short & long barcode strings without overflow
+  let startVersion = 1;
+  const len = clean.length;
+  if (len <= 14) startVersion = 1;
+  else if (len <= 26) startVersion = 2;
+  else if (len <= 42) startVersion = 3;
+  else if (len <= 62) startVersion = 4;
+  else if (len <= 84) startVersion = 5;
+  else if (len <= 106) startVersion = 6;
+  else if (len <= 122) startVersion = 7;
+  else if (len <= 152) startVersion = 8;
+  else if (len <= 180) startVersion = 9;
+  else startVersion = 10;
+
+  for (let version = startVersion; version <= 10; version++) {
+    try {
+      const qr = new QrCodeGenerator(version, 1); // Level L
+      qr.addData(clean);
+      qr.make();
+      if (qr.modules && qr.modules.length > 0) {
+        return qr.modules;
+      }
+    } catch {
+      // If code length overflowed version capacity, scale up to next higher version
+    }
+  }
+
+  try {
+    const fallback = clean.substring(0, 14);
+    const qr = new QrCodeGenerator(1, 1);
+    qr.addData(fallback);
+    qr.make();
+    return qr.modules || [];
+  } catch {
+    return [];
+  }
 }
 
 /**
- * Generates SVG string for QR Code with 100% black contrast
+ * Generates SVG string for QR Code with 100% pure black contrast and crisp pixel alignment
  */
 export function generateQrSvgString(text: string, sizePx: number = 160): string {
   const matrix = generateQrMatrix(text);
   const matrixSize = matrix.length || 21;
   const padding = 2; // quiet zone in module count
   const totalModules = matrixSize + padding * 2;
-  const moduleSize = sizePx / totalModules;
 
   let pathData = '';
   for (let r = 0; r < matrixSize; r++) {
     for (let c = 0; c < matrixSize; c++) {
       if (matrix[r][c]) {
-        const x = (c + padding) * moduleSize;
-        const y = (r + padding) * moduleSize;
-        pathData += `M${x.toFixed(2)},${y.toFixed(2)}h${moduleSize.toFixed(2)}v${moduleSize.toFixed(2)}h-${moduleSize.toFixed(2)}z `;
+        const x = c + padding;
+        const y = r + padding;
+        pathData += `M${x},${y}h1v1h-1z `;
       }
     }
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${sizePx} ${sizePx}" width="${sizePx}" height="${sizePx}" style="background-color: #ffffff;">
-    <rect width="${sizePx}" height="${sizePx}" fill="#ffffff" />
-    <path d="${pathData}" fill="#000000" />
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalModules} ${totalModules}" width="${sizePx}" height="${sizePx}" style="background-color: #ffffff; shape-rendering: crispEdges;">
+    <rect width="${totalModules}" height="${totalModules}" fill="#ffffff" />
+    <path d="${pathData}" fill="#000000" shape-rendering="crispEdges" />
   </svg>`;
 }
 

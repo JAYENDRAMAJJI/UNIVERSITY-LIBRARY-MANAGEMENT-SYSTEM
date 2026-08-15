@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, X, CheckCircle, ShieldCheck, Mail, Lock, Phone, Building, User, Sparkles } from 'lucide-react';
+import { UserPlus, X, CheckCircle, ShieldCheck, Mail, Lock, Phone, Building, User, Eye, EyeOff } from 'lucide-react';
 import { libraryStore } from '../../services/libraryStore.service';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -22,6 +22,8 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
     department: 'Computer Science & Engineering',
     password: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -30,6 +32,12 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.email) return;
+
+    if (!formData.password || formData.password.length < 6) {
+      setPasswordError('Password must be at least 6 characters long.');
+      return;
+    }
+    setPasswordError(null);
 
     setIsSubmitting(true);
 
@@ -73,7 +81,7 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
               <p className="text-xs text-slate-300">Register new Student, Faculty, or Staff membership</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
+          <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -169,18 +177,45 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
           </div>
 
           {/* Password */}
-          <div className="space-y-1">
-            <label className="block text-slate-700 font-bold">Create Password</label>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-slate-800 font-extrabold text-xs sm:text-sm">Create Password *</label>
+              <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200/80 px-2.5 py-0.5 rounded-full">
+                Min. 6 characters
+              </span>
+            </div>
             <div className="relative">
               <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
               <input
-                type="password"
-                placeholder="••••••••"
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={6}
+                placeholder="Enter strong password (min 6 chars)"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                onChange={(e) => {
+                  setFormData({ ...formData, password: e.target.value });
+                  if (e.target.value.length >= 6) setPasswordError(null);
+                }}
+                className={`w-full pl-10 pr-10 py-2.5 rounded-xl border text-slate-900 focus:outline-none focus:ring-2 ${
+                  passwordError
+                    ? 'border-rose-300 bg-rose-50/30 focus:ring-rose-500/20'
+                    : 'border-slate-200 focus:ring-blue-500/20'
+                }`}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
+            {passwordError && (
+              <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                <span>⚠️ {passwordError}</span>
+              </p>
+            )}
           </div>
 
           {/* Submit Action */}
@@ -188,14 +223,14 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-2xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all"
+              className="px-5 py-2.5 rounded-2xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-md hover:opacity-95 disabled:opacity-50 transition-all flex items-center gap-2"
+              className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-md hover:opacity-95 disabled:opacity-50 transition-all flex items-center gap-2 cursor-pointer"
             >
               <UserPlus className="h-4 w-4" />
               <span>{isSubmitting ? 'Registering Account...' : 'Create Account & Sign In'}</span>

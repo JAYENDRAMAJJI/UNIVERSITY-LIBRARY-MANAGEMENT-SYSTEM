@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { IndianRupee, CheckCircle, Printer, Bell, Send, Search, X } from 'lucide-react';
-import { libraryStore } from '../../services/libraryStore.service';
+import { libraryStore, getSystemFineSummary, getTransactionFineAmount } from '../../services/libraryStore.service';
 import { FineRecord } from '../../types/library';
 
 export default function FineManagement() {
@@ -22,7 +22,9 @@ export default function FineManagement() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  const filteredFines = state.fines.filter((f) => {
+  const fineSummary = useMemo(() => getSystemFineSummary(state), [state]);
+
+  const filteredFines = (state.fines || []).filter((f) => {
     const q = searchTerm.toLowerCase().trim();
     const matchesSearch =
       !q ||
@@ -35,9 +37,9 @@ export default function FineManagement() {
     return matchesSearch && matchesStatus;
   });
 
-  const totalCollected = state.fines.filter((f) => f.status === 'PAID').reduce((sum, f) => sum + f.amount, 0);
-  const totalPending = state.fines.filter((f) => f.status === 'UNPAID').reduce((sum, f) => sum + f.amount, 0);
-  const totalWaived = state.fines.filter((f) => f.status === 'WAIVED').reduce((sum, f) => sum + f.amount, 0);
+  const totalCollected = fineSummary.totalPaidFines;
+  const totalPending = fineSummary.totalPendingFines;
+  const totalWaived = fineSummary.totalWaivedFines;
 
   const handlePay = (fine: FineRecord) => {
     libraryStore.processFinePayment(fine.id, 'PAY');

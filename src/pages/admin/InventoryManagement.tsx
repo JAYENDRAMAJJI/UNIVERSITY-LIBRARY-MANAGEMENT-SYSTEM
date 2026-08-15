@@ -13,6 +13,9 @@ import {
   Tag,
   Filter,
   X,
+  BookmarkCheck,
+  UserCheck,
+  XCircle,
 } from 'lucide-react';
 import { libraryStore } from '../../services/libraryStore.service';
 import { Book, BookCopy, CopyCondition, BookStatus } from '../../types/library';
@@ -194,32 +197,114 @@ export default function InventoryManagement() {
         </div>
       )}
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-1.5">
-          <p className="text-xs sm:text-sm font-extrabold uppercase tracking-wide text-slate-600">Total Copies</p>
-          <p className="text-2xl sm:text-3xl font-black font-poppins text-slate-900">{totalCopies}</p>
+      {/* Summary KPI Cards Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        {/* Total Copies */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between h-full group">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 truncate" title="Total Copies">
+              Total Copies
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 group-hover:bg-slate-900 group-hover:text-white transition-colors">
+              <Layers className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-2xl sm:text-3xl font-black font-poppins text-slate-900 tracking-tight">
+              {totalCopies}
+            </p>
+            <p className="text-[10px] font-bold text-slate-400 mt-0.5">Across catalog</p>
+          </div>
         </div>
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-emerald-200 bg-emerald-50/20 shadow-xs space-y-1.5">
-          <p className="text-xs sm:text-sm font-extrabold uppercase tracking-wide text-emerald-800">Issuable On Shelf</p>
-          <p className="text-2xl sm:text-3xl font-black font-poppins text-emerald-900">{availableCopies}</p>
+
+        {/* Issuable Stock */}
+        <div className="bg-white p-4 rounded-2xl border border-emerald-200/80 bg-emerald-50/20 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between h-full group">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-800 truncate" title="Issuable On Shelf">
+              Issuable Stock
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+              <CheckCircle className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-2xl sm:text-3xl font-black font-poppins text-emerald-900 tracking-tight">
+              {availableCopies}
+            </p>
+            <p className="text-[10px] font-bold text-emerald-600 mt-0.5">Available on shelf</p>
+          </div>
         </div>
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-rose-200 bg-rose-50/20 shadow-xs space-y-1.5">
-          <p className="text-xs sm:text-sm font-extrabold uppercase tracking-wide text-rose-800">🚫 Reference Copies</p>
-          <p className="text-2xl sm:text-3xl font-black font-poppins text-rose-900">{referenceCopies}</p>
-          <p className="text-[10px] font-bold text-rose-700">Reading Room Only</p>
+
+        {/* Reference Only */}
+        <div className="bg-white p-4 rounded-2xl border border-rose-200/80 bg-rose-50/20 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between h-full group">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-800 truncate" title="Reference Copies Only">
+              Reference Only
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 group-hover:bg-rose-600 group-hover:text-white transition-colors">
+              <BookmarkCheck className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-2xl sm:text-3xl font-black font-poppins text-rose-900 tracking-tight">
+              {referenceCopies}
+            </p>
+            <p className="text-[10px] font-bold text-rose-700 mt-0.5">Reading room only</p>
+          </div>
         </div>
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-blue-200 bg-blue-50/20 shadow-xs space-y-1.5">
-          <p className="text-xs sm:text-sm font-extrabold uppercase tracking-wide text-blue-800">On Active Loan</p>
-          <p className="text-2xl sm:text-3xl font-black font-poppins text-blue-900">{issuedCopies}</p>
+
+        {/* Active Loans */}
+        <div className="bg-white p-4 rounded-2xl border border-blue-200/80 bg-blue-50/20 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between h-full group">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-blue-800 truncate" title="On Active Loan">
+              Active Loans
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+              <UserCheck className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-2xl sm:text-3xl font-black font-poppins text-blue-900 tracking-tight">
+              {issuedCopies}
+            </p>
+            <p className="text-[10px] font-bold text-blue-600 mt-0.5">Currently issued</p>
+          </div>
         </div>
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-amber-200 bg-amber-50/20 shadow-xs space-y-1.5">
-          <p className="text-xs sm:text-sm font-extrabold uppercase tracking-wide text-amber-800">Damaged Copies</p>
-          <p className="text-2xl sm:text-3xl font-black font-poppins text-amber-900">{damagedCopies}</p>
+
+        {/* Damaged Copies */}
+        <div className="bg-white p-4 rounded-2xl border border-amber-200/80 bg-amber-50/20 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between h-full group">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-800 truncate" title="Damaged Copies">
+              Damaged Copies
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-2xl sm:text-3xl font-black font-poppins text-amber-900 tracking-tight">
+              {damagedCopies}
+            </p>
+            <p className="text-[10px] font-bold text-amber-600 mt-0.5">Requires repair</p>
+          </div>
         </div>
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 bg-slate-100/50 shadow-xs space-y-1.5">
-          <p className="text-xs sm:text-sm font-extrabold uppercase tracking-wide text-slate-700">Lost Copies</p>
-          <p className="text-2xl sm:text-3xl font-black font-poppins text-slate-800">{lostCopies}</p>
+
+        {/* Lost Copies */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-300/80 bg-slate-100/50 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between h-full group">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 truncate" title="Lost Copies">
+              Lost Copies
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center shrink-0 group-hover:bg-slate-800 group-hover:text-white transition-colors">
+              <XCircle className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-2xl sm:text-3xl font-black font-poppins text-slate-800 tracking-tight">
+              {lostCopies}
+            </p>
+            <p className="text-[10px] font-bold text-slate-500 mt-0.5">Unaccounted asset</p>
+          </div>
         </div>
       </div>
 
@@ -361,7 +446,7 @@ export default function InventoryManagement() {
             <span className="text-slate-400 font-extrabold uppercase text-[10px] mr-1">Filter Inventory:</span>
             {[
               { id: 'ALL', label: 'All Conditions' },
-              { id: 'REFERENCE', label: '🚫 Reference Copies Only' },
+              { id: 'REFERENCE', label: 'Reference Copies Only' },
               { id: 'NEW', label: 'New Condition' },
               { id: 'GOOD', label: 'Good Condition' },
               { id: 'DAMAGED', label: 'Damaged' },

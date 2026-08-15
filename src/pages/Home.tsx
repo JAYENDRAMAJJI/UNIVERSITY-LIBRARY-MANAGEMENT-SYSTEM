@@ -95,7 +95,7 @@ export default function Home() {
                 type="submit"
                 className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white font-bold text-xs shadow-md hover:opacity-95 transition-all whitespace-nowrap cursor-pointer"
               >
-                Search OPAC
+                Explore Library Catalog
               </button>
             </div>
           </form>
@@ -257,7 +257,7 @@ export default function Home() {
                 <Search className="h-7 w-7" />
               </div>
               <h3 className="text-xl font-bold font-poppins text-slate-900 group-hover:text-blue-700 transition-colors">
-                Search OPAC Catalog
+                Explore Library Catalog
               </h3>
               <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
                 Search physical catalog copies, accession numbers, shelf rack locations, and check real-time copy availability.

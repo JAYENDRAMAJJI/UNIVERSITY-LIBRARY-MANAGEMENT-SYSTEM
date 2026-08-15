@@ -14,8 +14,6 @@ import {
   Download,
   ShieldCheck,
   BarChart3,
-  Settings,
-  User,
   ShoppingBag,
   Sparkles,
   FileText,
@@ -37,7 +35,6 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'MAIN CONTROL',
       links: [
         { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Admin Dashboard' },
-        { to: '/profile', icon: User, label: 'My Admin Profile & Card' },
       ],
     },
     {
@@ -73,7 +70,6 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'REPORTS & SYSTEM',
       links: [
         { to: '/admin/reports', icon: BarChart3, label: 'Executive Reports' },
-        { to: '/admin/settings', icon: Settings, label: 'System Configuration' },
       ],
     },
   ];
@@ -83,7 +79,6 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'FACULTY WORKSPACE',
       links: [
         { to: '/faculty/dashboard', icon: LayoutDashboard, label: 'Faculty Portal' },
-        { to: '/profile', icon: User, label: 'My Profile & Card' },
         { to: '/borrow-history', icon: History, label: 'My Borrowed Books' },
         { to: '/attendance', icon: UserCheck, label: 'Library Attendance' },
       ],
@@ -92,7 +87,6 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'RESEARCH & CATALOG',
       links: [
         { to: '/catalog', icon: BookOpen, label: 'Books Catalog' },
-        { to: '/new-arrivals', icon: Sparkles, label: 'New Book Acquisitions' },
         { to: '/digital-resources', icon: Download, label: 'Digital Research Papers' },
       ],
     },
@@ -110,7 +104,6 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'ACADEMIC WORKSPACE',
       links: [
         { to: '/student/dashboard', icon: LayoutDashboard, label: 'Student Academic Portal' },
-        { to: '/profile', icon: User, label: 'My Profile & Card' },
         { to: '/borrow-history', icon: History, label: 'My Borrowed Books' },
         { to: '/attendance', icon: UserCheck, label: 'Library Attendance' },
       ],
@@ -119,7 +112,6 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'CATALOG & DIGITAL',
       links: [
         { to: '/catalog', icon: BookOpen, label: 'Books Catalog' },
-        { to: '/new-arrivals', icon: Sparkles, label: 'New Book Arrivals' },
         { to: '/digital-resources', icon: Download, label: 'Digital Library & Papers' },
       ],
     },

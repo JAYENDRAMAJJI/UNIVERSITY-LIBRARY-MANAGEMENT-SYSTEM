@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Search, CreditCard, Printer, Download, CheckCircle, Shield, AlertTriangle, UserPlus, RotateCw, Barcode, BookOpen } from 'lucide-react';
+import { Users, Search, CreditCard, Download, CheckCircle, Shield, AlertTriangle, UserPlus, RotateCw, Barcode, BookOpen, X } from 'lucide-react';
 import { libraryStore, getMemberPendingFines } from '../../services/libraryStore.service';
 import { MemberProfile } from '../../types/library';
 import RegisterAccountModal from '../../components/common/RegisterAccountModal';
@@ -290,14 +290,15 @@ export default function MembersManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-slate-200">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2 font-poppins">
-                <CreditCard className="h-5 w-5 text-blue-600" /> Official University Library Pass
+              <h3 className="font-extrabold text-slate-900 text-lg sm:text-xl flex items-center gap-2.5 font-poppins">
+                <CreditCard className="h-6 w-6 text-blue-600 shrink-0" /> Official University Library Pass
               </h3>
               <button
                 onClick={() => setSelectedCardModal(null)}
-                className="p-1 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                aria-label="Close"
               >
-                &times;
+                <X className="h-6 w-6 text-slate-500 hover:text-slate-900 shrink-0" />
               </button>
             </div>
 
@@ -378,22 +379,6 @@ export default function MembersManagement() {
               </button>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => libraryStore.printMemberCompleteProfileReport(selectedCardModal.id)}
-                  className="px-3 py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                  title="Print / Save PDF Member Dossier Report"
-                >
-                  <Printer className="h-3.5 w-3.5 text-purple-600" /> Report PDF
-                </button>
-
-                <button
-                  onClick={() => libraryStore.exportMemberCompleteProfileReportCSV(selectedCardModal.id)}
-                  className="px-3 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                  title="Export Raw CSV Data"
-                >
-                  <Download className="h-3.5 w-3.5 text-blue-600" /> Export CSV
-                </button>
-
                 <button
                   onClick={() => handlePrintMemberCard(selectedCardModal)}
                   className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"

@@ -16,7 +16,6 @@ import Home from './pages/Home';
 import About from './pages/About';
 import Collections from './pages/Collections';
 import BookSearch from './pages/BookSearch';
-import NewArrivals from './pages/NewArrivals';
 import DigitalResources from './pages/DigitalResources';
 import LibraryServices from './pages/LibraryServices';
 import Downloads from './pages/Downloads';
@@ -134,7 +133,7 @@ export default function App() {
               <Route path="book-search" element={<BookSearch />} />
               <Route path="attendance" element={<AttendanceManagement />} />
               <Route path="borrow-history" element={<BookBorrowHistory />} />
-              <Route path="new-arrivals" element={<NewArrivals />} />
+              <Route path="new-arrivals" element={<Navigate to="/catalog?filter=new-arrivals" replace />} />
               <Route path="digital-resources" element={<DigitalResources />} />
               <Route path="downloads" element={<Downloads />} />
               <Route path="notices" element={<Notices />} />

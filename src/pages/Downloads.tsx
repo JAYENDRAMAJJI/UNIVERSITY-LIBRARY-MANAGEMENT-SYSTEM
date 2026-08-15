@@ -31,7 +31,7 @@ export default function Downloads() {
       items: [
         { name: 'University Academic Calendar 2026-2027', size: '1.2 MB' },
         { name: 'End Semester Exam Timetable & Guidelines', size: '340 KB' },
-        { name: 'OPAC Search & Circulation User Manual', size: '650 KB' },
+        { name: 'Library Catalog & Circulation User Manual', size: '650 KB' },
       ],
     },
   ];

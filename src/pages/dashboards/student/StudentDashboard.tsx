@@ -384,7 +384,7 @@ export default function StudentDashboard() {
                       <td className="p-3.5 font-mono">{formatOnlyTimeInBracket(tx.issueDate)}</td>
                       <td className="p-3.5 font-mono font-bold text-rose-700">{formatOnlyTimeInBracket(tx.dueDate)}</td>
                       <td className="p-3.5 font-bold">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase ${
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase font-extrabold whitespace-nowrap inline-block ${
                           tx.status === 'OVERDUE' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
                         }`}>
                           {tx.status}
@@ -519,19 +519,22 @@ export default function StudentDashboard() {
                     <td className="p-3.5 font-bold text-slate-800">{req.currentDueDate}</td>
                     <td className="p-3.5 font-bold text-purple-700">+{req.requestedExtensionDays} Days</td>
                     <td className="p-3.5 text-xs text-slate-700 italic max-w-xs font-medium">"{req.reason}"</td>
-                    <td className="p-3.5 font-bold">
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-[10px] uppercase ${
-                          req.status === 'APPROVED'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : req.status === 'REJECTED'
-                            ? 'bg-rose-100 text-rose-800'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {req.status} {req.newDueDate ? `(Extended to ${req.newDueDate})` : ''}
-                      </span>
-                    </td>
+                      <td className="p-3.5 font-bold">
+                        <span
+                          className={`px-3 py-1 rounded-xl text-[10px] uppercase font-extrabold inline-flex flex-col items-center justify-center leading-tight shadow-2xs ${
+                            req.status === 'APPROVED'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : req.status === 'REJECTED'
+                              ? 'bg-rose-100 text-rose-800'
+                              : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          <span className="whitespace-nowrap font-extrabold">{req.status}</span>
+                          {req.newDueDate && (
+                            <span className="text-[9px] font-mono font-bold opacity-80">(Extended to {req.newDueDate})</span>
+                          )}
+                        </span>
+                      </td>
                     <td className="p-3.5 text-right font-mono text-slate-500">{req.requestedDate}</td>
                   </tr>
                 ))}
@@ -597,7 +600,7 @@ export default function StudentDashboard() {
                       )}
                     </td>
                     <td className="p-3.5 text-right font-bold">
-                      <span className={`px-3 py-1 rounded-full text-[10px] uppercase font-extrabold border ${
+                      <span className={`px-3 py-1 rounded-full text-[10px] uppercase font-extrabold border whitespace-nowrap inline-block ${
                         req.status === 'AVAILABLE' || req.status === 'CATALOGED'
                           ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                           : req.status === 'REJECTED'
@@ -675,7 +678,7 @@ export default function StudentDashboard() {
                         )}
                       </td>
                       <td className="p-3.5 text-right font-bold">
-                        <span className={`px-3 py-1 rounded-full text-[10px] uppercase ${
+                        <span className={`px-3 py-1 rounded-full text-[10px] uppercase font-extrabold whitespace-nowrap inline-block ${
                           tx.status === 'RETURNED'
                             ? 'bg-emerald-100 text-emerald-800'
                             : tx.status === 'OVERDUE'

@@ -21,10 +21,14 @@ import {
   Check,
   Building2,
   FileSpreadsheet,
+  Printer,
+  QrCode,
+  Barcode,
 } from 'lucide-react';
 import { libraryStore } from '../../services/libraryStore.service';
 import { Role, UserStatus, MemberProfile } from '../../types/library';
 import RegisterAccountModal from '../../components/common/RegisterAccountModal';
+import { generateBarcodeSvgString, generateQrSvgString } from '../../utils/barcodeQrGenerator';
 
 export default function UsersManagement() {
   const [state, setState] = useState(libraryStore.snapshot);
@@ -101,6 +105,148 @@ export default function UsersManagement() {
       setPassCopied(true);
       setTimeout(() => setPassCopied(false), 2500);
     }
+  };
+
+  const handlePrintUserCard = (member: MemberProfile) => {
+    const printWindow = window.open('', '_blank', 'width=850,height=700');
+    if (!printWindow) return;
+
+    const cardNo = member.memberCardNo || `LIB-${member.id}`;
+    const qrSvg = generateQrSvgString(cardNo, 75);
+    const barcodeSvg = generateBarcodeSvgString(cardNo, { height: 45 });
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Print Member Pass - ${member.name}</title>
+          <style>
+            @page { size: A4; margin: 10mm; }
+            * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { margin: 0; padding: 24px; background: #f1f5f9; font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; color: #0f172a; }
+            @media print {
+              body { background: #ffffff; padding: 0; }
+              .no-print { display: none !important; }
+            }
+            .page-title { text-align: center; margin-bottom: 20px; }
+            .print-btn { background: #0f172a; color: #ffffff; border: none; padding: 12px 24px; font-size: 13px; font-weight: 700; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2); }
+            
+            .cards-container { display: flex; flex-direction: column; align-items: center; gap: 24px; max-width: 480px; margin: 0 auto; }
+            
+            .id-card {
+              width: 400px;
+              height: 240px;
+              border-radius: 16px;
+              background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #090d16 100%);
+              color: #ffffff;
+              padding: 16px 20px;
+              position: relative;
+              overflow: hidden;
+              box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
+              border: 2px solid rgba(255, 255, 255, 0.15);
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              page-break-inside: avoid;
+            }
+            
+            .card-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.15); padding-bottom: 8px; }
+            .univ-name { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; color: #93c5fd; text-transform: uppercase; }
+            .pass-subtitle { font-size: 8.5px; color: #94a3b8; font-weight: 600; }
+            .role-badge { font-size: 9px; font-weight: 800; text-transform: uppercase; background: rgba(59, 130, 246, 0.3); border: 1px solid rgba(147, 197, 253, 0.4); color: #bfdbfe; padding: 3px 9px; border-radius: 6px; }
+            
+            .card-body-front { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
+            .avatar-photo { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; border: 2px solid #f59e0b; flex-shrink: 0; }
+            .member-details { flex: 1; min-width: 0; }
+            .member-name { font-size: 15px; font-weight: 800; color: #ffffff; margin: 0 0 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .card-no { font-family: 'Courier New', Courier, monospace; font-size: 13px; font-weight: 800; color: #f59e0b; margin-bottom: 2px; }
+            .dept-text { font-size: 10px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .status-pill { font-size: 9px; font-weight: 700; color: #34d399; margin-top: 2px; }
+            
+            .qr-code-box { width: 72px; height: 72px; background: #ffffff; padding: 4px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+            .qr-code-box svg { width: 100%; height: 100%; display: block; }
+            
+            .card-footer { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255, 255, 255, 0.15); padding-top: 6px; font-size: 8.5px; color: #94a3b8; font-family: monospace; }
+            
+            .card-body-back { display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 6px 0; }
+            .barcode-wrapper { width: 100%; background: #ffffff; padding: 8px 12px 4px 12px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+            .barcode-wrapper svg { width: 100%; max-width: 320px; height: 48px; display: block; }
+            .rules-notice { font-size: 8px; color: #94a3b8; text-align: center; line-height: 1.3; margin-top: 4px; }
+          </style>
+        </head>
+        <body>
+          <div class="no-print page-title">
+            <button onclick="window.print()" class="print-btn">🖨️ Print Library Pass Card (Front & Back)</button>
+          </div>
+          
+          <div class="cards-container">
+            <!-- FRONT SIDE -->
+            <div class="id-card">
+              <div class="card-header">
+                <div>
+                  <div class="univ-name">University Central Library</div>
+                  <div class="pass-subtitle">Official Student / Member Pass</div>
+                </div>
+                <div class="role-badge">${member.role || 'MEMBER'}</div>
+              </div>
+              
+              <div class="card-body-front">
+                <img src="${member.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}" class="avatar-photo" alt="${member.name}" />
+                <div class="member-details">
+                  <h3 class="member-name">${member.name}</h3>
+                  <div class="card-no">${cardNo}</div>
+                  <div class="dept-text">Dept: ${member.department || 'Central Library'}</div>
+                  <div class="status-pill">● ACTIVE MEMBER</div>
+                </div>
+                <div class="qr-code-box">
+                  ${qrSvg}
+                </div>
+              </div>
+              
+              <div class="card-footer">
+                <span>Issued: ${member.registeredDate || '2026-01-15'}</span>
+                <span>Valid Thru: DEC 2028</span>
+                <span style="color: #f59e0b; font-weight: bold;">SECURITY VERIFIED</span>
+              </div>
+            </div>
+
+            <!-- BACK SIDE -->
+            <div class="id-card">
+              <div class="card-header">
+                <div class="univ-name" style="color: #f59e0b;">BARCODE & TURNSTILE ACCESS</div>
+                <div class="card-no" style="font-size: 11px; margin: 0;">${cardNo}</div>
+              </div>
+              
+              <div class="card-body-back">
+                <div class="barcode-wrapper">
+                  ${barcodeSvg}
+                </div>
+              </div>
+              
+              <div class="rules-notice">
+                • Present card at library turnstiles, borrowing counters, and RFID gates.<br/>
+                • Non-transferable official pass. Max Quota: ${member.maxAllowedBooks || 5} Books.
+              </div>
+              
+              <div class="card-footer" style="padding-top: 4px;">
+                <span>Library System v2.4</span>
+                <span>Help: library@university.edu</span>
+              </div>
+            </div>
+          </div>
+
+          <script>
+            window.onload = function() {
+              setTimeout(function() { window.print(); }, 300);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   // Stats calculation
@@ -458,12 +604,22 @@ export default function UsersManagement() {
                       </td>
 
                       <td className="py-4 px-4 text-right">
-                        <button
-                          onClick={() => handleOpenResetPassword(m)}
-                          className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-100 transition-colors inline-flex items-center gap-1.5 text-slate-700"
-                        >
-                          <Key className="h-3.5 w-3.5 text-amber-600" /> Reset Password
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handlePrintUserCard(m)}
+                            className="px-2.5 py-1.5 border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors inline-flex items-center gap-1.5 text-blue-700 cursor-pointer"
+                            title="Print Digital Member Pass Card (Barcode & QR Code)"
+                          >
+                            <Printer className="h-3.5 w-3.5 text-blue-600" /> Print ID Pass
+                          </button>
+
+                          <button
+                            onClick={() => handleOpenResetPassword(m)}
+                            className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-100 transition-colors inline-flex items-center gap-1.5 text-slate-700 cursor-pointer"
+                          >
+                            <Key className="h-3.5 w-3.5 text-amber-600" /> Reset Password
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

@@ -9,7 +9,7 @@ export default function LibraryServices() {
     { title: 'High-Speed Campus Wi-Fi', icon: Wifi, description: 'High-speed Wi-Fi throughout the library building. Log in using student or faculty network credentials.' },
     { title: 'Reference Desk Assistance', icon: Users, description: 'Expert reference librarians available to assist with literature reviews, thesis citations, and database searches.' },
     { title: 'Photocopy & Document Printing', icon: Printer, description: 'Self-service printing kiosks and scanning stations located on the ground floor.' },
-    { title: 'OPAC Search Kiosks', icon: Monitor, description: 'Online Public Access Catalog kiosks available on all floors for real-time book availability and shelf location search.' },
+    { title: 'Library Catalog Kiosks', icon: Monitor, description: 'Interactive catalog search kiosks available on all floors for real-time book availability and shelf location search.' },
   ];
 
   return (

@@ -60,13 +60,42 @@ export default function ReturnBooks() {
   };
 
   const handleScannedBarcode = (code: string) => {
-    const matchingTx = activeTransactions.find(
-      (t) => t.barcode.toLowerCase() === code.toLowerCase() || t.accessionNo.toLowerCase() === code.toLowerCase()
-    );
+    const clean = code.trim().toLowerCase();
+    const queryNorm = clean.replace(/^(qr-|bc-|acc-|card-|id-)/i, '').replace(/[^a-z0-9]/g, '');
+
+    const isMemberCode = state.members.some((m) => {
+      const cLower = m.memberCardNo.toLowerCase();
+      const idLower = m.id.toLowerCase();
+      if (cLower === clean || idLower === clean) return true;
+      const cNorm = cLower.replace(/[^a-z0-9]/g, '');
+      const idNorm = idLower.replace(/[^a-z0-9]/g, '');
+      return queryNorm.length > 0 && (cNorm === queryNorm || idNorm === queryNorm);
+    }) || clean.startsWith('stu-') || clean.startsWith('fac-') || clean.startsWith('adm-');
+
+    if (isMemberCode) {
+      setAlert({
+        type: 'error',
+        message: 'INVALID BOOK CODE: You scanned a Member ID Card. Please scan a Book Barcode or Accession Number to process return.',
+      });
+      return;
+    }
+
+    const matchingTx = activeTransactions.find((t) => {
+      const bNorm = t.barcode.toLowerCase().replace(/^(bc-|qr-|acc-|card-|id-)/i, '').replace(/[^a-z0-9]/g, '');
+      const aNorm = t.accessionNo.toLowerCase().replace(/^(bc-|qr-|acc-|card-|id-)/i, '').replace(/[^a-z0-9]/g, '');
+      const qNorm = ((t as any).qrCode || '').toLowerCase().replace(/^(bc-|qr-|acc-|card-|id-)/i, '').replace(/[^a-z0-9]/g, '');
+
+      return (
+        t.barcode.toLowerCase() === clean ||
+        t.accessionNo.toLowerCase() === clean ||
+        (t as any).qrCode?.toLowerCase() === clean ||
+        (queryNorm.length > 0 && (bNorm === queryNorm || aNorm === queryNorm || qNorm === queryNorm))
+      );
+    });
     if (matchingTx) {
       handleOpenReturnModal(matchingTx);
     } else {
-      setAlert({ type: 'error', message: `No active borrowing record found for scanned barcode / accession: ${code}` });
+      setAlert({ type: 'error', message: `No active borrowing record found for scanned barcode / accession / QR code: "${code}"` });
     }
   };
 
@@ -88,7 +117,7 @@ export default function ReturnBooks() {
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all cursor-pointer"
           >
             <Camera className="w-4 h-4" />
-            <span>Scan Student ID</span>
+            <span>Scan Member ID</span>
           </button>
           <button
             onClick={() => setIsScannerOpen(true)}
@@ -104,10 +133,26 @@ export default function ReturnBooks() {
         isOpen={isStudentScannerOpen}
         onClose={() => setIsStudentScannerOpen(false)}
         onScanSuccess={(scannedCode) => {
-          setReturnQuery(scannedCode);
+          let clean = scannedCode.trim();
+          if ((clean.startsWith('{') && clean.endsWith('}')) || (clean.startsWith('[') && clean.endsWith(']'))) {
+            try {
+              const obj = JSON.parse(clean);
+              clean = obj.memberCardNo || obj.id || obj.cardNo || obj.studentId || obj.code || clean;
+            } catch {}
+          }
+          const cleanNoPrefix = clean.replace(/^(qr-|card-|id-)/i, '').trim();
+          const m = state.members.find(
+            (mem) =>
+              mem.memberCardNo.toLowerCase() === clean.toLowerCase() ||
+              mem.id.toLowerCase() === clean.toLowerCase() ||
+              mem.email.toLowerCase() === clean.toLowerCase() ||
+              mem.memberCardNo.toLowerCase() === cleanNoPrefix.toLowerCase() ||
+              mem.id.toLowerCase() === cleanNoPrefix.toLowerCase()
+          );
+          setReturnQuery(m ? m.memberCardNo : clean);
         }}
         scannerType="STUDENT_ID"
-        title="Scan Student / Library Member ID Card"
+        title="Scan Member Library ID Card"
       />
 
       <BarcodeScannerModal
