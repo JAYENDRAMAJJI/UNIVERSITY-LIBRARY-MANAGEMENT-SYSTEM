@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle, AlertCircle, Clock, ShieldCheck, XCircle, FileText, Search, User, BookOpen, X } from 'lucide-react';
+import { RefreshCw, CheckCircle, AlertCircle, Clock, ShieldCheck, XCircle, Search, X } from 'lucide-react';
 import { libraryStore } from '../../services/libraryStore.service';
 import { ExtensionRequest } from '../../types/library';
 
 export default function RenewBooks() {
   const [state, setState] = useState(libraryStore.snapshot);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Reject Modal state
@@ -25,8 +25,7 @@ export default function RenewBooks() {
 
   const extensionRequests = state.extensionRequests || [];
   const pendingRequests = extensionRequests.filter((r) => r.status === 'PENDING');
-  const processedRequests = extensionRequests.filter((r) => r.status !== 'PENDING');
-  const renewableLoans = state.transactions.filter((t) => t.status === 'ISSUED' || t.status === 'OVERDUE');
+  const approvedRequests = extensionRequests.filter((r) => r.status === 'APPROVED');
 
   const filteredPending = pendingRequests.filter(
     (r) =>
@@ -36,11 +35,12 @@ export default function RenewBooks() {
       r.reason.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredHistory = processedRequests.filter(
+  const filteredApproved = approvedRequests.filter(
     (r) =>
       r.memberName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.bookTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.memberCardNo.toLowerCase().includes(searchTerm.toLowerCase())
+      r.memberCardNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.reason.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleApprove = (requestId: string) => {
@@ -74,72 +74,44 @@ export default function RenewBooks() {
             <RefreshCw className="h-3.5 w-3.5" /> Book Return Time & Extension Approval Desk
           </div>
           <h1 className="text-2xl font-bold font-poppins text-slate-900">Extend Book Time & Renewal Approvals</h1>
-          <p className="text-sm text-slate-500 mt-1">Review student & faculty extension requests with valid reasons and approve return due date extensions.</p>
+          <p className="text-sm text-slate-500 mt-1">Review member extension requests submitted by students and faculty, and manage approved extension history.</p>
         </div>
       </div>
 
       {/* Alert Banner */}
       {alert && (
         <div
-          className={`flex items-center gap-3 p-4 rounded-2xl text-sm font-medium border shadow-xs animate-fadeIn ${
+          className={`flex items-center justify-between gap-3 p-4 rounded-2xl text-sm font-medium border shadow-xs animate-fadeIn ${
             alert.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'
           }`}
         >
-          {alert.type === 'success' ? <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" /> : <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />}
-          <span>{alert.message}</span>
+          <div className="flex items-center gap-3">
+            {alert.type === 'success' ? <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" /> : <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />}
+            <span>{alert.message}</span>
+          </div>
+          <button onClick={() => setAlert(null)} className="p-1 text-slate-400 hover:text-slate-700">
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Pending Approvals</p>
-            <p className="text-3xl font-extrabold text-slate-900 mt-1">{pendingRequests.length}</p>
-          </div>
-          <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl">
-            <Clock className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-emerald-200 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Approved Extensions</p>
-            <p className="text-3xl font-extrabold text-slate-900 mt-1">{extensionRequests.filter((r) => r.status === 'APPROVED').length}</p>
-          </div>
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-blue-200 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Active Borrowed Books</p>
-            <p className="text-3xl font-extrabold text-slate-900 mt-1">{renewableLoans.length}</p>
-          </div>
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
-            <BookOpen className="w-6 h-6" />
-          </div>
-        </div>
-      </div>
-
       {/* Navigation Tabs & Search Toolbar */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
         {/* Search Bar on Left */}
-        <div className="relative w-full md:w-80">
-          <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${searchTerm ? 'text-purple-600' : 'text-slate-400'}`} />
+        <div className="relative w-full sm:w-80 md:w-96">
+          <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${searchTerm ? 'text-purple-600 font-bold' : 'text-slate-400'}`} />
           <input
             type="text"
-            placeholder="Search member, book, or reason..."
+            placeholder="Search member name, book title, card..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all bg-white"
+            className="w-full pl-10 pr-9 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all bg-slate-50/70 focus:bg-white shadow-2xs"
           />
           {searchTerm && (
             <button
               type="button"
               onClick={() => setSearchTerm('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
               title="Clear search"
             >
               <X className="h-3.5 w-3.5" />
@@ -147,25 +119,29 @@ export default function RenewBooks() {
           )}
         </div>
 
-        {/* Tab Buttons on Right */}
-        <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto justify-start md:justify-end shrink-0">
+        {/* 2 Navigation Tab Buttons on Right */}
+        <div className="flex items-center gap-2 overflow-x-auto shrink-0 justify-start sm:justify-end">
           <button
             type="button"
             onClick={() => setActiveTab('pending')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'pending' ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'pending'
+                ? 'bg-amber-500 text-white shadow-md shadow-amber-200'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
             }`}
           >
-            <Clock className="w-4 h-4" /> Pending Member Requests ({pendingRequests.length})
+            <Clock className="w-4 h-4" /> Pending Extension Requests ({pendingRequests.length})
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('history')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'history' ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+            onClick={() => setActiveTab('approved')}
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'approved'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
             }`}
           >
-            <FileText className="w-4 h-4" /> Request History ({processedRequests.length})
+            <ShieldCheck className="w-4 h-4" /> Extension Approval History ({approvedRequests.length})
           </button>
         </div>
       </div>
@@ -174,7 +150,7 @@ export default function RenewBooks() {
       {activeTab === 'pending' && (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
           <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h2 className="font-bold text-slate-900 text-base flex items-center gap-2">
+            <h2 className="font-bold text-slate-900 text-base flex items-center gap-2 font-poppins">
               <Clock className="w-5 h-5 text-amber-500" /> Pending Return Date Extension Requests
             </h2>
             <span className="text-xs font-semibold text-slate-500">Student & Faculty member requests requiring librarian approval</span>
@@ -244,7 +220,9 @@ export default function RenewBooks() {
                 {filteredPending.length === 0 && (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-slate-500 text-sm">
-                      No pending extension requests. Students and Faculty can request return date extensions from their portals.
+                      {searchTerm
+                        ? `No pending extension requests matching "${searchTerm}".`
+                        : 'No pending extension requests. Member extension requests submitted by students and faculty will appear here for review.'}
                     </td>
                   </tr>
                 )}
@@ -254,12 +232,15 @@ export default function RenewBooks() {
         </div>
       )}
 
-      {/* TAB 2: REQUEST HISTORY */}
-      {activeTab === 'history' && (
+      {/* TAB 2: APPROVED EXTENSIONS LOG */}
+      {activeTab === 'approved' && (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-4">
-          <h2 className="font-bold text-slate-900 text-base flex items-center gap-2 border-b border-slate-100 pb-3">
-            <FileText className="w-5 h-5 text-purple-600" /> Extension Approval & Rejection History
-          </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <h2 className="font-bold text-slate-900 text-base flex items-center gap-2 font-poppins">
+              <ShieldCheck className="w-5 h-5 text-emerald-600" /> Extension Approval History Docket
+            </h2>
+            <span className="text-xs font-semibold text-slate-500">Official history log of librarian-approved extension requests</span>
+          </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -268,12 +249,12 @@ export default function RenewBooks() {
                   <th className="py-3 px-4">Member Name</th>
                   <th className="py-3 px-4">Book Title</th>
                   <th className="py-3 px-4">Reason Provided</th>
-                  <th className="py-3 px-4">Decision Status</th>
-                  <th className="py-3 px-4">Reviewed Date</th>
+                  <th className="py-3 px-4">Decision & New Due Date</th>
+                  <th className="py-3 px-4">Approved Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {filteredHistory.map((req) => (
+                {filteredApproved.map((req) => (
                   <tr key={req.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="py-3.5 px-4 align-middle font-semibold text-slate-900 whitespace-nowrap">
                       {req.memberName} <span className="text-xs text-slate-400 font-normal">({req.memberRole})</span>
@@ -281,22 +262,20 @@ export default function RenewBooks() {
                     <td className="py-3.5 px-4 align-middle font-medium text-slate-800">{req.bookTitle}</td>
                     <td className="py-3.5 px-4 align-middle text-xs text-slate-600 italic font-medium max-w-xs break-words">"{req.reason}"</td>
                     <td className="py-3.5 px-4 align-middle">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
-                          req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                        }`}
-                      >
-                        {req.status === 'APPROVED' ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                        {req.status} {req.newDueDate ? `(Extended to ${req.newDueDate})` : ''}
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                        Approved {req.newDueDate ? `(Extended to ${req.newDueDate})` : ''}
                       </span>
                     </td>
                     <td className="py-3.5 px-4 align-middle text-xs font-mono text-slate-500">{req.reviewedDate || req.requestedDate}</td>
                   </tr>
                 ))}
-                {filteredHistory.length === 0 && (
+                {filteredApproved.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-12 text-center text-slate-400 text-sm">
-                      No processed extension history records found.
+                      {searchTerm
+                        ? `No extension approval history matching "${searchTerm}".`
+                        : 'No approved extension history records found.'}
                     </td>
                   </tr>
                 )}

@@ -91,9 +91,9 @@ export default function AccessDenied() {
           <div className="pt-2 border-t border-slate-100 flex justify-center">
             <Link
               to="/"
-              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-800"
+              className="inline-flex items-center gap-2 text-sm sm:text-base font-semibold text-slate-600 hover:text-blue-600 transition-colors py-1 px-2.5 rounded-lg hover:bg-slate-100/60"
             >
-              <ArrowLeft className="w-3.5 h-3.5" /> Return to Public Home Page
+              <ArrowLeft className="w-4.5 h-4.5" /> Return to Public Home Page
             </Link>
           </div>
         </div>

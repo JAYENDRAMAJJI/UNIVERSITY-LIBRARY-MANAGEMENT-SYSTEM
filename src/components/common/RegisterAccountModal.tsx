@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, X, CheckCircle, ShieldCheck, Mail, Lock, Phone, Building, User, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, X, CheckCircle, Mail, Lock, Phone, Building, User, Eye, EyeOff, Hash, GraduationCap, MapPin, PhoneCall } from 'lucide-react';
 import { libraryStore } from '../../services/libraryStore.service';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,10 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
     name: '',
     email: '',
     phone: '',
+    rollNo: '',
+    academicBatch: 'B.Tech 3rd Year',
+    emergencyContact: '',
+    address: '',
     role: 'STUDENT' as Role,
     department: 'Computer Science & Engineering',
     password: '',
@@ -48,6 +52,10 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
       role: formData.role as Role,
       department: formData.department,
       phone: formData.phone,
+      rollNo: formData.rollNo,
+      academicBatch: formData.academicBatch,
+      address: formData.address,
+      emergencyContact: formData.emergencyContact,
     });
 
     setToastMessage(`Account successfully created for ${registeredMember.name}! Card ID: ${registeredMember.memberCardNo}`);
@@ -68,10 +76,10 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden space-y-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in overflow-y-auto">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden space-y-0 my-auto max-h-[92vh] flex flex-col">
         {/* Modal Header */}
-        <div className="p-6 bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-900 text-white flex items-center justify-between">
+        <div className="p-6 bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-900 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <span className="p-2.5 rounded-2xl bg-blue-500/20 text-blue-300">
               <UserPlus className="h-6 w-6" />
@@ -86,7 +94,7 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs font-medium">
+        <form onSubmit={handleSubmit} className="p-6 space-y-3.5 text-xs font-medium overflow-y-auto">
           {toastMessage && (
             <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs">
               <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -94,51 +102,61 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
             </div>
           )}
 
-          {/* Full Name */}
-          <div className="space-y-1">
-            <label className="block text-slate-700 font-bold">Full Name *</label>
-            <div className="relative">
-              <User className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                required
-                placeholder="e.g. Rahul Sharma"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-          </div>
-
-          {/* Email Address */}
-          <div className="space-y-1">
-            <label className="block text-slate-700 font-bold">Institutional Email Address *</label>
-            <div className="relative">
-              <Mail className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-              <input
-                type="email"
-                required
-                placeholder="e.g. rahul.sharma@college.edu"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-          </div>
-
-          {/* Role & Phone */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Full Name & Select Role Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="block text-slate-700 font-bold">Select Role *</label>
+              <label className="block text-slate-700 font-bold">Full Name *</label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Rahul Sharma"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-slate-700 font-bold">Membership Role *</label>
               <select
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
+                onChange={(e) => {
+                  const newRole = e.target.value as Role;
+                  const defaultBatch =
+                    newRole === 'STUDENT'
+                      ? 'B.Tech 3rd Year'
+                      : newRole === 'FACULTY'
+                      ? 'Assistant Professor'
+                      : 'Assistant Librarian';
+                  setFormData({ ...formData, role: newRole, academicBatch: defaultBatch });
+                }}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
               >
                 <option value="STUDENT">Student Scholar</option>
                 <option value="FACULTY">Faculty Member</option>
-                <option value="STAFF">Library Staff</option>
+                <option value="STAFF">Library Staff / Admin</option>
               </select>
+            </div>
+          </div>
+
+          {/* Email Address & Phone */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="block text-slate-700 font-bold">Institutional Email Address *</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. rahul.sharma@college.edu"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -156,23 +174,143 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
             </div>
           </div>
 
-          {/* Department */}
+          {/* Roll No / ID & Academic Level / Designation Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="block text-slate-700 font-bold">
+                {formData.role === 'STUDENT'
+                  ? 'Roll No / Student ID'
+                  : formData.role === 'FACULTY'
+                  ? 'Faculty Employee ID'
+                  : 'Staff / Admin ID'}
+              </label>
+              <div className="relative">
+                <Hash className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder={
+                    formData.role === 'STUDENT'
+                      ? 'e.g. 2026-CS-042'
+                      : formData.role === 'FACULTY'
+                      ? 'e.g. FAC-2026-881'
+                      : 'e.g. STF-2026-104'
+                  }
+                  value={formData.rollNo}
+                  onChange={(e) => setFormData({ ...formData, rollNo: e.target.value })}
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-slate-700 font-bold">
+                {formData.role === 'STUDENT'
+                  ? 'Academic Year / Level'
+                  : formData.role === 'FACULTY'
+                  ? 'Faculty Designation'
+                  : 'Staff Position / Title'}
+              </label>
+              <div className="relative">
+                <GraduationCap className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-400" />
+                <select
+                  value={formData.academicBatch}
+                  onChange={(e) => setFormData({ ...formData, academicBatch: e.target.value })}
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+                >
+                  {formData.role === 'STUDENT' && (
+                    <>
+                      <option value="B.Tech 1st Year">B.Tech 1st Year</option>
+                      <option value="B.Tech 2nd Year">B.Tech 2nd Year</option>
+                      <option value="B.Tech 3rd Year">B.Tech 3rd Year</option>
+                      <option value="B.Tech 4th Year">B.Tech 4th Year</option>
+                      <option value="M.Tech Scholar">M.Tech Scholar</option>
+                      <option value="Ph.D Research Scholar">Ph.D Research Scholar</option>
+                    </>
+                  )}
+                  {formData.role === 'FACULTY' && (
+                    <>
+                      <option value="Assistant Professor">Assistant Professor</option>
+                      <option value="Associate Professor">Associate Professor</option>
+                      <option value="Professor">Professor</option>
+                      <option value="Head of Department (HOD)">Head of Department (HOD)</option>
+                      <option value="Dean / Director">Dean / Director</option>
+                      <option value="Visiting / Adjunct Faculty">Visiting / Adjunct Faculty</option>
+                    </>
+                  )}
+                  {formData.role === 'STAFF' && (
+                    <>
+                      <option value="Chief Admin Librarian">Chief Admin Librarian</option>
+                      <option value="Assistant Librarian">Assistant Librarian</option>
+                      <option value="Library Attendant">Library Attendant</option>
+                      <option value="IT System Administrator">IT System Administrator</option>
+                      <option value="Administrative Officer">Administrative Officer</option>
+                    </>
+                  )}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Department & Emergency Phone Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="block text-slate-700 font-bold">Academic Department</label>
+              <div className="relative">
+                <Building className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                <select
+                  value={formData.department}
+                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+                >
+                  <option value="Computer Science & Engineering">Computer Science & Engineering</option>
+                  <option value="Electrical & Electronics">Electrical & Electronics</option>
+                  <option value="Mechanical Engineering">Mechanical Engineering</option>
+                  <option value="Physics & Applied Science">Physics & Applied Science</option>
+                  <option value="Mathematics & Statistics">Mathematics & Statistics</option>
+                  <option value="Business Administration">Business Administration</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-slate-700 font-bold">Emergency Phone</label>
+              <div className="relative">
+                <PhoneCall className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="+91 98100 12345"
+                  value={formData.emergencyContact}
+                  onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Campus / Home Address (Full Width) */}
           <div className="space-y-1">
-            <label className="block text-slate-700 font-bold">Academic Department</label>
+            <label className="block text-slate-700 font-bold">
+              {formData.role === 'STUDENT'
+                ? 'Campus Hostel / Permanent Residence Address'
+                : formData.role === 'FACULTY'
+                ? 'Faculty Quarters / Residential Address'
+                : 'Staff Quarter / Residential Address'}
+            </label>
             <div className="relative">
-              <Building className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-              <select
-                value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
-              >
-                <option value="Computer Science & Engineering">Computer Science & Engineering</option>
-                <option value="Electrical & Electronics">Electrical & Electronics</option>
-                <option value="Mechanical Engineering">Mechanical Engineering</option>
-                <option value="Physics & Applied Science">Physics & Applied Science</option>
-                <option value="Mathematics & Statistics">Mathematics & Statistics</option>
-                <option value="Business Administration">Business Administration</option>
-              </select>
+              <MapPin className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder={
+                  formData.role === 'STUDENT'
+                    ? 'e.g. Hostel Block A, Room 302 / Flat 12, Main Street, City'
+                    : formData.role === 'FACULTY'
+                    ? 'e.g. Faculty Staff Quarter B-4, University Main Campus'
+                    : 'e.g. Admin Staff Quarter Q-12, Institutional Area'
+                }
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
             </div>
           </div>
 
@@ -219,7 +357,7 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
           </div>
 
           {/* Submit Action */}
-          <div className="pt-3 flex items-center justify-end gap-3">
+          <div className="pt-3 flex items-center justify-end gap-3 shrink-0">
             <button
               type="button"
               onClick={onClose}

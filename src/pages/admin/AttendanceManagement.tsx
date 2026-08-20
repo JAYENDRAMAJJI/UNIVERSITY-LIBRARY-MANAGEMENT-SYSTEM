@@ -86,6 +86,44 @@ export default function AttendanceManagement() {
 
   const scanInputRef = useRef<HTMLInputElement>(null);
 
+  // Custom Date Range Export Modal State
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1); // 1st of current month
+    return getLocalDateStr(d);
+  });
+  const [exportEndDate, setExportEndDate] = useState(() => getLocalDateStr(new Date()));
+  const [exportRoleFilter, setExportRoleFilter] = useState<string>('ALL');
+  const [exportPurposeFilter, setExportPurposeFilter] = useState<string>('ALL');
+  const [selectedExportMemberCards, setSelectedExportMemberCards] = useState<string[]>([]);
+  const [modalMemberSearch, setModalMemberSearch] = useState('');
+  const [exportToastMessage, setExportToastMessage] = useState<string | null>(null);
+
+  // Auto-dismiss export toast notification
+  useEffect(() => {
+    if (!exportToastMessage) return;
+    const t = setTimeout(() => setExportToastMessage(null), 4000);
+    return () => clearTimeout(t);
+  }, [exportToastMessage]);
+
+  // Filter attendance records by custom date range, members & attributes
+  const exportRecordsInRange = useMemo(() => {
+    const allRecords = state.attendanceRecords || [];
+    return allRecords.filter((r) => {
+      const rDate = (r.checkInTime || '').split(' ')[0].split('T')[0];
+      if (exportStartDate && rDate < exportStartDate) return false;
+      if (exportEndDate && rDate > exportEndDate) return false;
+      if (exportRoleFilter !== 'ALL' && r.role !== exportRoleFilter) return false;
+      if (exportPurposeFilter !== 'ALL' && r.purposeOfVisit !== exportPurposeFilter) return false;
+      // Member-wise filter
+      if (selectedExportMemberCards.length > 0 && !selectedExportMemberCards.includes(r.memberCardNo)) {
+        return false;
+      }
+      return true;
+    });
+  }, [state.attendanceRecords, exportStartDate, exportEndDate, exportRoleFilter, exportPurposeFilter, selectedExportMemberCards]);
+
   // Real Clock State (Updates every second)
   const [nowClock, setNowClock] = useState(new Date());
 
@@ -383,7 +421,23 @@ export default function AttendanceManagement() {
   };
 
   const handleExportCSV = () => {
-    libraryStore.exportAttendanceReportCSV(filteredHistory);
+    setSelectedExportMemberCards([]);
+    setModalMemberSearch('');
+    setShowExportModal(true);
+  };
+
+  const handleExecuteCustomExport = () => {
+    let memberSlug = '';
+    if (selectedExportMemberCards.length === 1) {
+      const m = state.members.find((mb) => mb.memberCardNo === selectedExportMemberCards[0]);
+      memberSlug = m ? `_${m.name.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 25)}` : `_${selectedExportMemberCards[0]}`;
+    } else if (selectedExportMemberCards.length > 1) {
+      memberSlug = `_${selectedExportMemberCards.length}_selected_members`;
+    }
+    const finalFilename = `University_Library_Attendance_Report${memberSlug}_${getLocalDateStr(new Date())}.csv`;
+    libraryStore.exportAttendanceReportCSV(exportRecordsInRange, finalFilename);
+    setShowExportModal(false);
+    setExportToastMessage(`Exported ${exportRecordsInRange.length} attendance records (${exportStartDate || 'Start'} to ${exportEndDate || 'Today'})`);
   };
 
   const handleSaveOverride = (e: React.FormEvent) => {
@@ -1565,6 +1619,334 @@ export default function AttendanceManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification Banner */}
+      {exportToastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-emerald-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-emerald-700/60 flex items-center gap-3 animate-fade-in text-xs font-semibold">
+          <CheckCircle className="h-5 w-5 text-emerald-400 shrink-0" />
+          <span>{exportToastMessage}</span>
+          <button
+            type="button"
+            onClick={() => setExportToastMessage(null)}
+            className="ml-2 text-emerald-300 hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Custom Date Range Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col border border-slate-100 relative overflow-hidden">
+            {/* Modal Top Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 p-5 shrink-0 bg-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold shrink-0">
+                  <FileSpreadsheet className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 font-poppins">Export Attendance CSV Report</h2>
+                  <p className="text-xs text-slate-500">Filter records by custom date range, members, roles, and visit purpose.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowExportModal(false)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+              {/* Quick Presets */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Quick Date Presets</label>
+                <div className="grid grid-cols-5 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const today = getLocalDateStr(new Date());
+                      setExportStartDate(today);
+                      setExportEndDate(today);
+                    }}
+                    className="px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 border border-slate-200/70 text-center transition-colors cursor-pointer"
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() - 6);
+                      setExportStartDate(getLocalDateStr(d));
+                      setExportEndDate(getLocalDateStr(new Date()));
+                    }}
+                    className="px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 border border-slate-200/70 text-center transition-colors cursor-pointer"
+                  >
+                    7 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() - 29);
+                      setExportStartDate(getLocalDateStr(d));
+                      setExportEndDate(getLocalDateStr(new Date()));
+                    }}
+                    className="px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 border border-slate-200/70 text-center transition-colors cursor-pointer"
+                  >
+                    30 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(1);
+                      setExportStartDate(getLocalDateStr(d));
+                      setExportEndDate(getLocalDateStr(new Date()));
+                    }}
+                    className="px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 border border-slate-200/70 text-center transition-colors cursor-pointer"
+                  >
+                    Month
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExportStartDate('');
+                      setExportEndDate('');
+                    }}
+                    className="px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 border border-slate-200/70 text-center transition-colors cursor-pointer"
+                  >
+                    All Time
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Date Range Controls */}
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                    <Calendar className="h-3 w-3 text-blue-600" /> Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={exportStartDate}
+                    onChange={(e) => setExportStartDate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                    <Calendar className="h-3 w-3 text-indigo-600" /> End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={exportEndDate}
+                    onChange={(e) => setExportEndDate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+              </div>
+
+              {/* Role & Visit Purpose Filter Selectors */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Member Role Filter</label>
+                  <select
+                    value={exportRoleFilter}
+                    onChange={(e) => {
+                      setExportRoleFilter(e.target.value);
+                      setSelectedExportMemberCards([]);
+                    }}
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+                  >
+                    <option value="ALL">All Roles (Students, Faculty, Staff, Guests)</option>
+                    <option value="STUDENT">Student Only</option>
+                    <option value="FACULTY">Faculty Only</option>
+                    <option value="STAFF">Staff Only</option>
+                    <option value="GUEST">Guest / Visitor Only</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Purpose of Visit</label>
+                  <select
+                    value={exportPurposeFilter}
+                    onChange={(e) => setExportPurposeFilter(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+                  >
+                    <option value="ALL">All Visit Purposes</option>
+                    <option value="GENERAL_READING">General Reading</option>
+                    <option value="BOOK_ISSUE_RETURN">Book Issue & Return</option>
+                    <option value="DIGITAL_LIBRARY">Digital Library & PC</option>
+                    <option value="RESEARCH_STUDY">Research & Reference</option>
+                    <option value="GROUP_DISCUSSION">Group Discussion</option>
+                    <option value="EXAM_PREPARATION">Exam Preparation</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Multi-Select Member Selection with Tick Marks (Filtered by Role) */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-indigo-600" /> Select Members:
+                    <span className="text-indigo-700 font-semibold">
+                      {selectedExportMemberCards.length === 0
+                        ? `All ${exportRoleFilter === 'ALL' ? 'Members' : exportRoleFilter.toLowerCase() + 's'}`
+                        : `${selectedExportMemberCards.length} of ${
+                            (state.members || []).filter((m) => exportRoleFilter === 'ALL' || m.role === exportRoleFilter).length
+                          } Selected`}
+                    </span>
+                  </label>
+                  <div className="flex items-center gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedExportMemberCards(
+                          (state.members || [])
+                            .filter((m) => exportRoleFilter === 'ALL' || m.role === exportRoleFilter)
+                            .map((m) => m.memberCardNo)
+                        )
+                      }
+                      className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 cursor-pointer"
+                    >
+                      Select All ({(state.members || []).filter((m) => exportRoleFilter === 'ALL' || m.role === exportRoleFilter).length})
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedExportMemberCards([])}
+                      className="text-[11px] font-bold text-slate-500 hover:text-slate-700 cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+
+                {/* Searchable Checkbox Container */}
+                <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-200/90 space-y-2">
+                  <div className="relative">
+                    <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder={`Search ${exportRoleFilter === 'ALL' ? 'members' : exportRoleFilter.toLowerCase() + 's'} by name, card no, or dept...`}
+                      value={modalMemberSearch}
+                      onChange={(e) => setModalMemberSearch(e.target.value)}
+                      className="w-full pl-8 pr-8 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                    {modalMemberSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setModalMemberSearch('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs p-1"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-36 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                    {(state.members || [])
+                      .filter((m) => exportRoleFilter === 'ALL' || m.role === exportRoleFilter)
+                      .filter((m) =>
+                        !modalMemberSearch ||
+                        m.name.toLowerCase().includes(modalMemberSearch.toLowerCase()) ||
+                        (m.memberCardNo && m.memberCardNo.toLowerCase().includes(modalMemberSearch.toLowerCase())) ||
+                        (m.department && m.department.toLowerCase().includes(modalMemberSearch.toLowerCase()))
+                      )
+                      .map((member) => {
+                        const isChecked = selectedExportMemberCards.includes(member.memberCardNo);
+                        return (
+                          <label
+                            key={member.id}
+                            className={`flex items-center gap-2.5 p-2 rounded-xl border transition-all cursor-pointer ${
+                              isChecked
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-950 shadow-2xs'
+                                : 'bg-white border-slate-200/70 hover:bg-slate-100/70 text-slate-700'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setSelectedExportMemberCards(selectedExportMemberCards.filter((c) => c !== member.memberCardNo));
+                                } else {
+                                  setSelectedExportMemberCards([...selectedExportMemberCards, member.memberCardNo]);
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600 shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className={`text-xs truncate ${isChecked ? 'font-bold text-indigo-950' : 'font-semibold text-slate-900'}`}>
+                                {member.name}
+                              </p>
+                              <p className="text-[10px] text-slate-500 truncate">
+                                Card: <span className="font-mono">{member.memberCardNo}</span> • <span className="font-semibold text-indigo-700">{member.role}</span> {member.department ? `• ${member.department}` : ''}
+                              </p>
+                            </div>
+                          </label>
+                        );
+                      })}
+
+                    {(state.members || []).filter((m) => exportRoleFilter === 'ALL' || m.role === exportRoleFilter).length === 0 && (
+                      <div className="py-3 text-center text-xs text-slate-400">
+                        No registered members found under role "{exportRoleFilter}"
+                      </div>
+                    )}
+
+                    {(state.members || []).filter((m) => exportRoleFilter === 'ALL' || m.role === exportRoleFilter).length > 0 &&
+                      (state.members || [])
+                        .filter((m) => exportRoleFilter === 'ALL' || m.role === exportRoleFilter)
+                        .filter((m) =>
+                          !modalMemberSearch ||
+                          m.name.toLowerCase().includes(modalMemberSearch.toLowerCase()) ||
+                          (m.memberCardNo && m.memberCardNo.toLowerCase().includes(modalMemberSearch.toLowerCase())) ||
+                          (m.department && m.department.toLowerCase().includes(modalMemberSearch.toLowerCase()))
+                        ).length === 0 && (
+                        <div className="py-3 text-center text-xs text-slate-400">
+                          No members match "{modalMemberSearch}"
+                        </div>
+                      )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Fixed Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/70 shrink-0 flex items-center justify-between">
+              <div className="text-xs font-semibold text-slate-600">
+                Found: <strong className="text-blue-700 font-bold">{exportRecordsInRange.length}</strong> records
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteCustomExport}
+                  disabled={exportRecordsInRange.length === 0}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-blue-200 transition-all cursor-pointer"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Download CSV ({exportRecordsInRange.length})</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

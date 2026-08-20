@@ -30,10 +30,11 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { libraryStore, getLocalDateStr, getTransactionFineAmount } from '../../services/libraryStore.service';
+import { exportStyledExcelFile } from '../../utils/excelExport';
 import { Book, IssueTransaction } from '../../types/library';
 
-const formatDateTime = (rawStr?: string, defaultTimeStr = '10:00 AM') => {
-  if (!rawStr) return 'N/A';
+const splitDateTime = (rawStr?: string, defaultTimeStr = '10:00 AM') => {
+  if (!rawStr) return { date: 'N/A', time: '' };
 
   const trimmed = rawStr.trim();
 
@@ -44,23 +45,28 @@ const formatDateTime = (rawStr?: string, defaultTimeStr = '10:00 AM') => {
       const datePart = parts[0];
       const timePart = parts[1];
       const period = parts[2] || '';
-      if (period) return `${datePart} (${timePart} ${period})`;
+      if (period) return { date: datePart, time: `${timePart} ${period}` };
       
       const [hh, mm] = timePart.split(':').map(Number);
-      if (isNaN(hh) || isNaN(mm)) return `${datePart} (${timePart})`;
+      if (isNaN(hh) || isNaN(mm)) return { date: datePart, time: timePart };
       const formattedHour = hh % 12 || 12;
       const ampm = hh >= 12 ? 'PM' : 'AM';
       const padMin = String(mm).padStart(2, '0');
-      return `${datePart} (${String(formattedHour).padStart(2, '0')}:${padMin} ${ampm})`;
+      return { date: datePart, time: `${String(formattedHour).padStart(2, '0')}:${padMin} ${ampm}` };
     }
   }
 
   // Handle 'YYYY-MM-DD' without time
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return defaultTimeStr ? `${trimmed} (${defaultTimeStr})` : trimmed;
+    return { date: trimmed, time: defaultTimeStr || '' };
   }
 
-  return trimmed;
+  return { date: trimmed, time: defaultTimeStr || '' };
+};
+
+const formatDateTime = (rawStr?: string, defaultTimeStr = '10:00 AM') => {
+  const { date, time } = splitDateTime(rawStr, defaultTimeStr);
+  return time ? `${date} (${time})` : date;
 };
 
 export default function BookBorrowHistory() {
@@ -81,10 +87,15 @@ export default function BookBorrowHistory() {
   const [pageSize, setPageSize] = useState(10);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Single Combined Export & Print Dropdown State
-  const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+  // Export Modal State
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState('');
+  const [exportEndDate, setExportEndDate] = useState('');
+  const [exportRoleFilter, setExportRoleFilter] = useState('ALL');
+  const [exportStatusFilter, setExportStatusFilter] = useState('ALL');
+  const [selectedExportBookIds, setSelectedExportBookIds] = useState<string[]>([]);
+  const [modalBookSearch, setModalBookSearch] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const exportDropdownRef = useRef<HTMLDivElement>(null);
 
   // Searchable Book Select Dropdown State
   const [isBookSelectOpen, setIsBookSelectOpen] = useState(false);
@@ -98,9 +109,6 @@ export default function BookBorrowHistory() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
-        setIsExportDropdownOpen(false);
-      }
       if (bookSelectRef.current && !bookSelectRef.current.contains(event.target as Node)) {
         setIsBookSelectOpen(false);
       }
@@ -328,8 +336,55 @@ export default function BookBorrowHistory() {
     return diffDays;
   };
 
-  // Export CSV
-  const handleExportCSV = () => {
+  // Open Export Modal
+  const openExportModal = () => {
+    setExportStartDate(startDate);
+    setExportEndDate(endDate);
+    setExportRoleFilter(roleFilter);
+    setExportStatusFilter(statusFilter);
+    setSelectedExportBookIds(selectedBookId ? [selectedBookId] : []);
+    setModalBookSearch('');
+    setShowExportModal(true);
+  };
+
+  // Records matched by export modal filter options
+  const exportRecordsInRange = useMemo(() => {
+    return baseTransactions.filter((record) => {
+      // Role filter
+      if (exportRoleFilter !== 'ALL' && record.memberType !== exportRoleFilter) {
+        return false;
+      }
+      // Status filter
+      if (exportStatusFilter === 'CURRENT' && !(record.status === 'ISSUED' || record.status === 'OVERDUE')) {
+        return false;
+      } else if (exportStatusFilter === 'RETURNED' && record.status !== 'RETURNED') {
+        return false;
+      } else if (exportStatusFilter === 'OVERDUE' && record.status !== 'OVERDUE') {
+        return false;
+      } else if (exportStatusFilter === 'LOST' && record.status !== 'LOST') {
+        return false;
+      }
+      // Multi-Book filter
+      if (selectedExportBookIds.length > 0 && !selectedExportBookIds.includes(record.bookId)) {
+        return false;
+      }
+      // Date range filter
+      if (exportStartDate) {
+        const itemDate = new Date(record.issueDate);
+        const start = new Date(exportStartDate);
+        if (itemDate < start) return false;
+      }
+      if (exportEndDate) {
+        const itemDate = new Date(record.issueDate);
+        const end = new Date(exportEndDate + 'T23:59:59');
+        if (itemDate > end) return false;
+      }
+      return true;
+    });
+  }, [baseTransactions, exportRoleFilter, exportStatusFilter, selectedExportBookIds, exportStartDate, exportEndDate]);
+
+  // Execute Custom CSV Export from Modal
+  const handleExecuteCustomExport = () => {
     const headers = [
       'Transaction ID',
       'Book ID',
@@ -348,18 +403,18 @@ export default function BookBorrowHistory() {
       'Status',
     ];
 
-    const rows = filteredRecords.map((r) => {
+    const rows = exportRecordsInRange.map((r) => {
       const fineInfo = getTransactionFineAmount(r, storeState);
       return [
         r.id,
         r.bookId,
-        `"${(r.bookTitle || '').replace(/"/g, '""')}"`,
+        r.bookTitle || '',
         r.accessionNo,
         r.barcode,
         r.memberCardNo,
-        `"${(r.memberName || '').replace(/"/g, '""')}"`,
+        r.memberName || '',
         r.memberType,
-        `"${(getMemberDept(r.memberCardNo) || '').replace(/"/g, '""')}"`,
+        getMemberDept(r.memberCardNo) || '',
         r.issueDate,
         r.dueDate,
         r.returnDate || 'N/A (Still Borrowed)',
@@ -369,292 +424,196 @@ export default function BookBorrowHistory() {
       ];
     });
 
-    const csvString = [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute(
-      'download',
-      `book_borrow_history_${currentBook ? currentBook.id : 'all'}_${getLocalDateStr(new Date())}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+    let bookSlug = '';
+    if (selectedExportBookIds.length === 1) {
+      const selectedBookObj = storeState.books.find((b) => b.id === selectedExportBookIds[0]);
+      bookSlug = selectedBookObj ? `_${selectedBookObj.title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 25)}` : '';
+    } else if (selectedExportBookIds.length > 1) {
+      bookSlug = `_${selectedExportBookIds.length}_selected_titles`;
+    }
 
-  // Print PDF / Document Report
-  const handlePrint = () => {
-    window.print();
-  };
+    exportStyledExcelFile({
+      filename: `book_borrow_history${bookSlug}_export_${getLocalDateStr(new Date())}.xlsx`,
+      sheetName: 'Borrow History Log',
+      headers,
+      data: rows,
+      themeColor: '6D28D9', // Rich Purple header
+    });
 
-  const handleExportCSVOption = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsExportDropdownOpen(false);
-    triggerToast('Book borrow history exported to CSV successfully!');
-    setTimeout(() => {
-      handleExportCSV();
-    }, 50);
-  };
-
-  const handlePrintOption = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsExportDropdownOpen(false);
-    triggerToast('Opening print / PDF report dialog...');
-    setTimeout(() => {
-      handlePrint();
-    }, 150);
+    setShowExportModal(false);
+    triggerToast(`Exported ${exportRecordsInRange.length} borrow history records to formatted Excel spreadsheet!`);
   };
 
   return (
     <div className="space-y-6 pb-12">
       {/* Header Banner */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-purple-700 bg-purple-50 px-3 py-1 rounded-full mb-2">
-            <History className="h-3.5 w-3.5" /> {isAdminOrStaff ? 'Book-Wise Borrowing History & Analytics' : 'My Personal Borrowing History Log'}
+      <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-900 p-6 sm:p-9 rounded-3xl border border-slate-800/80 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 space-y-2">
+          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-300 bg-white/10 px-3.5 py-1.5 rounded-full border border-blue-400/20 shadow-xs backdrop-blur-xs">
+            <History className="h-4 w-4 text-blue-300" />
+            <span>{isAdminOrStaff ? 'Book-Wise Borrowing History & Analytics' : 'My Personal Borrowing History Log'}</span>
           </div>
-          <h1 className="text-2xl font-bold font-poppins text-slate-900">
-            {isAdminOrStaff ? 'Book Borrow History Log' : 'My Borrowed Books History'}
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold font-poppins tracking-tight text-white leading-tight">
+            {isAdminOrStaff ? (
+              <>
+                Book Borrow <span className="bg-gradient-to-r from-blue-300 via-indigo-200 to-sky-200 bg-clip-text text-transparent">History Log</span>
+              </>
+            ) : (
+              <>
+                My Borrowed <span className="bg-gradient-to-r from-blue-300 via-indigo-200 to-sky-200 bg-clip-text text-transparent">Books History</span>
+              </>
+            )}
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-slate-300 text-xs sm:text-sm md:text-base max-w-2xl font-medium leading-relaxed">
             {isAdminOrStaff
-              ? 'Complete transaction records for current borrowers, past return dates, timestamps, fines, and copy statistics.'
-              : 'Your personal book borrowing history, current loans, return dates, duration, and fine records.'}
+              ? 'Complete historical audit trail of all student and faculty book checkouts, renewals, and returned loans.'
+              : 'Complete records of books checked out by your account with issue dates, due deadlines, and return status.'}
           </p>
         </div>
 
-        {/* Single Combined Export & Print Dropdown Button */}
-        <div className="relative" ref={exportDropdownRef}>
+        {/* Global Export & Clear Controls */}
+        <div className="relative z-10 flex items-center gap-2 flex-wrap shrink-0">
           <button
             type="button"
-            onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
-            className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-purple-200 bg-purple-50 text-xs font-bold text-purple-900 hover:bg-purple-100 transition-all cursor-pointer shadow-2xs"
+            onClick={openExportModal}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition-all cursor-pointer active:scale-95 border border-blue-400/30"
+            title="Download CSV Report with custom date & book filters"
           >
-            <Download className="w-4 h-4 text-purple-600" />
-            <span>Export & Print Report</span>
-            <ChevronDown className={`w-3.5 h-3.5 text-purple-600 transition-transform duration-200 ${isExportDropdownOpen ? 'rotate-180' : ''}`} />
+            <Download className="h-4 w-4" />
+            <span>Export CSV Report</span>
           </button>
-
-          {isExportDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 p-2 space-y-1 animate-fadeIn">
-              <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
-                Select Export / Report Format
-              </div>
-
-              {/* Export CSV Option */}
-              <button
-                type="button"
-                onClick={handleExportCSVOption}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all cursor-pointer text-left group"
-              >
-                <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 shrink-0">
-                  <FileSpreadsheet className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900 group-hover:text-emerald-900">Export Excel / CSV</div>
-                  <div className="text-[10px] text-slate-500 font-normal">Download structured tabular log data</div>
-                </div>
-              </button>
-
-              {/* Print PDF Option */}
-              <button
-                type="button"
-                onClick={handlePrintOption}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-900 transition-all cursor-pointer text-left group"
-              >
-                <div className="p-2 rounded-lg bg-purple-50 text-purple-600 group-hover:bg-purple-100 shrink-0">
-                  <Printer className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900 group-hover:text-purple-900">Print Report / PDF</div>
-                  <div className="text-[10px] text-slate-500 font-normal">Generate print-ready PDF document</div>
-                </div>
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
-
-      {/* Toast Alert */}
-      {toastMessage && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium animate-fadeIn">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* Controls & Filters Bar (Matching Attendance Management Layout & Style) */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-        {/* Top Header Row */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <SlidersHorizontal className="h-4 w-4 text-purple-600" />
-            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Filter & Search Borrowing Records
-            </h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
-              Showing {filteredRecords.length} of {baseTransactions.length} Total Logs
-            </span>
-
-            {/* Combined Export Dropdown */}
-            <div className="relative" ref={exportDropdownRef}>
-              <button
-                type="button"
-                onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
-                className="px-3.5 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-100 hover:bg-purple-100 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <Download className="h-3.5 w-3.5" /> Export CSV <ChevronDown className="h-3 w-3" />
-              </button>
-
-              {isExportDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 p-1.5 space-y-1 animate-fadeIn">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsExportDropdownOpen(false);
-                      triggerToast('Generating CSV report...');
-                      setTimeout(() => {
-                        const headers = ['Transaction ID', 'Book Title', 'Borrower Name', 'Card No', 'Status', 'Issue Date', 'Due Date', 'Return Date'];
-                        const rows = filteredRecords.map((t) => [
-                          t.id,
-                          `"${t.bookTitle.replace(/"/g, '""')}"`,
-                          `"${t.memberName.replace(/"/g, '""')}"`,
-                          t.memberCardNo,
-                          t.status,
-                          t.issueDate,
-                          t.dueDate,
-                          t.returnDate || '',
-                        ]);
-                        const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-                        const encodedUri = encodeURI(csvContent);
-                        const link = document.createElement('a');
-                        link.setAttribute('href', encodedUri);
-                        link.setAttribute('download', `borrow_history_${new Date().toISOString().split('T')[0]}.csv`);
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        triggerToast('CSV Report Downloaded Successfully');
-                      }, 500);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700 rounded-xl transition-colors text-left cursor-pointer"
-                  >
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Export Filtered CSV
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsExportDropdownOpen(false);
-                      triggerToast('Preparing printable history report...');
-                      setTimeout(() => {
-                        window.print();
-                      }, 400);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700 rounded-xl transition-colors text-left cursor-pointer"
-                  >
-                    <Printer className="w-4 h-4 text-purple-600" /> Print Record Log
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={handleResetAllFilters}
-                className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-100 hover:bg-rose-100 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer"
-              >
-                <RotateCcw className="h-3.5 w-3.5" /> Reset
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Controls Row: Search Input + Status Dropdown + Book Catalog Dropdown + Role Filter Dropdown */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3">
-          {/* Search Bar */}
-          <div className={`${isAdminOrStaff ? 'md:col-span-4' : 'md:col-span-6'} relative`}>
-            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+      {/* Search & Filtering Bar */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Member Name or Card Search */}
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search timestamp, gate, visit purpose, book title, borrower..."
-              value={searchTerm}
+              placeholder="Search member, ID, or book..."
+              value={nameSearchTerm}
               onChange={(e) => {
-                setSearchTerm(e.target.value);
+                setNameSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 text-slate-800 font-medium"
+              className="w-full pl-10 pr-8 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 placeholder:text-slate-400 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
             />
-            {searchTerm && (
+            {nameSearchTerm && (
               <button
                 type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                onClick={() => setNameSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
 
-          {/* Status Dropdown Filter */}
-          <div className="md:col-span-3 relative">
+          {/* Book Dropdown Selector */}
+          <div className="relative" ref={bookSelectRef}>
+            <button
+              type="button"
+              onClick={() => setIsBookSelectOpen(!isBookSelectOpen)}
+              className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/50 flex items-center justify-between gap-2 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <span className="truncate">
+                {selectedBookId
+                  ? storeState.books.find((b) => b.id === selectedBookId)?.title || 'Selected Book'
+                  : 'All Books (All Titles)'}
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            </button>
+
+            {isBookSelectOpen && (
+              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-xl z-30 p-2 space-y-1.5 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
+                <input
+                  type="text"
+                  placeholder="Filter books..."
+                  value={bookSelectSearchTerm}
+                  onChange={(e) => setBookSelectSearchTerm(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-slate-50 focus:outline-none focus:ring-1 focus:ring-purple-500/30 mb-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedBookId('');
+                    setIsBookSelectOpen(false);
+                    setCurrentPage(1);
+                  }}
+                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                    !selectedBookId ? 'bg-purple-100 text-purple-900' : 'hover:bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  All Books (All Titles)
+                </button>
+                {storeState.books
+                  .filter((b) =>
+                    !bookSelectSearchTerm ||
+                    b.title.toLowerCase().includes(bookSelectSearchTerm.toLowerCase()) ||
+                    (b.author && b.author.toLowerCase().includes(bookSelectSearchTerm.toLowerCase()))
+                  )
+                  .map((book) => (
+                    <button
+                      key={book.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBookId(book.id);
+                        setIsBookSelectOpen(false);
+                        setCurrentPage(1);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 rounded-xl text-xs transition-colors cursor-pointer ${
+                        selectedBookId === book.id
+                          ? 'bg-purple-100 text-purple-900 font-bold'
+                          : 'hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <p className="truncate font-semibold">{book.title}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{book.author}</p>
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* Status Filter */}
+          <div className="relative">
             <select
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value as any);
                 setCurrentPage(1);
               }}
-              className="w-full pl-3.5 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/80 focus:bg-white appearance-none cursor-pointer truncate"
+              className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/50 appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer"
             >
               <option value="ALL">All Statuses</option>
-              <option value="CURRENT">Currently Borrowed ({statusCounts.current})</option>
-              <option value="RETURNED">Returned Records ({statusCounts.returned})</option>
-              <option value="OVERDUE">Overdue Records ({statusCounts.overdue})</option>
-              <option value="LOST">Lost Records ({statusCounts.lost})</option>
+              <option value="CURRENT">Currently Borrowed</option>
+              <option value="RETURNED">Returned</option>
+              <option value="OVERDUE">Overdue</option>
+              <option value="LOST">Lost</option>
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
           </div>
 
-          {/* Book Catalog Dropdown Select */}
-          <div className={`${isAdminOrStaff ? 'md:col-span-3' : 'md:col-span-3'} relative`}>
-            <select
-              value={selectedBookId}
-              onChange={(e) => {
-                handleBookChange(e.target.value);
-              }}
-              className="w-full pl-3.5 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/80 focus:bg-white appearance-none cursor-pointer truncate"
-            >
-              <option value="">All Catalog Books</option>
-              {storeState.books.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.title}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-          </div>
-
-          {/* Role Filter Dropdown (Admin & Staff Exclusive) */}
+          {/* Role Filter */}
           {isAdminOrStaff && (
-            <div className="md:col-span-2 relative">
+            <div className="relative">
               <select
                 value={roleFilter}
                 onChange={(e) => {
                   setRoleFilter(e.target.value as any);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-3.5 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/80 focus:bg-white appearance-none cursor-pointer truncate"
+                className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/50 appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer"
               >
                 <option value="ALL">All Roles</option>
-                <option value="STUDENT">Student</option>
-                <option value="FACULTY">Faculty</option>
+                <option value="STUDENT">Student Only</option>
+                <option value="FACULTY">Faculty Only</option>
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
             </div>
@@ -663,120 +622,128 @@ export default function BookBorrowHistory() {
       </div>
 
       {/* History Data Table */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
+      <div className="bg-white rounded-3xl border border-purple-100/80 shadow-sm overflow-hidden space-y-0">
         {isLoading ? (
           <div className="py-16 text-center text-slate-400 space-y-2">
             <Loader2 className="w-8 h-8 animate-spin text-purple-600 mx-auto" />
             <p className="text-xs font-semibold">Loading book borrowing transaction log...</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[1100px]">
+          <div>
+            <table className="w-full text-left border-collapse table-auto">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3.5 px-4 w-[210px] min-w-[210px]">Borrower User Details</th>
-                  <th className="py-3.5 px-4 w-[240px] min-w-[240px] max-w-[240px]">Book Title & Copy Info</th>
-                  <th className="py-3.5 px-4 w-[160px] min-w-[160px]">Borrow Date & Time</th>
-                  <th className="py-3.5 px-4 w-[110px] min-w-[110px]">Due Date</th>
-                  <th className="py-3.5 px-4 w-[180px] min-w-[180px]">Return Date & Time</th>
-                  <th className="py-3.5 px-4 w-[130px] min-w-[130px]">Borrow Duration</th>
-                  <th className="py-3.5 px-4 w-[110px] min-w-[110px]">Fine Status</th>
-                  <th className="py-3.5 px-4 w-[120px] min-w-[120px] text-right">Status</th>
+                <tr className="bg-gradient-to-r from-purple-100/90 via-indigo-50/80 to-purple-100/80 border-b border-purple-200/90 text-xs font-bold uppercase tracking-wider text-purple-950">
+                  <th className="py-3.5 px-3 text-purple-950 font-bold">Borrower Details</th>
+                  <th className="py-3.5 px-3 text-purple-950 font-bold">Book & Copy Info</th>
+                  <th className="py-3.5 px-3 text-indigo-950 font-bold">Borrow Date</th>
+                  <th className="py-3.5 px-3 text-purple-950 font-bold">Due Date</th>
+                  <th className="py-3.5 px-3 text-emerald-950 font-bold">Return Date</th>
+                  <th className="py-3.5 px-2 text-center text-purple-950 font-bold">Duration</th>
+                  <th className="py-3.5 px-2 text-center text-rose-950 font-bold">Fine Status</th>
+                  <th className="py-3.5 px-3 text-right text-purple-950 font-bold">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
+              <tbody className="divide-y divide-slate-100 text-xs">
                 {paginatedRecords.map((record) => {
                   const duration = calculateBorrowDays(record.issueDate, record.returnDate);
                   return (
                     <tr key={record.id} className="hover:bg-slate-50/80 transition-colors">
                       {/* User Details */}
-                      <td className="py-4 px-4 w-[210px] min-w-[210px] align-middle">
-                        <div className="min-w-0">
-                          <p className="font-bold text-slate-900 truncate" title={record.memberName}>{record.memberName}</p>
-                          <p className="text-xs font-mono text-purple-700 font-bold">{record.memberCardNo}</p>
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            <span className="text-[10px] font-extrabold uppercase bg-purple-100 text-purple-800 px-2 py-0.5 rounded shrink-0">
+                      <td className="py-3 px-3 align-middle">
+                        <div className="space-y-0.5">
+                          <p className="font-bold text-slate-900 leading-tight" title={record.memberName}>{record.memberName}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-mono text-[11px] text-purple-700 font-bold">{record.memberCardNo}</span>
+                            <span className="text-[9px] font-extrabold uppercase bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">
                               {record.memberType}
-                            </span>
-                            <span className="text-[11px] font-medium text-slate-500 truncate max-w-[130px]" title={getMemberDept(record.memberCardNo)}>
-                              {getMemberDept(record.memberCardNo)}
                             </span>
                           </div>
                         </div>
                       </td>
 
                       {/* Book & Copy */}
-                      <td className="py-4 px-4 align-middle w-[240px] min-w-[240px] max-w-[240px]">
-                        <div className="min-w-0 overflow-hidden">
-                          <p className="font-bold text-slate-900 truncate block" title={record.bookTitle}>
+                      <td className="py-3 px-3 align-middle">
+                        <div className="space-y-1">
+                          <p className="font-bold text-slate-900 leading-tight line-clamp-1" title={record.bookTitle}>
                             {record.bookTitle}
                           </p>
-                          <p className="text-xs font-mono text-slate-500 truncate block mt-0.5" title={`ACC: ${record.accessionNo} | BC: ${record.barcode}`}>
-                            <span className="text-slate-400">ACC:</span> {record.accessionNo} <span className="text-slate-300">|</span> <span className="text-slate-400">BC:</span> {record.barcode}
-                          </p>
+                          <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-500 flex-wrap">
+                            <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">
+                              ACC: {record.accessionNo}
+                            </span>
+                            <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                              BC: {record.barcode}
+                            </span>
+                          </div>
                         </div>
                       </td>
 
                       {/* Borrow Date & Time */}
-                      <td className="py-4 px-4 align-middle w-[160px] min-w-[160px] font-mono text-xs font-semibold text-slate-700 whitespace-nowrap">
-                        {formatDateTime(record.issueDate, '10:00 AM')}
+                      <td className="py-3 px-3 align-middle whitespace-nowrap">
+                        {(() => {
+                          const { date, time } = splitDateTime(record.issueDate, '10:00 AM');
+                          return (
+                            <div className="font-mono space-y-0.5">
+                              <p className="text-xs font-bold text-slate-900">{date}</p>
+                              {time && <p className="text-[11px] font-medium text-slate-500">{time}</p>}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Due Date */}
-                      <td className="py-4 px-4 align-middle w-[110px] min-w-[110px] font-mono text-xs font-bold text-slate-900 whitespace-nowrap">
+                      <td className="py-3 px-3 align-middle font-mono text-xs font-bold text-slate-900 whitespace-nowrap">
                         {record.dueDate}
                       </td>
 
                       {/* Return Date & Time */}
-                      <td className="py-4 px-4 align-middle w-[180px] min-w-[180px]">
-                        <div>
-                          {record.returnDate ? (
-                            <span className="inline-flex items-center gap-1 font-mono text-xs font-bold text-emerald-700 whitespace-nowrap">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                              {formatDateTime(record.returnDate, '04:30 PM')}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-50 border border-amber-200/80 text-amber-800 text-[11px] font-semibold whitespace-nowrap">
-                              <Clock className="w-3 h-3 text-amber-600 shrink-0" />
-                              Active Borrowed
-                            </span>
-                          )}
-                          {record.notes && (
-                            <p className="text-[11px] font-sans font-medium text-slate-500 mt-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 truncate max-w-[170px]" title={record.notes}>
-                              Remark: "{record.notes}"
-                            </p>
-                          )}
-                        </div>
+                      <td className="py-3 px-3 align-middle whitespace-nowrap">
+                        {record.returnDate ? (
+                          (() => {
+                            const { date, time } = splitDateTime(record.returnDate, '04:30 PM');
+                            return (
+                              <div className="font-mono space-y-0.5">
+                                <div className="flex items-center gap-1 text-xs font-bold text-emerald-700">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span>{date}</span>
+                                </div>
+                                {time && <p className="text-[11px] font-medium text-emerald-600/80 pl-4.5">{time}</p>}
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-medium whitespace-nowrap">
+                            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                            Pending Return
+                          </span>
+                        )}
                       </td>
 
                       {/* Duration */}
-                      <td className="py-4 px-4 align-middle w-[130px] min-w-[130px] font-semibold text-slate-700 text-xs whitespace-nowrap">
+                      <td className="py-3 px-2 align-middle text-center font-semibold text-slate-700 text-xs whitespace-nowrap">
                         {record.returnDate ? (
-                          <span>{duration} {duration === 1 ? 'Day' : 'Days'}</span>
+                          <span>{duration}d</span>
                         ) : (
-                          <span className="text-amber-800 font-bold">Active ({duration} {duration === 1 ? 'Day' : 'Days'})</span>
+                          <span className="text-amber-800 font-bold">{duration}d (Active)</span>
                         )}
                       </td>
 
                       {/* Fine Amount */}
-                      <td className="py-4 px-4 align-middle w-[110px] min-w-[110px] text-xs font-bold whitespace-nowrap">
+                      <td className="py-3 px-2 align-middle text-center text-xs font-bold whitespace-nowrap">
                         {(() => {
                           const fineInfo = getTransactionFineAmount(record, storeState);
                           return fineInfo.fineAmount > 0 ? (
-                            <div className="flex flex-col">
-                              <span className="text-rose-700 font-mono">₹{fineInfo.fineAmount.toFixed(2)}</span>
-                              <span className="text-[10px] text-rose-600 font-sans uppercase font-extrabold tracking-wide">({fineInfo.fineStatus})</span>
-                            </div>
+                            <span className="text-rose-700 font-mono">₹{fineInfo.fineAmount.toFixed(2)}</span>
                           ) : (
-                            <span className="text-slate-400 font-mono">₹0.00</span>
+                            <span className="text-slate-500 font-mono font-medium">₹0.00</span>
                           );
                         })()}
                       </td>
 
                       {/* Status Badge */}
-                      <td className="py-4 px-4 align-middle w-[120px] min-w-[120px] text-right">
+                      <td className="py-3 px-3 align-middle text-right whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold uppercase ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase ${
                             record.status === 'RETURNED'
                               ? 'bg-emerald-100 text-emerald-800'
                               : record.status === 'OVERDUE'
@@ -786,9 +753,9 @@ export default function BookBorrowHistory() {
                               : 'bg-blue-100 text-blue-800'
                           }`}
                         >
-                          {record.status === 'RETURNED' && <CheckCircle2 className="w-3.5 h-3.5" />}
-                          {record.status === 'OVERDUE' && <AlertCircle className="w-3.5 h-3.5" />}
-                          {record.status === 'ISSUED' && <Clock className="w-3.5 h-3.5" />}
+                          {record.status === 'RETURNED' && <CheckCircle2 className="w-3 h-3" />}
+                          {record.status === 'OVERDUE' && <AlertCircle className="w-3 h-3" />}
+                          {record.status === 'ISSUED' && <Clock className="w-3 h-3" />}
                           {record.status === 'ISSUED' ? 'BORROWED' : record.status}
                         </span>
                       </td>
@@ -857,6 +824,292 @@ export default function BookBorrowHistory() {
           </div>
         </div>
       </div>
+
+      {/* Export CSV Filter Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col border border-slate-100 relative overflow-hidden">
+            {/* Modal Fixed Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 p-5 shrink-0 bg-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold shrink-0">
+                  <FileSpreadsheet className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 font-poppins">Export Book Borrow CSV Report</h2>
+                  <p className="text-xs text-slate-500">Filter borrowing records by dates, books, roles, and status.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowExportModal(false)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+              {/* Quick Presets */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Quick Date Presets</label>
+                <div className="grid grid-cols-5 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const today = getLocalDateStr(new Date());
+                      setExportStartDate(today);
+                      setExportEndDate(today);
+                    }}
+                    className="px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 border border-slate-200/70 text-center transition-colors cursor-pointer"
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() - 6);
+                      setExportStartDate(getLocalDateStr(d));
+                      setExportEndDate(getLocalDateStr(new Date()));
+                    }}
+                    className="px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 border border-slate-200/70 text-center transition-colors cursor-pointer"
+                  >
+                    7 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() - 29);
+                      setExportStartDate(getLocalDateStr(d));
+                      setExportEndDate(getLocalDateStr(new Date()));
+                    }}
+                    className="px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 border border-slate-200/70 text-center transition-colors cursor-pointer"
+                  >
+                    30 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(1);
+                      setExportStartDate(getLocalDateStr(d));
+                      setExportEndDate(getLocalDateStr(new Date()));
+                    }}
+                    className="px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 border border-slate-200/70 text-center transition-colors cursor-pointer"
+                  >
+                    Month
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExportStartDate('');
+                      setExportEndDate('');
+                    }}
+                    className="px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 border border-slate-200/70 text-center transition-colors cursor-pointer"
+                  >
+                    All Time
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Date Range Controls */}
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                    <Calendar className="h-3 w-3 text-blue-600" /> Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={exportStartDate}
+                    onChange={(e) => setExportStartDate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                    <Calendar className="h-3 w-3 text-indigo-600" /> End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={exportEndDate}
+                    onChange={(e) => setExportEndDate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+              </div>
+
+              {/* Multi-Select Book Selection */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <BookOpen className="h-3.5 w-3.5 text-purple-600" /> Select Books:
+                    <span className="text-purple-700 font-semibold">
+                      {selectedExportBookIds.length === 0 ? 'All Books' : `${selectedExportBookIds.length} Selected`}
+                    </span>
+                  </label>
+                  <div className="flex items-center gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedExportBookIds(storeState.books.map((b) => b.id))}
+                      className="text-[11px] font-bold text-purple-700 hover:text-purple-900 cursor-pointer"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedExportBookIds([])}
+                      className="text-[11px] font-bold text-slate-500 hover:text-slate-700 cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+
+                {/* Searchable Checkbox Container */}
+                <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-200/90 space-y-2">
+                  <div className="relative">
+                    <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Filter books by title or author..."
+                      value={modalBookSearch}
+                      onChange={(e) => setModalBookSearch(e.target.value)}
+                      className="w-full pl-8 pr-8 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                    />
+                    {modalBookSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setModalBookSearch('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs p-1"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-36 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                    {storeState.books
+                      .filter((b) =>
+                        !modalBookSearch ||
+                        b.title.toLowerCase().includes(modalBookSearch.toLowerCase()) ||
+                        (b.author && b.author.toLowerCase().includes(modalBookSearch.toLowerCase())) ||
+                        (b.category && b.category.toLowerCase().includes(modalBookSearch.toLowerCase()))
+                      )
+                      .map((book) => {
+                        const isChecked = selectedExportBookIds.includes(book.id);
+                        return (
+                          <label
+                            key={book.id}
+                            className={`flex items-center gap-2.5 p-2 rounded-xl border transition-all cursor-pointer ${
+                              isChecked
+                                ? 'bg-purple-50 border-purple-300 text-purple-950 shadow-2xs'
+                                : 'bg-white border-slate-200/70 hover:bg-slate-100/70 text-slate-700'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setSelectedExportBookIds(selectedExportBookIds.filter((id) => id !== book.id));
+                                } else {
+                                  setSelectedExportBookIds([...selectedExportBookIds, book.id]);
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer accent-purple-600 shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className={`text-xs truncate ${isChecked ? 'font-bold text-purple-950' : 'font-semibold text-slate-900'}`}>
+                                {book.title}
+                              </p>
+                              <p className="text-[10px] text-slate-500 truncate">
+                                {book.author ? `By ${book.author}` : ''} {book.category ? `• ${book.category}` : ''}
+                              </p>
+                            </div>
+                          </label>
+                        );
+                      })}
+
+                    {storeState.books.filter((b) =>
+                      !modalBookSearch ||
+                      b.title.toLowerCase().includes(modalBookSearch.toLowerCase()) ||
+                      (b.author && b.author.toLowerCase().includes(modalBookSearch.toLowerCase())) ||
+                      (b.category && b.category.toLowerCase().includes(modalBookSearch.toLowerCase()))
+                    ).length === 0 && (
+                      <div className="py-3 text-center text-xs text-slate-400">
+                        No books match "{modalBookSearch}"
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Filter Selectors */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Member Role</label>
+                  <select
+                    value={exportRoleFilter}
+                    onChange={(e) => setExportRoleFilter(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="ALL">All Roles</option>
+                    <option value="STUDENT">Student</option>
+                    <option value="FACULTY">Faculty</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Borrow Status</label>
+                  <select
+                    value={exportStatusFilter}
+                    onChange={(e) => setExportStatusFilter(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="ALL">All Statuses</option>
+                    <option value="CURRENT">Currently Borrowed</option>
+                    <option value="RETURNED">Returned Records</option>
+                    <option value="OVERDUE">Overdue Records</option>
+                    <option value="LOST">Lost Records</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Fixed Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/70 shrink-0 flex items-center justify-between">
+              <div className="text-xs font-semibold text-slate-600">
+                Found: <strong className="text-blue-700 font-bold">{exportRecordsInRange.length}</strong> records
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteCustomExport}
+                  disabled={exportRecordsInRange.length === 0}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-blue-200 transition-all cursor-pointer"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Download CSV ({exportRecordsInRange.length})</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

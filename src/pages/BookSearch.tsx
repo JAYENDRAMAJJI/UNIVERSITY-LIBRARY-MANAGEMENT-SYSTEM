@@ -391,7 +391,7 @@ export default function BookSearch() {
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700"
             >
-              <option value="ALL">All Categories ({totalBooks})</option>
+              <option value="ALL">All Categories</option>
               {state.categories.map((c) => {
                 const count = state.books.filter((b) => b.categoryId === c.id).length;
                 return (

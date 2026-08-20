@@ -18,6 +18,8 @@ import {
   User,
   History,
   UserCheck,
+  Award,
+  FileDown,
 } from 'lucide-react';
 import { libraryStore, getMemberPendingFines, parseMonthNumFromDate, getSystemFineSummary } from '../../../services/libraryStore.service';
 import { Link, useNavigate } from 'react-router-dom';
@@ -174,8 +176,9 @@ export default function AdminDashboard() {
     { label: 'Issue Circulation', to: '/admin/issue-books', icon: ScanBarcode, color: 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100 border-indigo-200' },
     { label: 'Return Desk', to: '/admin/return-books', icon: RotateCcw, color: 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border-emerald-200' },
     { label: 'Register Member', to: '/admin/members', icon: Users, color: 'bg-purple-50 text-purple-800 hover:bg-purple-100 border-purple-200' },
+    { label: 'Issue No Due Certificate', to: '/admin/no-due', icon: Award, color: 'bg-amber-50 text-amber-900 hover:bg-amber-100 border-amber-300 font-bold' },
+    { label: 'Official Forms & Downloads', to: '/admin/downloads', icon: FileDown, color: 'bg-purple-50 text-purple-800 hover:bg-purple-100 border-purple-200' },
     { label: 'Fines & Receipts', to: '/admin/fines', icon: TrendingUp, color: 'bg-rose-50 text-rose-800 hover:bg-rose-100 border-rose-200' },
-    { label: 'Analytics & Reports', to: '/admin/reports', icon: BarChart3, color: 'bg-amber-50 text-amber-800 hover:bg-amber-100 border-amber-200' },
     { label: 'System Settings', to: '/admin/settings', icon: ShieldCheck, color: 'bg-slate-100 text-slate-800 hover:bg-slate-200 border-slate-300' },
   ];
 

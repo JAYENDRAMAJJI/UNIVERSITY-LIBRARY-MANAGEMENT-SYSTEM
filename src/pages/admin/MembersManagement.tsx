@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Users, Search, CreditCard, Download, CheckCircle, Shield, AlertTriangle, UserPlus, RotateCw, Barcode, BookOpen, X } from 'lucide-react';
-import { libraryStore, getMemberPendingFines } from '../../services/libraryStore.service';
+import { Users, Search, CreditCard, Download, CheckCircle, Shield, AlertTriangle, UserPlus, RotateCw, Barcode, BookOpen, X, FileSpreadsheet, Calendar, Sparkles } from 'lucide-react';
+import { libraryStore, getMemberPendingFines, getLocalDateStr } from '../../services/libraryStore.service';
+import { exportStyledExcelFile } from '../../utils/excelExport';
 import { MemberProfile } from '../../types/library';
 import RegisterAccountModal from '../../components/common/RegisterAccountModal';
 import { generateQrSvgString, generateBarcodeSvgString, svgToDataUrl } from '../../utils/barcodeQrGenerator';
@@ -12,6 +13,15 @@ export default function MembersManagement() {
   const [selectedCardModal, setSelectedCardModal] = useState<MemberProfile | null>(null);
   const [cardSide, setCardSide] = useState<'front' | 'back'>('front');
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+
+  // Export CSV Modal State
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState('');
+  const [exportEndDate, setExportEndDate] = useState('');
+  const [exportRoleFilter, setExportRoleFilter] = useState('ALL');
+  const [exportDeptFilter, setExportDeptFilter] = useState('ALL');
+  const [exportStatusFilter, setExportStatusFilter] = useState('ALL');
+  const [exportActivityFilter, setExportActivityFilter] = useState('ALL');
 
   useEffect(() => {
     const sub = libraryStore.getObservable().subscribe(setState);
@@ -26,6 +36,83 @@ export default function MembersManagement() {
     const matchesRole = filterRole === 'ALL' || m.role === filterRole;
     return matchesSearch && matchesRole;
   });
+
+  // Calculate Members matching Export Modal filters
+  const getFilteredExportMembers = () => {
+    return state.members.filter((m) => {
+      // Role Filter
+      if (exportRoleFilter !== 'ALL' && m.role !== exportRoleFilter) return false;
+
+      // Department Filter
+      if (exportDeptFilter !== 'ALL' && m.department !== exportDeptFilter) return false;
+
+      // Status Filter
+      if (exportStatusFilter !== 'ALL' && m.status !== exportStatusFilter) return false;
+
+      // Activity Filter
+      if (exportActivityFilter === 'HAS_LOANS' && (m.currentActiveLoans || 0) <= 0) return false;
+      if (exportActivityFilter === 'HAS_FINES' && (getMemberPendingFines(m.id, state) || 0) <= 0) return false;
+
+      // Registration Date Filter
+      if (m.registeredDate) {
+        if (exportStartDate && m.registeredDate < exportStartDate) return false;
+        if (exportEndDate && m.registeredDate > exportEndDate) return false;
+      }
+
+      return true;
+    });
+  };
+
+  const handleExecuteCSVExport = () => {
+    const membersToExport = getFilteredExportMembers();
+    if (membersToExport.length === 0) return;
+
+    const headers = [
+      'Member Card No',
+      'Full Name',
+      'Role',
+      'Roll No / Employee ID',
+      'Academic Batch / Designation',
+      'Email Address',
+      'Phone Number',
+      'Department',
+      'Status',
+      'Max Allowed Books',
+      'Active Loans',
+      'Pending Fines (INR)',
+      'Registered Date',
+      'Address',
+      'Emergency Contact',
+    ];
+
+    const rows = membersToExport.map((m) => [
+      m.memberCardNo || '',
+      m.name || '',
+      m.role || '',
+      m.rollNo || '',
+      m.academicBatch || '',
+      m.email || '',
+      m.phone || '',
+      m.department || '',
+      m.status || 'ACTIVE',
+      m.maxAllowedBooks || 0,
+      m.currentActiveLoans || 0,
+      `₹${(getMemberPendingFines(m.id, state) || m.pendingFines || 0).toFixed(2)}`,
+      m.registeredDate || '',
+      m.address || '',
+      m.emergencyContact || '',
+    ]);
+
+    exportStyledExcelFile({
+      filename: `members_registry_${exportRoleFilter.toLowerCase()}_${getLocalDateStr(new Date())}.xlsx`,
+      sheetName: 'Members Registry',
+      headers,
+      data: rows,
+      themeColor: '2563EB', // Blue 600 Header
+    });
+
+    setShowExportModal(false);
+  };
 
   const handlePrintMemberCard = (member: MemberProfile) => {
     const printWindow = window.open('', '_blank', 'width=850,height=700');
@@ -171,6 +258,59 @@ export default function MembersManagement() {
     printWindow.document.close();
   };
 
+  const handleExportCSV = () => {
+    const membersToExport = filteredMembers.length > 0 ? filteredMembers : state.members;
+    const headers = [
+      'Member Card No',
+      'Full Name',
+      'Role',
+      'Roll No / Employee ID',
+      'Academic Batch / Designation',
+      'Email Address',
+      'Phone Number',
+      'Department',
+      'Status',
+      'Max Allowed Books',
+      'Active Loans',
+      'Pending Fines (INR)',
+      'Registered Date',
+      'Address',
+      'Emergency Contact',
+    ];
+
+    const csvRows = [
+      headers.join(','),
+      ...membersToExport.map((m) =>
+        [
+          `"${m.memberCardNo || ''}"`,
+          `"${m.name || ''}"`,
+          `"${m.role || ''}"`,
+          `"${m.rollNo || ''}"`,
+          `"${m.academicBatch || ''}"`,
+          `"${m.email || ''}"`,
+          `"${m.phone || ''}"`,
+          `"${m.department || ''}"`,
+          `"${m.status || 'ACTIVE'}"`,
+          m.maxAllowedBooks || 0,
+          m.currentActiveLoans || 0,
+          getMemberPendingFines(m.id, state) || m.pendingFines || 0,
+          `"${m.registeredDate || ''}"`,
+          `"${m.address || ''}"`,
+          `"${m.emergencyContact || ''}"`,
+        ].join(',')
+      ),
+    ];
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + csvRows.join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `all_members_registry_data_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -182,12 +322,21 @@ export default function MembersManagement() {
           <h1 className="text-2xl font-bold font-poppins text-slate-900">Student & Faculty Members</h1>
           <p className="text-sm text-slate-500 mt-1">Manage library accounts, issue digital library cards, and review borrowing limits.</p>
         </div>
-        <button
-          onClick={() => setIsRegisterModalOpen(true)}
-          className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
-        >
-          <UserPlus className="h-4 w-4" /> Register New Member
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="px-4 py-2.5 rounded-2xl border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold text-xs transition-all flex items-center gap-2 cursor-pointer shadow-2xs active:scale-95"
+            title="Filter and download Student, Faculty & Staff member registry CSV file"
+          >
+            <Download className="h-4 w-4 text-purple-600" /> Export CSV (All Members)
+          </button>
+          <button
+            onClick={() => setIsRegisterModalOpen(true)}
+            className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <UserPlus className="h-4 w-4" /> Register New Member
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search */}
@@ -384,6 +533,118 @@ export default function MembersManagement() {
                   className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   Print Pass
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export CSV Filter Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-5 border border-slate-100 relative overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center font-bold shrink-0">
+                  <FileSpreadsheet className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 font-poppins">Export Member Registry Data</h2>
+                  <p className="text-xs text-slate-500">Filter student and faculty records by role, department, account status, or borrowing activity.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowExportModal(false)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Filter Selectors Grid */}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Filter by Role</label>
+                <select
+                  value={exportRoleFilter}
+                  onChange={(e) => setExportRoleFilter(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 font-bold text-slate-800 bg-slate-50"
+                >
+                  <option value="ALL">All Roles</option>
+                  <option value="STUDENT">Student Scholars Only</option>
+                  <option value="FACULTY">Faculty Members Only</option>
+                  <option value="STAFF">Library Staff & Admin</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Academic Department</label>
+                <select
+                  value={exportDeptFilter}
+                  onChange={(e) => setExportDeptFilter(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 font-medium text-slate-800 bg-slate-50"
+                >
+                  <option value="ALL">All Departments</option>
+                  <option value="Computer Science & Engineering">Computer Science & Engineering</option>
+                  <option value="Electrical & Electronics">Electrical & Electronics</option>
+                  <option value="Mechanical Engineering">Mechanical Engineering</option>
+                  <option value="Physics & Applied Science">Physics & Applied Science</option>
+                  <option value="Mathematics & Statistics">Mathematics & Statistics</option>
+                  <option value="Business Administration">Business Administration</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Account Status</label>
+                <select
+                  value={exportStatusFilter}
+                  onChange={(e) => setExportStatusFilter(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 font-medium text-slate-800 bg-slate-50"
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="ACTIVE">Active Accounts Only</option>
+                  <option value="SUSPENDED">Suspended Accounts Only</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Borrowing & Fine Activity</label>
+                <select
+                  value={exportActivityFilter}
+                  onChange={(e) => setExportActivityFilter(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 font-medium text-slate-800 bg-slate-50"
+                >
+                  <option value="ALL">All Members</option>
+                  <option value="HAS_LOANS">Members with Active Loans</option>
+                  <option value="HAS_FINES">Members with Overdue Fines</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Filter Summary & Download Action */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="text-xs font-semibold text-slate-600">
+                Matching: <strong className="text-purple-700 font-bold">{getFilteredExportMembers().length}</strong> member records
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-xs text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteCSVExport}
+                  disabled={getFilteredExportMembers().length === 0}
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Download className="h-4 w-4" /> Download CSV File
                 </button>
               </div>
             </div>

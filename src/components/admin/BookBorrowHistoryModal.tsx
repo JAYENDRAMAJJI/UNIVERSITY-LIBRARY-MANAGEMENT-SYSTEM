@@ -25,6 +25,7 @@ import {
   Barcode,
 } from 'lucide-react';
 import { libraryStore, getLocalDateStr, formatOnlyTimeInBracket, getTransactionFineAmount } from '../../services/libraryStore.service';
+import { exportStyledExcelFile } from '../../utils/excelExport';
 import { Book, IssueTransaction } from '../../types/library';
 
 interface BookBorrowHistoryModalProps {
@@ -264,30 +265,28 @@ export default function BookBorrowHistoryModal({
 
     const rows = filteredRecords.map((r) => [
       r.id,
-      r.bookId,
-      `"${r.bookTitle.replace(/"/g, '""')}"`,
-      r.memberCardNo || r.memberId,
-      `"${r.memberName.replace(/"/g, '""')}"`,
+      r.memberCardNo,
+      r.memberName || '',
       r.memberType,
-      `"${getMemberDepartment(r).replace(/"/g, '""')}"`,
+      getMemberDepartment(r),
       r.accessionNo,
       r.barcode,
       r.issueDate,
       r.dueDate,
       r.returnDate || 'N/A (Active)',
       calculateBorrowDays(r.issueDate, r.returnDate),
-      (r.fineAmount || 0).toFixed(2),
+      `₹${(r.fineAmount || 0).toFixed(2)}`,
       r.status,
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Book_Borrow_History_${currentBook?.title.replace(/[^a-zA-Z0-9]/g, '_')}_${getLocalDateStr(new Date())}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const bookTitleSlug = (currentBook?.title || 'Book').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 25);
+    exportStyledExcelFile({
+      filename: `Book_Borrow_History_${bookTitleSlug}_${getLocalDateStr(new Date())}.xlsx`,
+      sheetName: 'Book Borrow History',
+      headers,
+      data: rows,
+      themeColor: '6D28D9', // Purple Header
+    });
   };
 
   // EXPORT TO PDF & PRINT REPORT

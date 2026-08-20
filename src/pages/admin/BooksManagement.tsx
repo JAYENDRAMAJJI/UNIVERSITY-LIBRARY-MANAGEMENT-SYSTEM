@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import XLSX from 'xlsx-js-style';
+import { exportStyledExcelFile } from '../../utils/excelExport';
 import { Link } from 'react-router-dom';
 import {
   BookOpen,
@@ -671,37 +673,48 @@ export default function BooksManagement() {
     const headers = ['ID', 'Title', 'ISBN', 'Department', 'Category', 'Author', 'Publisher', 'Edition', 'Year', 'Format', 'Available Copies', 'Total Copies', 'Price'];
     const rows = list.map((b) => [
       b.id,
-      `"${(b.title || '').replace(/"/g, '""')}"`,
-      b.isbn,
-      `"${(b.department || 'General').replace(/"/g, '""')}"`,
-      `"${(b.categoryName || '').replace(/"/g, '""')}"`,
-      `"${(b.authorName || '').replace(/"/g, '""')}"`,
-      `"${(b.publisherName || '').replace(/"/g, '""')}"`,
+      b.title || '',
+      b.isbn || '',
+      b.department || 'General',
+      b.categoryName || '',
+      b.authorName || '',
+      b.publisherName || '',
       b.edition || '1st Edition',
       b.publishingYear,
       b.format || 'PHYSICAL',
       b.availableCopies,
       b.totalCopies,
-      b.price,
+      `₹${(b.price || 0).toFixed(2)}`,
     ]);
 
-    const csvString = [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `enterprise_library_catalog_${getLocalDateStr(new Date())}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    triggerToast(`Exported ${list.length} catalog records to CSV successfully.`);
+    exportStyledExcelFile({
+      filename: `enterprise_library_catalog_${getLocalDateStr(new Date())}.xlsx`,
+      sheetName: 'Catalog Registry',
+      headers,
+      data: rows,
+      themeColor: '4F46E5', // Indigo Header
+    });
+
+    triggerToast(`Exported ${list.length} catalog records to styled Excel spreadsheet successfully.`);
   };
 
-  // Export Excel formatted TSV
+  // Export Excel formatted Spreadsheet with auto columns
   const handleExportExcel = () => {
     const list = filteredBooks;
-    const headers = ['Book ID', 'Title', 'ISBN', 'Department', 'Category', 'Author', 'Publisher', 'Available Copies', 'Total Copies', 'Format', 'Price (INR)'];
+    const headers = [
+      'Book ID',
+      'Title',
+      'ISBN',
+      'Department',
+      'Category',
+      'Author',
+      'Publisher',
+      'Available Copies',
+      'Total Copies',
+      'Format',
+      'Cost Per Book (INR)',
+      'Total Inventory Value (INR)',
+    ];
     const rows = list.map((b) => [
       b.id,
       b.title,
@@ -713,18 +726,19 @@ export default function BooksManagement() {
       b.availableCopies,
       b.totalCopies,
       b.format || 'PHYSICAL',
-      b.price,
+      `₹${(b.price || 0).toFixed(2)}`,
+      `₹${((b.price || 0) * (b.totalCopies || 1)).toFixed(2)}`,
     ]);
 
-    const tsvContent = 'data:application/vnd.ms-excel;charset=utf-8,' + [headers.join('\t'), ...rows.map((e) => e.join('\t'))].join('\n');
-    const encodedUri = encodeURI(tsvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `university_catalog_matrix_${getLocalDateStr(new Date())}.xls`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    triggerToast(`Exported ${list.length} records to Excel spreadsheet!`);
+    exportStyledExcelFile({
+      filename: `university_catalog_matrix_${getLocalDateStr(new Date())}.xlsx`,
+      sheetName: 'Catalog Valuation',
+      headers,
+      data: rows,
+      themeColor: '0F172A', // Slate/Navy Blue
+    });
+
+    triggerToast(`Exported ${list.length} records to formatted Excel spreadsheet!`);
   };
 
   // Execute Auto ISBN Fetch
@@ -1069,7 +1083,7 @@ export default function BooksManagement() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by Title, ISBN, Author, Accession No, Barcode, Rack..."
+              placeholder="Search by Title, ISBN, Author, Category, Accession No, Barcode, Rack..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 font-bold text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 bg-slate-50/50"
@@ -1625,18 +1639,16 @@ export default function BooksManagement() {
 
                         <div className="flex items-center gap-2">
                           <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wider ${
-                              copy.status === 'AVAILABLE'
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wider ${copy.status === 'AVAILABLE'
                                 ? 'bg-emerald-100/80 text-emerald-800 border border-emerald-200/60'
                                 : copy.status === 'ISSUED'
-                                ? 'bg-amber-100/80 text-amber-800 border border-amber-200/60'
-                                : 'bg-slate-100 text-slate-700 border border-slate-200/60'
-                            }`}
+                                  ? 'bg-amber-100/80 text-amber-800 border border-amber-200/60'
+                                  : 'bg-slate-100 text-slate-700 border border-slate-200/60'
+                              }`}
                           >
                             <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                copy.status === 'AVAILABLE' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
-                              }`}
+                              className={`w-1.5 h-1.5 rounded-full ${copy.status === 'AVAILABLE' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                                }`}
                             />
                             {copy.status}
                           </span>

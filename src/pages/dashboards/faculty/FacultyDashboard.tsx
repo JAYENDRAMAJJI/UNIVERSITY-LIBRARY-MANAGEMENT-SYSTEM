@@ -16,6 +16,7 @@ import {
   Send,
   UserCheck,
   History,
+  Award,
 } from 'lucide-react';
 import { libraryStore, formatOnlyTimeInBracket } from '../../../services/libraryStore.service';
 import { useAuth } from '../../../context/AuthContext';
@@ -173,6 +174,14 @@ export default function FacultyDashboard() {
             ) : (
               <span>My Attendance & Visits ({myAttendanceRecords.length})</span>
             )}
+          </Link>
+
+          <Link
+            to="/no-due"
+            className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-blue-400/30 text-xs font-bold text-blue-200 backdrop-blur-md flex items-center gap-2 transition-all cursor-pointer shadow-xs"
+          >
+            <Award className="w-4 h-4 text-blue-300" />
+            <span>No Due Clearance (NDC)</span>
           </Link>
         </div>
       </div>

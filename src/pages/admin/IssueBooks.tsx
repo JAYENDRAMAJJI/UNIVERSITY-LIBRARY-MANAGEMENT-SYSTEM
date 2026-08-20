@@ -58,6 +58,15 @@ export default function IssueBooks() {
     }
   }, [searchParams]);
 
+  // Auto-dismiss alert notification banner after 20 seconds
+  useEffect(() => {
+    if (!alert) return;
+    const timer = setTimeout(() => {
+      setAlert(null);
+    }, 20000);
+    return () => clearTimeout(timer);
+  }, [alert]);
+
   const filteredMembers = state.members.filter((m) => {
     const matchesRole = roleFilter === 'ALL' || m.role === roleFilter;
     const term = memberSearchTerm.toLowerCase().trim();
@@ -240,12 +249,22 @@ export default function IssueBooks() {
 
       {alert && (
         <div
-          className={`flex items-center gap-3 p-4 rounded-xl text-sm font-medium border ${
+          className={`flex items-center justify-between gap-3 p-4 rounded-xl text-sm font-medium border animate-fade-in ${
             alert.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'
           }`}
         >
-          {alert.type === 'success' ? <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" /> : <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />}
-          <span>{alert.message}</span>
+          <div className="flex items-center gap-3">
+            {alert.type === 'success' ? <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" /> : <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />}
+            <span>{alert.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAlert(null)}
+            className="p-1 rounded-lg hover:bg-black/5 transition-colors cursor-pointer text-slate-500 hover:text-slate-700 shrink-0"
+            title="Dismiss notification"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
@@ -253,7 +272,7 @@ export default function IssueBooks() {
         {/* Issue Form */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
           <h2 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-            <ScanBarcode className="h-5 w-5 text-blue-600" /> Book Checkout Workstation
+            <ScanBarcode className="h-5 w-5 text-blue-600" /> Book Issue Desk
           </h2>
 
           <form onSubmit={handleIssueBook} className="space-y-5">
@@ -637,51 +656,101 @@ export default function IssueBooks() {
 
       {/* Printable Receipt Modal */}
       {lastIssuedReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-slate-100">
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-emerald-600" /> Book Issue Receipt
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 font-poppins">
+                <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" /> Book Issue Receipt
               </h2>
-              <button onClick={() => setLastIssuedReceipt(null)} className="text-slate-400 hover:text-slate-600 text-xl font-bold">
-                &times;
+              <button
+                onClick={() => setLastIssuedReceipt(null)}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 font-mono text-xs space-y-2">
-              <div className="text-center pb-2 border-b border-slate-200">
-                <p className="font-bold text-slate-900 text-sm">UNIVERSITY CENTRAL LIBRARY</p>
-                <p className="text-[10px] text-slate-500">Official Circulation Issue Receipt</p>
+            {/* Receipt Card Body */}
+            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 space-y-3 relative overflow-hidden shadow-inner">
+              {/* Top Accent Stripe */}
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-emerald-500 via-blue-600 to-indigo-600" />
+
+              {/* Institution Header */}
+              <div className="text-center pt-1 pb-3 border-b border-dashed border-slate-200 space-y-0.5">
+                <div className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-slate-900 tracking-wide uppercase font-poppins">
+                  <BookOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  UNIVERSITY CENTRAL LIBRARY
+                </div>
+                <p className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">Official Circulation Loan Receipt</p>
+                <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-mono font-bold">
+                  ID: {lastIssuedReceipt.id}
+                </div>
               </div>
 
-              <div className="pt-2 space-y-1">
-                <p>
-                  <span className="text-slate-500">Receipt ID:</span> {lastIssuedReceipt.id}
+              {/* Detail Fields */}
+              <div className="space-y-2 text-xs">
+                {/* Member */}
+                <div className="flex items-start justify-between gap-2 bg-white p-2.5 rounded-xl border border-slate-200/60 shadow-2xs">
+                  <span className="text-slate-500 font-medium shrink-0">Member:</span>
+                  <div className="text-right">
+                    <span className="font-bold text-slate-900 block">{lastIssuedReceipt.memberName}</span>
+                    <span className="text-[10px] font-mono font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{lastIssuedReceipt.memberCardNo}</span>
+                  </div>
+                </div>
+
+                {/* Book & Accession */}
+                <div className="bg-white p-2.5 rounded-xl border border-slate-200/60 space-y-1 shadow-2xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-slate-500 font-medium shrink-0">Book Title:</span>
+                    <span className="font-bold text-slate-900 text-right leading-snug">{lastIssuedReceipt.bookTitle}</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px]">
+                    <span className="text-slate-500">Accession No:</span>
+                    <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">{lastIssuedReceipt.accessionNo}</span>
+                  </div>
+                </div>
+
+                {/* Dates Grid */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200/60 text-center shadow-2xs">
+                    <span className="text-[10px] font-semibold uppercase text-slate-400 block tracking-wider">Issue Date</span>
+                    <span className="font-mono font-semibold text-slate-800 text-[11px] mt-0.5 block">{formatOnlyTimeInBracket(lastIssuedReceipt.issueDate)}</span>
+                  </div>
+                  <div className="bg-amber-50/80 p-2.5 rounded-xl border border-amber-200/70 text-center shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase text-amber-700 block tracking-wider">Due Return Date</span>
+                    <span className="font-mono font-bold text-amber-900 text-xs mt-0.5 block">{formatOnlyTimeInBracket(lastIssuedReceipt.dueDate)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Decorative Barcode / Stamp */}
+              <div className="pt-2 text-center border-t border-dashed border-slate-200">
+                <p className="font-mono text-[9px] tracking-widest text-slate-400 uppercase select-none">
+                  ||| | |||| | ||||| ||| |||| | ||| ||||
                 </p>
-                <p>
-                  <span className="text-slate-500">Member:</span> {lastIssuedReceipt.memberName} ({lastIssuedReceipt.memberCardNo})
-                </p>
-                <p>
-                  <span className="text-slate-500">Book Title:</span> {lastIssuedReceipt.bookTitle}
-                </p>
-                <p>
-                  <span className="text-slate-500">Accession No:</span> {lastIssuedReceipt.accessionNo}
-                </p>
-                <p>
-                  <span className="text-slate-500">Issue Date:</span> {formatOnlyTimeInBracket(lastIssuedReceipt.issueDate)}
-                </p>
-                <p className="font-bold text-blue-700">
-                  <span className="text-slate-500">Due Date:</span> {formatOnlyTimeInBracket(lastIssuedReceipt.dueDate)}
+                <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">
+                  SYSTEM VERIFIED & ISSUED
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-3 pt-1">
               <button
+                type="button"
+                onClick={() => setLastIssuedReceipt(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   window.print();
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white font-semibold text-sm hover:bg-slate-800"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white font-semibold text-xs hover:bg-slate-800 shadow-md transition-all cursor-pointer"
               >
                 <Printer className="h-4 w-4" /> Print Receipt
               </button>

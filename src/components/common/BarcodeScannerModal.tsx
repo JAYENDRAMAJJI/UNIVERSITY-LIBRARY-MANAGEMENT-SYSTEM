@@ -202,6 +202,7 @@ export default function BarcodeScannerModal({
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
   const deviceInputRef = useRef<HTMLInputElement | null>(null);
   const usbBufferRef = useRef<string>('');
   const usbTimerRef = useRef<any>(null);
@@ -376,6 +377,7 @@ export default function BarcodeScannerModal({
               useBarCodeDetectorIfSupported: true,
             },
           });
+          html5QrcodeRef.current = html5Qrcode;
           await html5Qrcode.start(
             { facingMode: 'environment' },
             {
@@ -572,6 +574,24 @@ export default function BarcodeScannerModal({
   }, [isOpen]);
 
   const stopAllMediaTracks = () => {
+    if (html5QrcodeRef.current) {
+      const instance = html5QrcodeRef.current;
+      html5QrcodeRef.current = null;
+      try {
+        if (instance.isScanning) {
+          instance.stop().catch(() => {}).finally(() => {
+            try {
+              instance.clear();
+            } catch {}
+          });
+        } else {
+          try {
+            instance.clear();
+          } catch {}
+        }
+      } catch {}
+    }
+
     if (streamRef.current) {
       try {
         streamRef.current.getTracks().forEach((track) => {

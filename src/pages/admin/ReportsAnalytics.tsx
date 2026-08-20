@@ -15,12 +15,14 @@ import {
   Filter,
 } from 'lucide-react';
 import { libraryStore, getLocalDateStr, parseMonthNumFromDate, getSystemFineSummary } from '../../services/libraryStore.service';
+import { exportStyledExcelFile } from '../../utils/excelExport';
 
 export default function ReportsAnalytics() {
   const [state, setState] = useState(libraryStore.snapshot);
   const [activeReportTab, setActiveReportTab] = useState<'OVERVIEW' | 'AUDIT_LOGS'>('OVERVIEW');
   const [auditSearchTerm, setAuditSearchTerm] = useState('');
   const [auditModuleFilter, setAuditModuleFilter] = useState('ALL');
+  const [auditRoleFilter, setAuditRoleFilter] = useState('ALL');
 
   useEffect(() => {
     const sub = libraryStore.getObservable().subscribe(setState);
@@ -34,7 +36,7 @@ export default function ReportsAnalytics() {
   const fineCollected = fineSummary.totalPaidFines;
 
   // Compute month maxes for relative bar scaling
-  const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+  const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const monthData = allMonths.map((monthName, idx) => {
     const monthNum = idx + 1;
     const monthTxCount = state.transactions.filter((t) => parseMonthNumFromDate(t.issueDate) === monthNum).length;
@@ -66,18 +68,6 @@ export default function ReportsAnalytics() {
 
   const maxIssued = Math.max(...monthData.map((d) => d.issuedVal), 10);
   const maxFines = Math.max(...monthData.map((d) => d.finesVal), 100);
-
-  const exportAuditCSV = () => {
-    const headers = ['ID', 'User', 'Role', 'Action', 'Module', 'Details', 'Timestamp'];
-    const rows = state.auditLogs.map((l) => [l.id, `"${l.userName}"`, l.userRole, l.action, l.module, `"${l.details}"`, l.timestamp]);
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const link = document.createElement('a');
-    link.setAttribute('href', encodeURI(csvContent));
-    link.setAttribute('download', `library_audit_report_${getLocalDateStr(new Date())}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   // Convert technical action codes into simple human-readable text
   const getFriendlyActionName = (action: string) => {
@@ -131,7 +121,7 @@ export default function ReportsAnalytics() {
 
   // Module filter options
   const moduleFilters = [
-    { id: 'ALL', label: 'All Activity' },
+    { id: 'ALL', label: 'All Categories' },
     { id: 'CIRCULATION', label: 'Loans & Returns' },
     { id: 'CATALOG', label: 'Book Catalog' },
     { id: 'FINANCE', label: 'Fines & Money' },
@@ -139,7 +129,15 @@ export default function ReportsAnalytics() {
     { id: 'SETTINGS', label: 'System Settings' },
   ];
 
-  // Filter audit logs based on search query and selected module
+  // Role filter options
+  const roleFilters = [
+    { id: 'ALL', label: 'All Roles' },
+    { id: 'ADMIN', label: 'Admins & Staff' },
+    { id: 'FACULTY', label: 'Faculty' },
+    { id: 'STUDENT', label: 'Students' },
+  ];
+
+  // Filter audit logs based on search query, module, and role
   const filteredLogs = state.auditLogs.filter((log) => {
     const q = auditSearchTerm.toLowerCase().trim();
     const friendlyAction = getFriendlyActionName(log.action).toLowerCase();
@@ -164,8 +162,43 @@ export default function ReportsAnalytics() {
       (auditModuleFilter === 'MEMBER_MANAGEMENT' && (log.module === 'MEMBER_MANAGEMENT' || log.module === 'USER_PROFILE')) ||
       (auditModuleFilter === 'SETTINGS' && (log.module === 'SETTINGS' || log.module === 'REPORTS_MODULE'));
 
-    return matchesSearch && matchesModule;
+    const matchesRole =
+      auditRoleFilter === 'ALL' ||
+      (auditRoleFilter === 'ADMIN' && (log.userRole === 'ADMIN' || log.userRole === 'STAFF')) ||
+      log.userRole === auditRoleFilter;
+
+    return matchesSearch && matchesModule && matchesRole;
   });
+
+  const exportAuditCSV = () => {
+    const headers = ['Log ID', 'User Name', 'Role', 'System Category', 'Action Performed', 'Activity Details', 'Timestamp'];
+    const logsToExport = filteredLogs.length > 0 ? filteredLogs : state.auditLogs;
+    const rows = logsToExport.map((l) => [
+      l.id,
+      l.userName,
+      l.userRole,
+      getFriendlyModuleName(l.module),
+      getFriendlyActionName(l.action),
+      l.details || '',
+      l.timestamp,
+    ]);
+
+    exportStyledExcelFile({
+      filename: `library_audit_report_${getLocalDateStr(new Date())}.xlsx`,
+      sheetName: 'Operation Audit Logs',
+      headers,
+      data: rows,
+      themeColor: '312E81', // Deep Indigo Header
+    });
+  };
+
+  const hasActiveFilters = auditSearchTerm !== '' || auditModuleFilter !== 'ALL' || auditRoleFilter !== 'ALL';
+
+  const handleResetFilters = () => {
+    setAuditSearchTerm('');
+    setAuditModuleFilter('ALL');
+    setAuditRoleFilter('ALL');
+  };
 
   return (
     <div className="space-y-6">
@@ -322,33 +355,67 @@ export default function ReportsAnalytics() {
       ) : (
         <div className="space-y-4 animate-fadeIn">
           {/* Easy Filter & Search Toolbar */}
-          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
-            {/* Search Box */}
-            <div className="relative w-full lg:w-96">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search logs by name, action (e.g. Issued Book), or details..."
-                value={auditSearchTerm}
-                onChange={(e) => setAuditSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-8 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 bg-slate-50/50"
-              />
-              {auditSearchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setAuditSearchTerm('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 cursor-pointer"
-                  title="Clear search"
+          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+              {/* Search Box */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search logs by staff name, action (e.g. Issued Book), or keyword..."
+                  value={auditSearchTerm}
+                  onChange={(e) => setAuditSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-8 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 bg-slate-50/50"
+                />
+                {auditSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setAuditSearchTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Role Filter Selector */}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-slate-500 font-bold text-xs">Role:</span>
+                <select
+                  value={auditRoleFilter}
+                  onChange={(e) => setAuditRoleFilter(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
                 >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
+                  {roleFilters.map((rf) => (
+                    <option key={rf.id} value={rf.id}>
+                      {rf.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Live Count & Reset */}
+              <div className="flex items-center gap-2 shrink-0 justify-between sm:justify-end">
+                <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700">
+                  Showing <span className="text-blue-600">{filteredLogs.length}</span> of {state.auditLogs.length} logs
+                </span>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold hover:bg-rose-100 transition-colors cursor-pointer"
+                  >
+                    Reset Filters
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Simple Category Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto text-xs py-1">
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto text-xs pt-1 border-t border-slate-100">
               <span className="text-slate-500 font-bold text-xs mr-1 shrink-0 flex items-center gap-1">
-                <Filter className="h-3.5 w-3.5 text-blue-600" /> Filter By:
+                <Filter className="h-3.5 w-3.5 text-blue-600" /> Category:
               </span>
               {moduleFilters.map((mod) => (
                 <button

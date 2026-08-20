@@ -1,3 +1,6 @@
+import XLSX from 'xlsx-js-style';
+import { exportStyledExcelFile } from '../utils/excelExport';
+import { digitalFileStorage } from '../utils/digitalFileStorage';
 import {
   Role,
   Book,
@@ -26,6 +29,12 @@ import {
   AttendanceStatus,
   VerificationMethod,
   VisitPurpose,
+  NoDueCertificate,
+  NoDueApplication,
+  NoDueStatus,
+  NoDuePurpose,
+  NoDueApplicationHistory,
+  OfficialDocument,
 } from '../types/library';
 
 // Key for LocalStorage
@@ -1416,12 +1425,14 @@ const DEFAULT_MEMBERS: MemberProfile[] = [
     email: 'jayendramajji22@gmail.com',
     role: 'STUDENT',
     memberCardNo: 'STU-2026-7326',
+    rollNo: '22CS104',
+    academicBatch: '2022 - 2026',
     department: 'Computer Science & Engineering',
     status: 'ACTIVE',
     maxAllowedBooks: 5,
     currentActiveLoans: 0,
     pendingFines: 0.00,
-    registeredDate: '2023-09-01',
+    registeredDate: '2022-08-01',
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
   },
   {
@@ -1686,25 +1697,131 @@ const DEFAULT_FINES: FineRecord[] = [
 ];
 
 const DEFAULT_DIGITAL: DigitalResource[] = [
+  // 1. RESEARCH PAPERS (RESEARCH_PAPER)
   {
-    id: 'dig-1',
-    title: 'Advanced Machine Learning & Deep Neural Architectures (2025 Proceedings)',
-    resourceType: 'IEEE_XPLORE',
+    id: 'dig-rp-1',
+    title: 'Transformer Architectures & Attention Mechanism Benchmarks in Generative AI',
+    resourceType: 'RESEARCH_PAPER',
     categoryName: 'Computer Science & Software',
-    authorName: 'Dr. A. Sharma & IEEE AI Society',
-    fileUrl: 'https://ieeexplore.ieee.org',
-    fileSizeMb: 14.2,
-    downloadCount: 412,
+    authorName: 'Dr. Aris Thorne & IEEE AI Society',
+    fileUrl: '/docs/transformer-ai-research.pdf',
+    fileSizeMb: 8.4,
+    downloadCount: 512,
     uploadDate: '2025-11-12',
     department: 'Computer Science & Engineering',
     subject: 'Artificial Intelligence',
     semester: 'Sem 7',
     year: 2025,
-    publisherName: 'IEEE Press',
+    publisherName: 'IEEE Computer Society',
     issnIsbn: 'ISSN 1941-0131',
-    accessLevel: 'SUBSCRIBED',
-    description: 'Peer-reviewed IEEE Transactions research proceedings on transformer networks and deep learning.',
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Peer-reviewed research paper on transformer network scalability, attention mechanisms, and deep neural LLMs.',
+    contentSnippet: 'ABSTRACT: Large language models rely heavily on self-attention mechanisms. This paper presents empirical performance benchmarks across 100M-70B parameter models.',
   },
+  {
+    id: 'dig-rp-2',
+    title: 'Quantum Dot Solar Cells: Photovoltaic Efficiency & Nanomaterial Optimization',
+    resourceType: 'RESEARCH_PAPER',
+    categoryName: 'Physics & Applied Physical Sciences',
+    authorName: 'Dr. Meera Reddy & Dr. K. V. Sharma',
+    fileUrl: '/docs/quantum-dot-solar-research.pdf',
+    fileSizeMb: 6.2,
+    downloadCount: 380,
+    uploadDate: '2025-10-05',
+    department: 'Physics & Applied Physical Sciences',
+    subject: 'Nanotechnology & Quantum Physics',
+    semester: 'Sem 6',
+    year: 2025,
+    publisherName: 'Elsevier Materials Science',
+    issnIsbn: 'ISSN 0925-8388',
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Comparative study on colloidal quantum dot solar cell efficiency, bandgap tuning, and electron transport layers.',
+    contentSnippet: 'ABSTRACT: Perovskite and quantum dot hybrid structures offer up to 28.5% theoretical power conversion efficiency under AM1.5G illumination.',
+  },
+  {
+    id: 'dig-rp-3',
+    title: 'Autonomous Robotic Surgery: Real-Time Haptic Feedback & Computer Vision',
+    resourceType: 'RESEARCH_PAPER',
+    categoryName: 'Medical & Life Sciences',
+    authorName: 'Dr. Jonathan Kim & Surgical Robotics Lab',
+    fileUrl: '/docs/robotic-surgery-haptic.pdf',
+    fileSizeMb: 12.1,
+    downloadCount: 290,
+    uploadDate: '2026-01-08',
+    department: 'Medical & Life Sciences',
+    subject: 'Biomedical Engineering',
+    semester: 'Sem 8',
+    year: 2026,
+    publisherName: 'Springer Biomedical Engineering',
+    issnIsbn: 'ISSN 2190-3824',
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Investigation into low-latency haptic sensor arrays and sub-millimeter tracking accuracy for laparoscopic robot surgery.',
+    contentSnippet: 'ABSTRACT: Tactile feedback is essential for minimally invasive surgery. We introduce a 1kHz optical force-sensing array operating with zero phase lag.',
+  },
+
+  // 2. E-BOOKS (EBOOK)
+  {
+    id: 'dig-3',
+    title: 'VLSI Circuit Design Fundamentals & FPGA Hardware Implementation',
+    resourceType: 'EBOOK',
+    categoryName: 'Electrical & Electronics',
+    authorName: 'Prof. R. Vance',
+    fileUrl: '/docs/vlsi-design-handbook.pdf',
+    fileSizeMb: 22.1,
+    downloadCount: 214,
+    uploadDate: '2025-08-20',
+    department: 'Electronics & Communication Engineering',
+    subject: 'VLSI Design',
+    semester: 'Sem 6',
+    year: 2025,
+    publisherName: 'Pearson Education',
+    issnIsbn: '978-0134685991',
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Reference e-book textbook covering Verilog HDL coding, CMOS logic gates, and FPGA syntheses.',
+    contentSnippet: 'CHAPTER 1: Introduction to Very Large Scale Integration (VLSI), MOSFET operation modes, and layout design rules.',
+  },
+  {
+    id: 'dig-eb-2',
+    title: 'Clean Architecture & Distributed Microservice Engineering (2nd Ed)',
+    resourceType: 'EBOOK',
+    categoryName: 'Computer Science & Software',
+    authorName: 'Robert C. Martin & Dr. Alex Xu',
+    fileUrl: '/docs/clean-microservices-ebook.pdf',
+    fileSizeMb: 18.5,
+    downloadCount: 640,
+    uploadDate: '2025-09-14',
+    department: 'Computer Science & Engineering',
+    subject: 'Software Architecture',
+    semester: 'Sem 5',
+    year: 2025,
+    publisherName: "O'Reilly Media",
+    issnIsbn: '978-1491950357',
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Definitive digital textbook on decoupled service design, domain-driven design (DDD), gRPC, and event sourcing.',
+    contentSnippet: 'PREFACE: Software architecture is the art of drawing lines. This book teaches engineers how to keep options open as systems grow.',
+  },
+  {
+    id: 'dig-eb-3',
+    title: 'Principles of Financial Economics & Corporate Valuation',
+    resourceType: 'EBOOK',
+    categoryName: 'Commerce, Finance & Banking',
+    authorName: 'Prof. Eugene Fama & Dr. S. K. Roy',
+    fileUrl: '/docs/financial-economics-ebook.pdf',
+    fileSizeMb: 14.8,
+    downloadCount: 310,
+    uploadDate: '2025-07-22',
+    department: 'Commerce & Finance',
+    subject: 'Corporate Finance',
+    semester: 'Sem 3',
+    year: 2025,
+    publisherName: 'McGraw-Hill Education',
+    issnIsbn: '978-0078034763',
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Comprehensive digital text on Discounted Cash Flow (DCF), CAPM model, capital structure, and risk management.',
+    contentSnippet: 'EXECUTIVE SUMMARY: Valuation is at the heart of corporate decision-making. We explore modern financial derivatives and risk hedging strategies.',
+  },
+
+  // 3. QUESTION PAPERS (QUESTION_PAPER)
   {
     id: 'dig-2',
     title: 'Data Structures & Algorithms Semester IV Exam Question Papers (2020-2025)',
@@ -1721,83 +1838,127 @@ const DEFAULT_DIGITAL: DigitalResource[] = [
     year: 2025,
     accessLevel: 'OPEN_ACCESS',
     description: 'Official compiled university semester examination question paper archives with solution keys.',
+    contentSnippet: 'EXAM SECTION A: Answer all 10 short questions (20 marks). 1. Define AVL tree rotation. 2. Compare QuickSort vs MergeSort space complexity.',
   },
   {
-    id: 'dig-3',
-    title: 'VLSI Circuit Design Fundamentals & FPGA Hardware Implementation',
-    resourceType: 'EBOOK',
-    categoryName: 'Electrical & Electronics',
-    authorName: 'Prof. R. Vance',
-    fileUrl: '/docs/vlsi-design-handbook.pdf',
-    fileSizeMb: 22.1,
-    downloadCount: 214,
-    uploadDate: '2025-08-20',
-    department: 'Electronics & Communication',
-    subject: 'VLSI Design',
-    semester: 'Sem 6',
+    id: 'dig-qp-2',
+    title: 'Thermodynamics & Fluid Mechanics Semester III Question Bank',
+    resourceType: 'QUESTION_PAPER',
+    categoryName: 'Mechanical Engineering',
+    authorName: 'Board of Examiners (Mechanical Dept)',
+    fileUrl: '/docs/thermo-question-bank.pdf',
+    fileSizeMb: 6.4,
+    downloadCount: 420,
+    uploadDate: '2025-12-18',
+    department: 'Mechanical Engineering & Mechatronics',
+    subject: 'Thermodynamics',
+    semester: 'Sem 3',
     year: 2025,
-    publisherName: 'Pearson Education',
-    issnIsbn: '978-0134685991',
     accessLevel: 'OPEN_ACCESS',
-    description: 'Reference e-book textbook covering Verilog HDL coding, CMOS logic gates, and FPGA syntheses.',
+    description: 'Previous 5-year end-semester exam question papers with step-by-step numerical calculations.',
+    contentSnippet: 'SECTION B: 1. Derive the Rankine Cycle efficiency equation. 2. A Carnot engine operates between 800K and 300K. Calculate maximum work output.',
   },
+  {
+    id: 'dig-qp-3',
+    title: 'Embedded Systems & Microcontroller Design Semester VI Examination Archive',
+    resourceType: 'QUESTION_PAPER',
+    categoryName: 'Electronics & Communication Engineering',
+    authorName: 'ECE Examination Council',
+    fileUrl: '/docs/embedded-question-bank.pdf',
+    fileSizeMb: 7.1,
+    downloadCount: 360,
+    uploadDate: '2026-01-12',
+    department: 'Electronics & Communication Engineering',
+    subject: 'Embedded Systems',
+    semester: 'Sem 6',
+    year: 2026,
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Comprehensive exam paper repository for ARM Cortex-M architecture, UART/SPI interfaces, and RTOS timers.',
+    contentSnippet: 'QUESTION 3: Write an Embedded C program for ARM Cortex-M4 to configure SysTick timer interrupts at 1ms intervals.',
+  },
+
+  // 4. SYLLABUS (SYLLABUS)
   {
     id: 'dig-4',
     title: 'Computer Science & Engineering B.Tech Model Syllabus (2026 Revision)',
     resourceType: 'SYLLABUS',
-    categoryName: 'Academic Administration',
+    categoryName: 'Computer Science & Software',
     authorName: 'Academic Senate & Curriculum Committee',
     fileUrl: '/docs/cse-syllabus-2026.pdf',
     fileSizeMb: 3.4,
     downloadCount: 1250,
     uploadDate: '2026-01-10',
     department: 'Computer Science & Engineering',
+    subject: 'Curriculum & Academic Regulations',
     semester: 'All Semesters',
     year: 2026,
     accessLevel: 'OPEN_ACCESS',
-    description: 'Complete official credit distribution, lab schemes, and course outcomes for B.Tech CSE.',
+    description: 'Complete official credit distribution, lab schemes, prerequisite graphs, and course outcomes for B.Tech CSE.',
+    contentSnippet: 'PROGRAM STRUCTURE: Total Credits Required = 160. Core Subjects: 78 Credits, Electives: 30 Credits, Labs & Projects: 52 Credits.',
   },
   {
-    id: 'dig-5',
-    title: 'NPTEL Courseware: High Performance Computer Architecture & Parallel Systems',
-    resourceType: 'NPTEL',
+    id: 'dig-syl-2',
+    title: 'Master of Business Administration (MBA) Curriculum & Credit Scheme 2026',
+    resourceType: 'SYLLABUS',
+    categoryName: 'Business Administration & Management (MBA)',
+    authorName: 'MBA Board of Studies',
+    fileUrl: '/docs/mba-syllabus-2026.pdf',
+    fileSizeMb: 2.8,
+    downloadCount: 610,
+    uploadDate: '2026-01-04',
+    department: 'Business Administration & Management (MBA)',
+    subject: 'Management Curriculum',
+    semester: 'All Semesters',
+    year: 2026,
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Detailed syllabus breakdown for MBA Specializations in Marketing, Finance, HR, and Business Analytics.',
+    contentSnippet: 'SEMESTER I CORE: Financial Accounting, Managerial Economics, Organizational Behavior, Marketing Management, Quantitative Methods.',
+  },
+
+  // 5. LECTURE_NOTES (Lecture Notes)
+  {
+    id: 'dig-16',
+    title: 'Operating Systems & System Programming Unit-Wise Lecture Notes',
+    resourceType: 'LECTURE_NOTES',
     categoryName: 'Computer Science & Software',
-    authorName: 'Prof. Mainak Chaudhuri (IIT Kanpur)',
-    fileUrl: 'https://nptel.ac.in',
-    fileSizeMb: 450.0,
-    downloadCount: 680,
-    uploadDate: '2025-09-01',
+    authorName: 'Department of CSE Faculty Council',
+    fileUrl: '/docs/os-lecture-notes.pdf',
+    fileSizeMb: 9.8,
+    downloadCount: 1420,
+    uploadDate: '2025-08-10',
     department: 'Computer Science & Engineering',
-    subject: 'Computer Architecture',
+    subject: 'Operating Systems',
+    semester: 'Sem 4',
+    year: 2025,
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Unit-by-unit classroom lecture notes covering process scheduling, memory virtualization, and IPC.',
+    contentSnippet: 'UNIT 2: Process Synchronization & Deadlocks. Dining Philosophers problem, Semaphore implementation, and Banker\'s Algorithm.',
+  },
+  {
+    id: 'dig-ln-2',
+    title: 'Artificial Intelligence & Neural Networks Classroom Lecture Modules',
+    resourceType: 'LECTURE_NOTES',
+    categoryName: 'Artificial Intelligence & Data Science',
+    authorName: 'Dr. S. R. Varma & AI Faculty Team',
+    fileUrl: '/docs/ai-lecture-notes.pdf',
+    fileSizeMb: 11.4,
+    downloadCount: 890,
+    uploadDate: '2025-09-22',
+    department: 'Artificial Intelligence & Data Science',
+    subject: 'Deep Learning',
     semester: 'Sem 5',
     year: 2025,
-    publisherName: 'NPTEL / IIT Kanpur',
     accessLevel: 'OPEN_ACCESS',
-    description: 'Complete 40-lecture video module and PDF lecture notes for multi-core cache coherence and pipelining.',
+    description: 'Comprehensive slides and notes on Backpropagation, Convolutional Neural Networks (CNN), and RNN architectures.',
+    contentSnippet: 'MODULE 4: Gradient Descent Variants (Adam, RMSprop, SGD with Momentum) and vanishing gradient mitigation techniques.',
   },
-  {
-    id: 'dig-6',
-    title: 'SWAYAM MOOC: Financial Accounting & Enterprise Resource Planning',
-    resourceType: 'SWAYAM',
-    categoryName: 'Business & Management',
-    authorName: 'Prof. S. K. Gupta (IIM Bangalore)',
-    fileUrl: 'https://swayam.gov.in',
-    fileSizeMb: 320.0,
-    downloadCount: 310,
-    uploadDate: '2025-10-15',
-    department: 'Management Studies',
-    subject: 'Financial Accounting',
-    semester: 'Sem 2',
-    year: 2025,
-    publisherName: 'SWAYAM National Portal',
-    accessLevel: 'OPEN_ACCESS',
-    description: 'Government of India national online learning course materials and self-assessment quizzes.',
-  },
+
+  // 6. NEWSPAPERS & E-PAPERS (NEWSPAPER)
   {
     id: 'dig-7',
     title: 'The Hindu National Daily (Digital Edition & Editorial Archive)',
     resourceType: 'NEWSPAPER',
-    categoryName: 'General Knowledge & News',
+    categoryName: 'Humanities & Social Sciences',
     authorName: 'The Hindu Editorial Desk',
     fileUrl: 'https://www.thehindu.com',
     fileSizeMb: 12.0,
@@ -1816,7 +1977,7 @@ const DEFAULT_DIGITAL: DigitalResource[] = [
     id: 'dig-8',
     title: 'Indian Express Daily e-Paper & Civil Services Special Edition',
     resourceType: 'NEWSPAPER',
-    categoryName: 'General Knowledge & News',
+    categoryName: 'Humanities & Social Sciences',
     authorName: 'Indian Express Bureau',
     fileUrl: 'https://indianexpress.com',
     fileSizeMb: 11.5,
@@ -1835,7 +1996,7 @@ const DEFAULT_DIGITAL: DigitalResource[] = [
     id: 'dig-8b',
     title: 'Times of India National Daily Edition & Tech Frontline',
     resourceType: 'NEWSPAPER',
-    categoryName: 'General Knowledge & News',
+    categoryName: 'Humanities & Social Sciences',
     authorName: 'Times News Network',
     fileUrl: 'https://timesofindia.indiatimes.com',
     fileSizeMb: 14.0,
@@ -1850,101 +2011,77 @@ const DEFAULT_DIGITAL: DigitalResource[] = [
     contentSnippet: 'National & international headlines, business tech news, and education bulletins.',
     description: "Today's official digital Times of India e-paper daily issue.",
   },
+
+  // 7. NPTEL COURSEWARE (NPTEL)
   {
-    id: 'dig-8c',
-    title: 'Financial Express & Business Standard Daily e-Paper',
-    resourceType: 'NEWSPAPER',
-    categoryName: 'Business & Economics',
-    authorName: 'Financial Bureau Desk',
-    fileUrl: 'https://www.financialexpress.com',
-    fileSizeMb: 10.8,
-    downloadCount: 850,
-    uploadDate: getLocalDateStr(),
-    department: 'All Departments',
-    semester: 'All Semesters',
-    year: 2026,
-    newspaperEdition: "Today's Financial Edition",
-    newspaperRssFeedUrl: 'https://www.financialexpress.com/feed/',
-    accessLevel: 'OPEN_ACCESS',
-    contentSnippet: 'Stock market trends, macroeconomic analysis, corporate governance, and fiscal policy.',
-    description: "Today's official digital financial newspaper edition.",
-  },
-  {
-    id: 'dig-9',
-    title: 'ACM Digital Library: Quantum Computing Algorithms & Cryptography Standards',
-    resourceType: 'ACM_DIGITAL_LIBRARY',
+    id: 'dig-5',
+    title: 'NPTEL Courseware: High Performance Computer Architecture & Parallel Systems',
+    resourceType: 'NPTEL',
     categoryName: 'Computer Science & Software',
-    authorName: 'ACM Special Interest Group on Algorithms (SIGACT)',
-    fileUrl: 'https://dl.acm.org',
-    fileSizeMb: 18.6,
-    downloadCount: 295,
-    uploadDate: '2025-12-01',
+    authorName: 'Prof. Mainak Chaudhuri (IIT Kanpur)',
+    fileUrl: 'https://nptel.ac.in',
+    fileSizeMb: 450.0,
+    downloadCount: 680,
+    uploadDate: '2025-09-01',
     department: 'Computer Science & Engineering',
-    subject: 'Quantum Computing',
-    semester: 'Sem 8',
+    subject: 'Computer Architecture',
+    semester: 'Sem 5',
     year: 2025,
-    publisherName: 'ACM New York',
-    issnIsbn: 'ISSN 0004-5411',
-    accessLevel: 'SUBSCRIBED',
-    description: 'Full-text access to ACM Transactions on Quantum Computing and post-quantum cryptographic algorithms.',
+    publisherName: 'NPTEL / IIT Kanpur',
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Complete 40-lecture video module and PDF lecture notes for multi-core cache coherence and pipelining.',
+    contentSnippet: 'LECTURE 12: Directory-Based Cache Coherence Protocols in Large-Scale Distributed Shared Memory Architectures.',
   },
+
+  // 8. SWAYAM MOOCS (SWAYAM)
   {
-    id: 'dig-10',
-    title: 'SpringerLink: Renewable Energy Microgrids & Smart Grid Optimizations',
-    resourceType: 'SPRINGER_LINK',
-    categoryName: 'Electrical & Electronics',
-    authorName: 'Dr. H. K. Patel & Springer Engineering Group',
-    fileUrl: 'https://link.springer.com',
-    fileSizeMb: 28.4,
-    downloadCount: 188,
-    uploadDate: '2025-07-14',
-    department: 'Electrical & Electronics',
-    subject: 'Smart Grids',
-    year: 2025,
-    publisherName: 'Springer Nature',
-    issnIsbn: '978-3-030-89120-1',
-    accessLevel: 'SUBSCRIBED',
-    description: 'Springer international journal monographs on solar photovoltaic integrations and battery storage.',
-  },
-  {
-    id: 'dig-11',
-    title: 'ScienceDirect Elsevier: Materials Science & Nanotechnology Reviews',
-    resourceType: 'SCIENCE_DIRECT',
-    categoryName: 'Mechanical & Materials',
-    authorName: 'Elsevier Research Panel',
-    fileUrl: 'https://www.sciencedirect.com',
-    fileSizeMb: 19.8,
+    id: 'dig-6',
+    title: 'SWAYAM MOOC: Financial Accounting & Enterprise Resource Planning',
+    resourceType: 'SWAYAM',
+    categoryName: 'Business Administration & Management (MBA)',
+    authorName: 'Prof. S. K. Gupta (IIM Bangalore)',
+    fileUrl: 'https://swayam.gov.in',
+    fileSizeMb: 320.0,
     downloadCount: 310,
-    uploadDate: '2025-11-20',
-    department: 'Mechanical Engineering',
-    subject: 'Nanotechnology',
+    uploadDate: '2025-10-15',
+    department: 'Business Administration & Management (MBA)',
+    subject: 'Financial Accounting',
+    semester: 'Sem 2',
     year: 2025,
-    publisherName: 'Elsevier BV',
-    accessLevel: 'SUBSCRIBED',
-    description: 'High-impact factor review papers on carbon nanotubes and lightweight composite materials.',
+    publisherName: 'SWAYAM National Portal',
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Government of India national online learning course materials and self-assessment quizzes.',
+    contentSnippet: 'WEEK 6: Balance Sheet Analysis, Cash Flow Statements (IAS 7), and ERP SAP Financial Modules.',
   },
+
+  // 9. IEEE XPLORE (IEEE_XPLORE)
   {
-    id: 'dig-12',
-    title: 'JSTOR Archival Collection: Economics & Global Financial Policy History',
-    resourceType: 'JSTOR',
-    categoryName: 'Humanities & Social Sciences',
-    authorName: 'JSTOR Academic Trust',
-    fileUrl: 'https://www.jstor.org',
-    fileSizeMb: 15.0,
-    downloadCount: 220,
-    uploadDate: '2025-06-10',
-    department: 'Management Studies',
-    subject: 'Economics',
+    id: 'dig-1',
+    title: 'Advanced Machine Learning & Deep Neural Architectures (2025 Proceedings)',
+    resourceType: 'IEEE_XPLORE',
+    categoryName: 'Computer Science & Software',
+    authorName: 'Dr. A. Sharma & IEEE AI Society',
+    fileUrl: 'https://ieeexplore.ieee.org',
+    fileSizeMb: 14.2,
+    downloadCount: 412,
+    uploadDate: '2025-11-12',
+    department: 'Computer Science & Engineering',
+    subject: 'Artificial Intelligence',
+    semester: 'Sem 7',
     year: 2025,
-    publisherName: 'JSTOR Org',
+    publisherName: 'IEEE Press',
+    issnIsbn: 'ISSN 1941-0131',
     accessLevel: 'SUBSCRIBED',
-    description: 'Historical digitized academic journals, books, and primary research sources.',
+    description: 'Peer-reviewed IEEE Transactions research proceedings on transformer networks and deep learning.',
+    contentSnippet: 'IEEE TRANSACTIONS: Distributed training optimization for trillion-token transformer models over high-speed interconnects.',
   },
+
+  // 10. RESEARCH & ACADEMIC THESES (THESIS_DISSERTATION)
   {
     id: 'dig-13',
     title: 'Ph.D. Thesis: Distributed Blockchain Consensus Mechanisms for IoT Security',
     resourceType: 'THESIS_DISSERTATION',
-    categoryName: 'Research & Doctorate',
+    categoryName: 'Computer Science & Software',
     authorName: 'Dr. Jayendra Majji (Ph.D. Scholar)',
     fileUrl: '/docs/phd-thesis-blockchain.pdf',
     fileSizeMb: 45.0,
@@ -1952,16 +2089,77 @@ const DEFAULT_DIGITAL: DigitalResource[] = [
     uploadDate: '2026-01-15',
     department: 'Computer Science & Engineering',
     subject: 'Cyber Security & Distributed Systems',
+    semester: 'Doctoral',
     year: 2026,
     publisherName: 'University Press',
     accessLevel: 'OPEN_ACCESS',
     description: 'Approved doctoral dissertation detailing Byzantine Fault Tolerant protocols for smart grids.',
+    contentSnippet: 'DISSERTATION CHAPTER 4: Practical Byzantine Fault Tolerance (PBFT) performance in resource-constrained IoT gateways.',
   },
+  {
+    id: 'dig-th-2',
+    title: 'Ph.D. Dissertation: Nanomaterial Catalyst Synthesis for Green Hydrogen Production',
+    resourceType: 'THESIS_DISSERTATION',
+    categoryName: 'Chemical & Materials Engineering',
+    authorName: 'Dr. Ananya Sen (Ph.D. Scholar)',
+    fileUrl: '/docs/phd-thesis-hydrogen.pdf',
+    fileSizeMb: 38.5,
+    downloadCount: 140,
+    uploadDate: '2025-11-30',
+    department: 'Chemical & Materials Engineering',
+    subject: 'Green Energy Chemistry',
+    semester: 'Doctoral',
+    year: 2025,
+    publisherName: 'University Central Library Repository',
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Doctoral research on electrocatalytic water splitting using nickel-iron layered double hydroxides.',
+    contentSnippet: 'DISSERTATION CHAPTER 3: Overpotential reduction techniques during oxygen evolution reaction (OER) in alkaline electrolyzers.',
+  },
+
+  // 11. PROJECT REPORTS (PROJECT_REPORT)
+  {
+    id: 'dig-15',
+    title: 'Cap-Stone B.Tech Project Report: Autonomous Drone Navigation using ROS 2',
+    resourceType: 'PROJECT_REPORT',
+    categoryName: 'Computer Science & Software',
+    authorName: 'Senior Student Project Team (Batch 2026)',
+    fileUrl: '/docs/btech-project-drone.pdf',
+    fileSizeMb: 16.5,
+    downloadCount: 530,
+    uploadDate: '2026-01-20',
+    department: 'Computer Science & Engineering',
+    subject: 'Robotics & Computer Vision',
+    semester: 'Sem 8',
+    year: 2026,
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Final year capstone engineering project report complete with circuit schematics and ROS source code.',
+    contentSnippet: 'PROJECT SUMMARY: Real-time obstacle avoidance utilizing LiDAR PointClouds and OctoMap 3D occupancy grid mapping.',
+  },
+  {
+    id: 'dig-pr-2',
+    title: 'B.Tech Final Project Report: IoT Smart Agriculture & Soil Health Telemetry Node',
+    resourceType: 'PROJECT_REPORT',
+    categoryName: 'Electronics & Communication Engineering',
+    authorName: 'ECE Final Year Project Group',
+    fileUrl: '/docs/btech-project-iot-agri.pdf',
+    fileSizeMb: 19.2,
+    downloadCount: 480,
+    uploadDate: '2025-12-05',
+    department: 'Electronics & Communication Engineering',
+    subject: 'Internet of Things (IoT)',
+    semester: 'Sem 8',
+    year: 2025,
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Solar-powered wireless sensor node design for NPK soil nutrient monitoring via LoRaWAN.',
+    contentSnippet: 'PROJECT ARCHITECTURE: ESP32 microcontroller interfaced with soil moisture & EC sensors, streaming telemetry to AWS IoT Core.',
+  },
+
+  // 12. FACULTY PUBLICATIONS (FACULTY_PUBLICATION)
   {
     id: 'dig-14',
     title: 'Faculty Publication: Edge Computing Paradigms in Next-Gen 6G Wireless Networks',
     resourceType: 'FACULTY_PUBLICATION',
-    categoryName: 'Faculty Monographs',
+    categoryName: 'Electronics & Communication Engineering',
     authorName: 'Dr. Sarah Connor (Associate Professor, CSE)',
     fileUrl: '/docs/faculty-paper-6g.pdf',
     fileSizeMb: 11.2,
@@ -1969,110 +2167,243 @@ const DEFAULT_DIGITAL: DigitalResource[] = [
     uploadDate: '2025-12-10',
     department: 'Computer Science & Engineering',
     subject: 'Wireless Communications',
+    semester: 'Faculty Research',
     year: 2025,
     accessLevel: 'OPEN_ACCESS',
     description: 'Peer-reviewed international journal publication authored by university faculty members.',
+    contentSnippet: 'JOURNAL ABSTRACT: Ultra-reliable low-latency communication (URLLC) requirements for 6G networks using Multi-access Edge Computing (MEC).',
   },
   {
-    id: 'dig-15',
-    title: 'Cap-Stone B.Tech Project Report: Autonomous Drone Navigation using ROS 2',
-    resourceType: 'PROJECT_REPORT',
-    categoryName: 'Student Projects',
-    authorName: 'Senior Student Project Team (Batch 2026)',
-    fileUrl: '/docs/btech-project-drone.pdf',
-    fileSizeMb: 16.5,
-    downloadCount: 530,
-    uploadDate: '2026-01-20',
-    department: 'Computer Science & Engineering',
-    semester: 'Sem 8',
-    year: 2026,
-    accessLevel: 'OPEN_ACCESS',
-    description: 'Final year capstone engineering project report complete with circuit schematics and ROS source code.',
-  },
-  {
-    id: 'dig-16',
-    title: 'Operating Systems & System Programming Unit-Wise Lecture Notes',
-    resourceType: 'LECTURE_NOTES',
-    categoryName: 'Computer Science & Software',
-    authorName: 'Department of CSE Faculty Council',
-    fileUrl: '/docs/os-lecture-notes.pdf',
-    fileSizeMb: 9.8,
-    downloadCount: 1420,
-    uploadDate: '2025-08-10',
-    department: 'Computer Science & Engineering',
-    subject: 'Operating Systems',
-    semester: 'Sem 4',
+    id: 'dig-fp-2',
+    title: 'Faculty Monograph: Strategic Supply Chain Resiliency in Post-Pandemic Economies',
+    resourceType: 'FACULTY_PUBLICATION',
+    categoryName: 'Business Administration & Management (MBA)',
+    authorName: 'Prof. Vikram Malhotra (Department Head, Management)',
+    fileUrl: '/docs/faculty-paper-supply-chain.pdf',
+    fileSizeMb: 15.6,
+    downloadCount: 310,
+    uploadDate: '2025-11-18',
+    department: 'Business Administration & Management (MBA)',
+    subject: 'Operations Management',
+    semester: 'Faculty Research',
     year: 2025,
     accessLevel: 'OPEN_ACCESS',
-    description: 'Unit-by-unit classroom lecture notes covering process scheduling, memory virtualization, and IPC.',
+    description: 'Peer-reviewed monograph analyzing global logistics bottlenecks and predictive AI inventory models.',
+    contentSnippet: 'MONOGRAPH SECTION 2: Quantitative risk mitigation strategies, dual-sourcing frameworks, and buffer inventory optimization.',
+  },
+
+  // 13. E-JOURNALS (JOURNAL)
+  {
+    id: 'dig-jr-1',
+    title: 'International Journal of Computer Applications & Software Engineering (IJCASE Vol. 28)',
+    resourceType: 'JOURNAL',
+    categoryName: 'Computer Science & Software',
+    authorName: 'Editorial Board (Dr. R. K. Swaminathan)',
+    fileUrl: '/docs/journal-ijcase-2026.pdf',
+    fileSizeMb: 18.4,
+    downloadCount: 560,
+    uploadDate: '2026-01-10',
+    department: 'Computer Science & Engineering',
+    subject: 'Computer Science & Engineering',
+    semester: 'All Semesters',
+    year: 2026,
+    publisherName: 'Foundation of Computer Science (FCS)',
+    issnIsbn: 'ISSN 0975-8887',
+    accessLevel: 'SUBSCRIBED',
+    description: 'Peer-reviewed open & subscribed research journal covering distributed computing, compiler design, and cyber physical security.',
+    contentSnippet: 'JOURNAL ARTICLE: Energy-efficient load balancing algorithms for hyper-scale cloud data centers.',
   },
   {
-    id: 'dig-17',
-    title: 'NDLI Repository: National Digital Library of India Higher Education Portal',
+    id: 'dig-jr-2',
+    title: 'Journal of Business Strategy, Fintech & Financial Management (Vol. 14)',
+    resourceType: 'JOURNAL',
+    categoryName: 'Business Administration & Management (MBA)',
+    authorName: 'Dr. Ananya Roy & Prof. K. Deshmukh',
+    fileUrl: '/docs/journal-business-strategy.pdf',
+    fileSizeMb: 12.0,
+    downloadCount: 380,
+    uploadDate: '2025-12-05',
+    department: 'Business Administration & Management (MBA)',
+    subject: 'Financial Management',
+    semester: 'All Semesters',
+    year: 2025,
+    publisherName: 'Academic Management Press',
+    issnIsbn: 'ISSN 2198-4421',
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Quarterly academic journal focusing on algorithmic trading, corporate governance, and ESG compliance.',
+    contentSnippet: 'PAPER: Impact of decentralized finance (DeFi) protocols on cross-border merchant settlement latencies.',
+  },
+
+  // 14. DIGITAL MAGAZINES (MAGAZINE)
+  {
+    id: 'dig-mag-1',
+    title: 'MIT Technology Review: The Breakthrough Technologies of 2026',
+    resourceType: 'MAGAZINE',
+    categoryName: 'Computer Science & Software',
+    authorName: 'MIT Technology Review Editorial Team',
+    fileUrl: 'https://technologyreview.com',
+    fileSizeMb: 24.5,
+    downloadCount: 920,
+    uploadDate: '2026-02-01',
+    department: 'Computer Science & Engineering',
+    subject: 'Emerging Technologies',
+    semester: 'All Semesters',
+    year: 2026,
+    publisherName: 'MIT Press',
+    issnIsbn: 'ISSN 0040-1692',
+    accessLevel: 'OPEN_ACCESS',
+    description: 'Special annual issue detailing generative AI models, quantum fault-tolerant computing, and solid-state battery breakthroughs.',
+    contentSnippet: 'COVER STORY: How multimodal foundational models are revolutionizing autonomous scientific discovery and robotics.',
+  },
+  {
+    id: 'dig-mag-2',
+    title: 'Harvard Business Review: Navigating Strategic Uncertainty & AI Transformation',
+    resourceType: 'MAGAZINE',
+    categoryName: 'Business Administration & Management (MBA)',
+    authorName: 'Harvard Business Publishing Group',
+    fileUrl: 'https://hbr.org',
+    fileSizeMb: 28.0,
+    downloadCount: 740,
+    uploadDate: '2026-01-15',
+    department: 'Business Administration & Management (MBA)',
+    subject: 'Leadership & Strategy',
+    semester: 'All Semesters',
+    year: 2026,
+    publisherName: 'Harvard Business Publishing',
+    issnIsbn: 'ISSN 0017-8012',
+    accessLevel: 'SUBSCRIBED',
+    description: 'Executive management magazine featuring executive case studies, generative AI productivity metrics, and leadership frameworks.',
+    contentSnippet: 'FEATURE ARTICLE: The Chief AI Officer Playbook: Scaling enterprise intelligence while mitigating algorithmic risk.',
+  },
+
+  // 15. NDLI REPOSITORY (NDLI)
+  {
+    id: 'dig-ndli-1',
+    title: 'National Digital Library of India (NDLI): GATE & National Competitive Exam Courseware',
     resourceType: 'NDLI',
-    categoryName: 'National Repositories',
+    categoryName: 'All Departments',
     authorName: 'Ministry of Education & IIT Kharagpur',
     fileUrl: 'https://ndl.iitkgp.ac.in',
-    fileSizeMb: 0.0,
-    downloadCount: 840,
-    uploadDate: '2025-05-01',
+    fileSizeMb: 150.0,
+    downloadCount: 1450,
+    uploadDate: '2025-08-20',
     department: 'All Departments',
+    subject: 'Engineering & Competitive Examinations',
+    semester: 'All Semesters',
     year: 2025,
-    publisherName: 'NDLI Kharagpur',
+    publisherName: 'National Digital Library of India (NDLI)',
     accessLevel: 'OPEN_ACCESS',
-    description: 'Integrated virtual repository of educational resources across all disciplines and languages.',
+    description: 'Centralized government repository containing 50,000+ curated video lectures, solved problem sets, and syllabus modules.',
+    contentSnippet: 'NDLI MODULE 4: Solved GATE Engineering Mathematics and Digital Electronics previous 15-year examination papers.',
   },
+
+  // 16. ACM DIGITAL LIBRARY (ACM_DIGITAL_LIBRARY)
   {
-    id: 'dig-18',
-    title: 'Scientific American & Technology Review Digital Magazine (2026)',
-    resourceType: 'MAGAZINE',
-    categoryName: 'General Science & Tech',
-    authorName: 'Technology Review Editors',
-    fileUrl: '/docs/tech-magazine-2026.pdf',
-    fileSizeMb: 24.0,
-    downloadCount: 390,
-    uploadDate: '2026-01-02',
-    department: 'All Departments',
-    year: 2026,
-    publisherName: 'MIT Tech Review',
-    accessLevel: 'OPEN_ACCESS',
-    description: 'Monthly digital magazine spotlighting breakthrough innovations, AI ethics, and biotechnology.',
-  },
-  {
-    id: 'dig-19',
-    title: 'MIT OpenCourseWare Video Lectures: Linear Algebra & Matrix Calculus',
-    resourceType: 'MULTIMEDIA',
-    categoryName: 'Multimedia & Audio-Visual',
-    authorName: 'Prof. Gilbert Strang (MIT Mathematics)',
-    fileUrl: 'https://ocw.mit.edu',
-    fileSizeMb: 520.0,
-    downloadCount: 970,
-    uploadDate: '2025-04-12',
-    department: 'Mathematics & Basic Sciences',
-    subject: 'Linear Algebra',
-    semester: 'Sem 1',
+    id: 'dig-acm-1',
+    title: 'ACM Digital Library: Proceedings of the ACM SIGCOMM / SIGMOD Conferences (2025)',
+    resourceType: 'ACM_DIGITAL_LIBRARY',
+    categoryName: 'Computer Science & Software',
+    authorName: 'Association for Computing Machinery (ACM)',
+    fileUrl: 'https://dl.acm.org',
+    fileSizeMb: 35.0,
+    downloadCount: 880,
+    uploadDate: '2025-11-10',
+    department: 'Computer Science & Engineering',
+    subject: 'Computer Networks & Database Systems',
+    semester: 'Sem 6',
     year: 2025,
-    publisherName: 'MIT OCW',
-    accessLevel: 'OPEN_ACCESS',
-    description: 'High-definition video lectures, problem set solutions, and interactive matrix visualization scripts.',
-  },
-  {
-    id: 'dig-20',
-    title: 'Journal of Applied Physics & Energy Storage Technologies (Vol 48)',
-    resourceType: 'JOURNAL',
-    categoryName: 'Basic Sciences & Physics',
-    authorName: 'American Institute of Physics (AIP)',
-    fileUrl: '/docs/aip-journal-vol48.pdf',
-    fileSizeMb: 17.8,
-    downloadCount: 260,
-    uploadDate: '2025-10-08',
-    department: 'Mathematics & Basic Sciences',
-    subject: 'Physics',
-    year: 2025,
-    publisherName: 'AIP Publishing',
-    issnIsbn: 'ISSN 0021-8979',
+    publisherName: 'ACM Press',
+    issnIsbn: 'ISBN 979-8-4007-0000-0',
     accessLevel: 'SUBSCRIBED',
-    description: 'Quarterly peer-reviewed scientific journal on condensed matter physics and semiconductor devices.',
+    description: 'Full-text access to ACM digital collection covering cloud networking, data systems, and algorithmic theory.',
+    contentSnippet: 'SIGCOMM PAPER: Programmable P4 switches with in-band network telemetry for 800 Gbps Ethernet fabrics.',
+  },
+
+  // 17. SPRINGERLINK (SPRINGER_LINK)
+  {
+    id: 'dig-springer-1',
+    title: 'SpringerLink: Advances in Intelligent Systems, Robotics & Autonomous Control',
+    resourceType: 'SPRINGER_LINK',
+    categoryName: 'Electronics & Communication Engineering',
+    authorName: 'Prof. Hans Weber & Springer Editorial Board',
+    fileUrl: 'https://link.springer.com',
+    fileSizeMb: 42.0,
+    downloadCount: 650,
+    uploadDate: '2025-10-25',
+    department: 'Electronics & Communication',
+    subject: 'Robotics & Control Systems',
+    semester: 'Sem 7',
+    year: 2025,
+    publisherName: 'Springer Nature',
+    issnIsbn: 'ISBN 978-3-030-99999-9',
+    accessLevel: 'SUBSCRIBED',
+    description: 'Comprehensive research monographs on reinforcement learning algorithms in industrial robotic manipulator control.',
+    contentSnippet: 'SPRINGER CHAPTER 8: Model Predictive Control (MPC) and Kalman filtering for unmanned aerial vehicles (UAVs).',
+  },
+
+  // 18. SCIENCEDIRECT (SCIENCE_DIRECT)
+  {
+    id: 'dig-scidirect-1',
+    title: 'ScienceDirect / Elsevier: Renewable Energy Systems, Green Hydrogen & Solar Microgrids',
+    resourceType: 'SCIENCE_DIRECT',
+    categoryName: 'Electrical & Electronics Engineering',
+    authorName: 'Dr. Elena Rostova & Elsevier Energy Editorial',
+    fileUrl: 'https://sciencedirect.com',
+    fileSizeMb: 38.5,
+    downloadCount: 790,
+    uploadDate: '2026-01-05',
+    department: 'Electrical & Electronics',
+    subject: 'Power Systems & Renewable Energy',
+    semester: 'Sem 8',
+    year: 2026,
+    publisherName: 'Elsevier Press',
+    issnIsbn: 'ISSN 0960-1481',
+    accessLevel: 'SUBSCRIBED',
+    description: 'High-impact Elsevier research journal papers detailing hybrid renewable energy grid integration and battery storage analytics.',
+    contentSnippet: 'ARTICLE: Maximum Power Point Tracking (MPPT) under partial shading conditions using genetic neural optimization.',
+  },
+
+  // 19. JSTOR ARCHIVES (JSTOR)
+  {
+    id: 'dig-jstor-1',
+    title: 'JSTOR Archival Collection: Economic Theory, Industrial Organization & Macroeconomic Policy',
+    resourceType: 'JSTOR',
+    categoryName: 'Business Administration & Management (MBA)',
+    authorName: 'JSTOR Academic Repository Curators',
+    fileUrl: 'https://jstor.org',
+    fileSizeMb: 19.8,
+    downloadCount: 520,
+    uploadDate: '2025-09-15',
+    department: 'Management Studies',
+    subject: 'Macroeconomics & Public Policy',
+    semester: 'Sem 3',
+    year: 2025,
+    publisherName: 'ITHAKA / JSTOR',
+    issnIsbn: 'ISSN 0022-0515',
+    accessLevel: 'SUBSCRIBED',
+    description: 'Primary source archival papers and historical economic journals on central bank balance sheets and market competition.',
+    contentSnippet: 'JSTOR HISTORICAL: Empirical evaluations of fiscal stimulus multiplier effects in emerging market economies.',
+  },
+
+  // 20. MULTIMEDIA & VIDEO LECTURES (MULTIMEDIA)
+  {
+    id: 'dig-multi-1',
+    title: 'Interactive Multimedia Video Series: Mechanical 3D CAD & Finite Element Analysis (FEA)',
+    resourceType: 'MULTIMEDIA',
+    categoryName: 'Mechanical Engineering',
+    authorName: 'Prof. David Miller (MIT / Central Library Media Lab)',
+    fileUrl: '/docs/video-cad-fea-masterclass.mp4',
+    fileSizeMb: 650.0,
+    downloadCount: 1120,
+    uploadDate: '2026-01-20',
+    department: 'Mechanical Engineering',
+    subject: 'Computer Aided Design (CAD)',
+    semester: 'Sem 5',
+    year: 2026,
+    publisherName: 'University Media & E-Learning Lab',
+    accessLevel: 'OPEN_ACCESS',
+    description: '10-part high-definition video masterclass with interactive 3D stress-strain animation simulations and SolidWorks tutorials.',
+    contentSnippet: 'VIDEO CHAPTER 4: Von Mises stress tensor analysis on cantilever truss structures under dynamic cyclic loading.',
   },
 ];
 
@@ -2191,6 +2522,121 @@ const DEFAULT_ATTENDANCE_RECORDS: AttendanceRecord[] = [
   },
 ];
 
+const DEFAULT_NO_DUE_CERTIFICATES: NoDueCertificate[] = [];
+
+const DEFAULT_NO_DUE_APPLICATIONS: NoDueApplication[] = [];
+
+const DEFAULT_OFFICIAL_DOCUMENTS: OfficialDocument[] = [
+  {
+    id: 'doc-form-1',
+    title: 'Library Membership Registration Form',
+    category: 'Forms & Membership Applications',
+    fileSize: '125 KB',
+    fileType: 'Official PDF',
+    description: 'Standard application for student, faculty & research scholar library smartcard registration.',
+    updatedDate: 'August 2026',
+    downloadCount: 142,
+    createdAt: '2026-08-01',
+    uploadedBy: 'Chief Librarian',
+  },
+  {
+    id: 'doc-form-2',
+    title: 'Book Procurement Suggestion Form',
+    category: 'Forms & Membership Applications',
+    fileSize: '85 KB',
+    fileType: 'Official PDF',
+    description: 'Official requisition slip to recommend new reference books and subscriptions.',
+    updatedDate: 'August 2026',
+    downloadCount: 68,
+    createdAt: '2026-08-01',
+    uploadedBy: 'Chief Librarian',
+  },
+  {
+    id: 'doc-form-3',
+    title: 'No Dues Clearance Certificate Form',
+    category: 'Forms & Membership Applications',
+    fileSize: '92 KB',
+    fileType: 'Official PDF',
+    description: 'Institutional clearance declaration for student graduation and employee exit.',
+    updatedDate: 'August 2026',
+    downloadCount: 310,
+    createdAt: '2026-08-01',
+    uploadedBy: 'Chief Librarian',
+  },
+  {
+    id: 'doc-policy-1',
+    title: 'University Library Rules & Regulations',
+    category: 'Library Policies & Conduct Rules',
+    fileSize: '450 KB',
+    fileType: 'Official PDF',
+    description: 'Authoritative code of conduct, quiet zone etiquette, and circulation policies.',
+    updatedDate: 'Academic Year 2026',
+    downloadCount: 220,
+    createdAt: '2026-08-01',
+    uploadedBy: 'Chief Librarian',
+  },
+  {
+    id: 'doc-policy-2',
+    title: 'Digital Lab & Workstation Code of Conduct',
+    category: 'Library Policies & Conduct Rules',
+    fileSize: '210 KB',
+    fileType: 'Official PDF',
+    description: 'Acceptable use guidelines for multimedia lab terminals and high-speed network access.',
+    updatedDate: 'Academic Year 2026',
+    downloadCount: 95,
+    createdAt: '2026-08-01',
+    uploadedBy: 'Chief Librarian',
+  },
+  {
+    id: 'doc-policy-3',
+    title: 'Overdue Fine & Loss Penalty Guidelines',
+    category: 'Library Policies & Conduct Rules',
+    fileSize: '180 KB',
+    fileType: 'Official PDF',
+    description: 'Statutory fine schedules, lost item replacement costs, and waiver procedures.',
+    updatedDate: 'Academic Year 2026',
+    downloadCount: 180,
+    createdAt: '2026-08-01',
+    uploadedBy: 'Chief Librarian',
+  },
+  {
+    id: 'doc-acad-1',
+    title: 'University Academic Calendar 2026-2027',
+    category: 'Academic Exam & Curriculum',
+    fileSize: '1.2 MB',
+    fileType: 'Official PDF',
+    description: 'Comprehensive schedule of semesters, instructional days, holidays, and milestones.',
+    updatedDate: 'Session 2026-27',
+    downloadCount: 520,
+    createdAt: '2026-08-01',
+    uploadedBy: 'Office of Academic Affairs',
+  },
+  {
+    id: 'doc-acad-2',
+    title: 'End Semester Exam Timetable & Guidelines',
+    category: 'Academic Exam & Curriculum',
+    fileSize: '340 KB',
+    fileType: 'Official PDF',
+    description: 'Examination hall rules, schedule of core theory and lab examinations.',
+    updatedDate: 'Session 2026-27',
+    downloadCount: 430,
+    createdAt: '2026-08-01',
+    uploadedBy: 'Controller of Examinations',
+  },
+  {
+    id: 'doc-acad-3',
+    title: 'Library Catalog & Circulation User Manual',
+    category: 'Academic Exam & Curriculum',
+    fileSize: '650 KB',
+    fileType: 'Official PDF',
+    description: 'Complete user guide for OPAC search, online renewals, and digital resource access.',
+    updatedDate: 'Session 2026-27',
+    downloadCount: 165,
+    createdAt: '2026-08-01',
+    uploadedBy: 'Chief Librarian',
+  },
+];
+
 // State Interface
 interface StateSchema {
   categories: Category[];
@@ -2211,6 +2657,9 @@ interface StateSchema {
   attendanceRecords?: AttendanceRecord[];
   downloadLogs?: DigitalDownloadLog[];
   bookmarkedIds?: string[];
+  noDueCertificates?: NoDueCertificate[];
+  noDueApplications?: NoDueApplication[];
+  officialDocuments?: OfficialDocument[];
 }
 
 // Lightweight Observable State Manager
@@ -2267,6 +2716,44 @@ class LibraryStoreService {
         if (!initialState.attendanceRecords || initialState.attendanceRecords.length === 0) {
           initialState.attendanceRecords = DEFAULT_ATTENDANCE_RECORDS;
         }
+        if (!initialState.noDueApplications || initialState.noDueApplications.length === 0) {
+          initialState.noDueApplications = DEFAULT_NO_DUE_APPLICATIONS;
+        }
+        if (!initialState.noDueCertificates || initialState.noDueCertificates.length === 0) {
+          initialState.noDueCertificates = DEFAULT_NO_DUE_CERTIFICATES;
+        }
+        if (!initialState.officialDocuments || initialState.officialDocuments.length === 0) {
+          initialState.officialDocuments = DEFAULT_OFFICIAL_DOCUMENTS;
+        }
+
+        // Sanitize: ensure no member with active loans has an active certificate or application
+        if (initialState.noDueCertificates || initialState.noDueApplications) {
+          const activeLoanMemberIds = new Set(
+            (initialState.transactions || [])
+              .filter((t) => t.status === 'ISSUED' || t.status === 'RENEWED' || t.status === 'OVERDUE')
+              .map((t) => (t.memberId || '').toLowerCase())
+          );
+          const activeLoanMemberCards = new Set(
+            (initialState.transactions || [])
+              .filter((t) => t.status === 'ISSUED' || t.status === 'RENEWED' || t.status === 'OVERDUE')
+              .map((t) => (t.memberCardNo || '').toLowerCase())
+          );
+
+          if (initialState.noDueCertificates) {
+            initialState.noDueCertificates = initialState.noDueCertificates.filter(
+              (c) =>
+                !activeLoanMemberIds.has((c.memberId || '').toLowerCase()) &&
+                !activeLoanMemberCards.has((c.memberCardNo || '').toLowerCase())
+            );
+          }
+          if (initialState.noDueApplications) {
+            initialState.noDueApplications = initialState.noDueApplications.filter(
+              (a) =>
+                !activeLoanMemberIds.has((a.studentId || '').toLowerCase()) &&
+                !activeLoanMemberCards.has((a.libraryMembershipId || '').toLowerCase())
+            );
+          }
+        }
 
         // Auto-merge all 22 university department categories into existing state
         if (!initialState.categories || initialState.categories.length < DEFAULT_CATEGORIES.length) {
@@ -2308,9 +2795,9 @@ class LibraryStoreService {
         }
 
         // Auto-merge all default enterprise digital resources into stored state if missing or incomplete
-        if (!initialState.digitalResources || initialState.digitalResources.length < DEFAULT_DIGITAL.length) {
-          const existingIds = new Set((initialState.digitalResources || []).map((d) => d.id));
-          const missingDigital = DEFAULT_DIGITAL.filter((d) => !existingIds.has(d.id));
+        const existingDigitalIds = new Set((initialState.digitalResources || []).map((d) => d.id));
+        const missingDigital = DEFAULT_DIGITAL.filter((d) => !existingDigitalIds.has(d.id));
+        if (missingDigital.length > 0) {
           initialState.digitalResources = [...(initialState.digitalResources || []), ...missingDigital];
         }
 
@@ -2368,7 +2855,18 @@ class LibraryStoreService {
           const uniqueMembers: MemberProfile[] = [];
           const seenCardNos = new Set<string>();
 
-          // Ensure default Jayendra Majji STU-2026-7326 is present
+          initialState.members = initialState.members.map((m) => {
+            if (m.id === 'mem-3' || m.memberCardNo === 'STU-2026-7326' || m.name === 'Jayendra Majji') {
+              return {
+                ...m,
+                rollNo: m.rollNo || '22CS104',
+                academicBatch: m.academicBatch || '2022 - 2026',
+                registeredDate: '2022-08-01',
+              };
+            }
+            return m;
+          });
+
           const hasJayendra = initialState.members.some(
             (m) => m.memberCardNo === 'STU-2026-7326' || m.name === 'Jayendra Majji'
           );
@@ -2380,12 +2878,14 @@ class LibraryStoreService {
               email: 'jayendramajji22@gmail.com',
               role: 'STUDENT',
               memberCardNo: 'STU-2026-7326',
+              rollNo: '22CS104',
+              academicBatch: '2022 - 2026',
               department: 'Computer Science & Engineering',
               status: 'ACTIVE',
               maxAllowedBooks: 5,
               currentActiveLoans: 0,
               pendingFines: 0.00,
-              registeredDate: '2023-09-01',
+              registeredDate: '2022-08-01',
               avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
             });
           }
@@ -2430,6 +2930,39 @@ class LibraryStoreService {
             recipientEmail: n.recipientEmail === 'student@college.edu' ? 'jayendramajji22@gmail.com' : n.recipientEmail,
             recipientName: n.recipientName === 'Alex Johnson' || !n.recipientName ? 'Jayendra Majji' : n.recipientName,
           }));
+        }
+
+        // Strict cleanup: Purge any unregistered people from all store arrays
+        if (initialState.members) {
+          const validMemberIds = new Set(initialState.members.map((m) => m.id.toLowerCase()));
+          const validCardNos = new Set(initialState.members.map((m) => (m.memberCardNo || '').toLowerCase()));
+          const validEmails = new Set(initialState.members.map((m) => (m.email || '').toLowerCase()));
+
+          if (initialState.noDueApplications) {
+            initialState.noDueApplications = initialState.noDueApplications.filter(
+              (a) =>
+                validMemberIds.has((a.studentId || '').toLowerCase()) ||
+                validCardNos.has((a.libraryMembershipId || '').toLowerCase()) ||
+                validEmails.has((a.email || '').toLowerCase())
+            );
+          }
+
+          if (initialState.noDueCertificates) {
+            initialState.noDueCertificates = initialState.noDueCertificates.filter(
+              (c) =>
+                validMemberIds.has((c.memberId || '').toLowerCase()) ||
+                validCardNos.has((c.memberCardNo || '').toLowerCase())
+            );
+          }
+
+          if (initialState.attendanceRecords) {
+            initialState.attendanceRecords = initialState.attendanceRecords.filter(
+              (r) =>
+                validMemberIds.has((r.memberId || '').toLowerCase()) ||
+                validCardNos.has((r.memberCardNo || '').toLowerCase()) ||
+                validEmails.has((r.email || '').toLowerCase())
+            );
+          }
         }
       } catch (e) {
         initialState = this.getDefaultState();
@@ -2517,7 +3050,23 @@ class LibraryStoreService {
 
     this.state$ = new SimpleBehaviorSubject<StateSchema>(initialState);
     this.state$.subscribe((state) => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      try {
+        // Strip heavy base64 strings from localStorage to stay far below 5MB browser quota
+        const safeState = {
+          ...state,
+          digitalResources: (state.digitalResources || []).map((d) => {
+            if (d.uploadedFileData && d.uploadedFileData.length > 50000) {
+              digitalFileStorage.saveFile(d.id, d.uploadedFileData, d.uploadedFileName, d.fileMimeType);
+              const { uploadedFileData, ...rest } = d;
+              return rest;
+            }
+            return d;
+          }),
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(safeState));
+      } catch (err) {
+        console.warn('LocalStorage save quota exceeded or failed:', err);
+      }
     });
 
     // Run operating hours auto checkout logic on initialization
@@ -2549,6 +3098,9 @@ class LibraryStoreService {
       extensionRequests: INITIAL_EXTENSION_REQUESTS,
       vendors: DEFAULT_VENDORS,
       attendanceRecords: DEFAULT_ATTENDANCE_RECORDS,
+      noDueApplications: DEFAULT_NO_DUE_APPLICATIONS,
+      noDueCertificates: DEFAULT_NO_DUE_CERTIFICATES,
+      officialDocuments: DEFAULT_OFFICIAL_DOCUMENTS,
     };
   }
 
@@ -3638,44 +4190,61 @@ class LibraryStoreService {
   }
 
   public addDigitalResource(resource: Omit<DigitalResource, 'id' | 'downloadCount' | 'uploadDate'>, user?: { id: string; name: string; role: Role }) {
-    const newRes: DigitalResource = {
-      ...resource,
-      id: `dig-${Date.now()}`,
-      downloadCount: 0,
-      uploadDate: getLocalDateStr(new Date()),
-      isArchived: false,
-    };
-    const current = this.snapshot;
-    this.state$.next({
-      ...current,
-      digitalResources: [newRes, ...current.digitalResources],
-    });
+    try {
+      const id = `dig-${Date.now()}`;
+      if (resource.uploadedFileData) {
+        digitalFileStorage.saveFile(id, resource.uploadedFileData, resource.uploadedFileName, resource.fileMimeType);
+      }
+      const newRes: DigitalResource = {
+        ...resource,
+        id,
+        downloadCount: 0,
+        uploadDate: getLocalDateStr(new Date()),
+        isArchived: false,
+      };
+      const current = this.snapshot;
+      this.state$.next({
+        ...current,
+        digitalResources: [newRes, ...current.digitalResources],
+      });
 
-    this.addAuditLog(
-      user?.id || '1',
-      user?.name || 'Librarian Officer',
-      user?.role || 'ADMIN',
-      'DIGITAL_RESOURCE_UPLOAD',
-      'DIGITAL_LIBRARY',
-      `Uploaded new digital asset "${newRes.title}" (${newRes.resourceType})`
-    );
-    return { success: true, message: `Successfully published "${newRes.title}" to Enterprise Digital Library.` };
+      this.addAuditLog(
+        user?.id || '1',
+        user?.name || 'Librarian Officer',
+        user?.role || 'ADMIN',
+        'DIGITAL_RESOURCE_UPLOAD',
+        'DIGITAL_LIBRARY',
+        `Uploaded new digital asset "${newRes.title}" (${newRes.resourceType})`
+      );
+      return { success: true, message: `Successfully published "${newRes.title}" to Enterprise Digital Library.` };
+    } catch (e: any) {
+      console.error('Error adding digital resource:', e);
+      return { success: false, message: `Failed to publish: ${e?.message || 'Unknown error'}` };
+    }
   }
 
   public updateDigitalResource(id: string, data: Partial<DigitalResource>, user?: { id: string; name: string; role: Role }) {
-    const current = this.snapshot;
-    const digitalResources = current.digitalResources.map((d) => (d.id === id ? { ...d, ...data } : d));
-    this.state$.next({ ...current, digitalResources });
+    try {
+      if (data.uploadedFileData) {
+        digitalFileStorage.saveFile(id, data.uploadedFileData, data.uploadedFileName, data.fileMimeType);
+      }
+      const current = this.snapshot;
+      const digitalResources = current.digitalResources.map((d) => (d.id === id ? { ...d, ...data } : d));
+      this.state$.next({ ...current, digitalResources });
 
-    this.addAuditLog(
-      user?.id || '1',
-      user?.name || 'Librarian Officer',
-      user?.role || 'ADMIN',
-      'DIGITAL_RESOURCE_UPDATE',
-      'DIGITAL_LIBRARY',
-      `Updated digital asset ID ${id}`
-    );
-    return { success: true, message: 'Digital resource metadata updated successfully!' };
+      this.addAuditLog(
+        user?.id || '1',
+        user?.name || 'Librarian Officer',
+        user?.role || 'ADMIN',
+        'DIGITAL_RESOURCE_UPDATE',
+        'DIGITAL_LIBRARY',
+        `Updated digital asset ID ${id}`
+      );
+      return { success: true, message: 'Digital resource metadata updated successfully!' };
+    } catch (e: any) {
+      console.error('Error updating digital resource:', e);
+      return { success: false, message: `Failed to update metadata: ${e?.message || 'Unknown error'}` };
+    }
   }
 
   public deleteDigitalResource(id: string, user?: { id: string; name: string; role: Role }) {
@@ -3715,6 +4284,93 @@ class LibraryStoreService {
       success: true,
       message: `Digital resource ${target?.isArchived ? 'archived' : 'restored from archives'}!`,
     };
+  }
+
+  // ==========================================
+  // OFFICIAL DOWNLOADS & FORMS MANAGEMENT (LIBRARIAN / ADMIN)
+  // ==========================================
+
+  public addOfficialDocument(doc: Omit<OfficialDocument, 'id' | 'downloadCount' | 'createdAt'>, user?: { id: string; name: string; role: Role | string }) {
+    try {
+      const id = `doc-${Date.now()}`;
+      if (doc.uploadedFileData) {
+        digitalFileStorage.saveFile(id, doc.uploadedFileData, doc.uploadedFileName, doc.fileType || 'application/pdf');
+      }
+      const newDoc: OfficialDocument = {
+        ...doc,
+        id,
+        downloadCount: 0,
+        createdAt: getLocalDateStr(new Date()),
+        isArchived: false,
+        uploadedBy: user?.name || 'Chief Librarian',
+      };
+      const current = this.snapshot;
+      const officialDocuments = [newDoc, ...(current.officialDocuments || [])];
+      this.state$.next({ ...current, officialDocuments });
+
+      this.addAuditLog(
+        user?.id || '1',
+        user?.name || 'Librarian Officer',
+        user?.role || 'ADMIN',
+        'OFFICIAL_DOC_UPLOAD',
+        'DOWNLOAD_CENTER',
+        `Published official document "${newDoc.title}" (${newDoc.category})`
+      );
+      return { success: true, message: `Successfully published official form "${newDoc.title}"!` };
+    } catch (e: any) {
+      console.error('Error adding official document:', e);
+      return { success: false, message: `Failed to publish: ${e?.message || 'Unknown error'}` };
+    }
+  }
+
+  public updateOfficialDocument(id: string, data: Partial<OfficialDocument>, user?: { id: string; name: string; role: Role | string }) {
+    try {
+      if (data.uploadedFileData) {
+        digitalFileStorage.saveFile(id, data.uploadedFileData, data.uploadedFileName, data.fileType || 'application/pdf');
+      }
+      const current = this.snapshot;
+      const officialDocuments = (current.officialDocuments || []).map((d) => (d.id === id ? { ...d, ...data } : d));
+      this.state$.next({ ...current, officialDocuments });
+
+      this.addAuditLog(
+        user?.id || '1',
+        user?.name || 'Librarian Officer',
+        user?.role || 'ADMIN',
+        'OFFICIAL_DOC_UPDATE',
+        'DOWNLOAD_CENTER',
+        `Updated official document ID ${id}`
+      );
+      return { success: true, message: 'Official document updated successfully!' };
+    } catch (e: any) {
+      console.error('Error updating official document:', e);
+      return { success: false, message: `Failed to update document: ${e?.message || 'Unknown error'}` };
+    }
+  }
+
+  public deleteOfficialDocument(id: string, user?: { id: string; name: string; role: Role | string }) {
+    const current = this.snapshot;
+    const target = (current.officialDocuments || []).find((d) => d.id === id);
+    const officialDocuments = (current.officialDocuments || []).filter((d) => d.id !== id);
+    this.state$.next({ ...current, officialDocuments });
+    digitalFileStorage.deleteFile(id);
+
+    this.addAuditLog(
+      user?.id || '1',
+      user?.name || 'Librarian Officer',
+      user?.role || 'ADMIN',
+      'OFFICIAL_DOC_DELETE',
+      'DOWNLOAD_CENTER',
+      `Deleted official document "${target?.title || id}"`
+    );
+    return { success: true, message: 'Official document deleted permanently.' };
+  }
+
+  public incrementOfficialDocDownload(id: string, user?: { id: string; name: string; role: Role | string }) {
+    const current = this.snapshot;
+    const officialDocuments = (current.officialDocuments || []).map((d) =>
+      d.id === id ? { ...d, downloadCount: (d.downloadCount || 0) + 1 } : d
+    );
+    this.state$.next({ ...current, officialDocuments });
   }
 
   public toggleBookmarkResource(id: string) {
@@ -3855,7 +4511,17 @@ class LibraryStoreService {
     this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'CONFIG_UPDATE', 'SETTINGS', 'Updated system preferences and rules.');
   }
 
-  public registerMember(data: { name: string; email: string; role: Role; department?: string; phone?: string }): MemberProfile {
+  public registerMember(data: {
+    name: string;
+    email: string;
+    role: Role;
+    department?: string;
+    phone?: string;
+    rollNo?: string;
+    academicBatch?: string;
+    address?: string;
+    emergencyContact?: string;
+  }): MemberProfile {
     const current = this.snapshot;
 
     // Check if email already exists
@@ -3883,6 +4549,10 @@ class LibraryStoreService {
       registeredDate: getLocalDateStr(new Date()),
       avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80`,
       phone: data.phone || '+91 98765 43210',
+      rollNo: data.rollNo || (data.role === 'STUDENT' ? '2026-CS-101' : 'EMP-2026-88'),
+      academicBatch: data.academicBatch || (data.role === 'STUDENT' ? 'B.Tech 3rd Year' : 'Assistant Professor'),
+      address: data.address || 'University Campus Hostel Block A',
+      emergencyContact: data.emergencyContact || '+91 98100 12345',
     };
 
     this.state$.next({
@@ -4383,28 +5053,24 @@ class LibraryStoreService {
 </head>
 <body>
 
-  <!-- MAIN EXECUTIVE BANNER -->
-  <table>
+  <!-- MAIN EXECUTIVE BANNER & METADATA INFORMATION (MERGED) -->
+  <table class="meta-table">
     <tr>
-      <td colspan="14" class="title-banner">
+      <td colspan="15" class="title-banner">
         UNIVERSITY CENTRAL LIBRARY — ALL-MODULES MASTER EXECUTIVE OPERATIONS & AUDIT REPORT
       </td>
     </tr>
-  </table>
-
-  <!-- METADATA INFORMATION -->
-  <table class="meta-table">
     <tr>
       <td class="meta-label">Report Generated Timestamp</td>
-      <td class="meta-val" colspan="13">${escapeHtml(new Date().toLocaleString())}</td>
+      <td class="meta-val" colspan="14">${escapeHtml(new Date().toLocaleString())}</td>
     </tr>
     <tr>
       <td class="meta-label">Authorized Executive Body</td>
-      <td class="meta-val" colspan="13">Chief Administrative Librarian & Board of Executive Trustees</td>
+      <td class="meta-val" colspan="14">Chief Administrative Librarian & Board of Executive Trustees</td>
     </tr>
     <tr>
       <td class="meta-label">Report Scope</td>
-      <td class="meta-val" colspan="13">All 10 University Library System Modules (Catalog, Circulations, Attendance, Fines, Members, Reservations, Procurement, Digital Library, Master Data, Audit Logs)</td>
+      <td class="meta-val" colspan="14">All 10 University Library System Modules (Catalog, Circulations, Attendance, Fines, Members, Reservations, Procurement, Digital Library, Master Data, Audit Logs)</td>
     </tr>
   </table>
 
@@ -4434,7 +5100,7 @@ class LibraryStoreService {
   <!-- SECTION 2: MODULE 1 - BOOKS CATALOG & INVENTORY REPORT -->
   <table>
     <tr>
-      <td colspan="14" class="sec-2-title">SECTION 2: BOOKS CATALOG & INVENTORY MASTER REPORT (MODULE 1)</td>
+      <td colspan="15" class="sec-2-title">SECTION 2: BOOKS CATALOG & INVENTORY MASTER REPORT (MODULE 1)</td>
     </tr>
     <tr class="sec-2-th">
       <th style="width: 55px; text-align: center;">S.No.</th>
@@ -4450,7 +5116,8 @@ class LibraryStoreService {
       <th>Rack No</th>
       <th>Shelf No</th>
       <th>Edition</th>
-      <th>Price (INR)</th>
+      <th>Cost Per Book (INR)</th>
+      <th>Total Inventory Value (INR)</th>
     </tr>
     ${current.books.map((b, idx) => `
     <tr class="${idx % 2 === 0 ? 'tr-even' : 'tr-odd'}">
@@ -4467,7 +5134,8 @@ class LibraryStoreService {
       <td>${escapeHtml(b.rackNumber || 'N/A')}</td>
       <td>${escapeHtml(b.shelfNumber || 'N/A')}</td>
       <td>${escapeHtml(b.edition)}</td>
-      <td>₹${b.price || 0}</td>
+      <td>₹${(b.price || 0).toFixed(2)}</td>
+      <td>₹${((b.price || 0) * (b.totalCopies || 1)).toFixed(2)}</td>
     </tr>
     `).join('')}
   </table>
@@ -4783,15 +5451,116 @@ class LibraryStoreService {
 </html>
     `;
 
-    const filename = `University_Library_Master_Executive_Report_${dateStr}.xls`;
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const filename = `University_Library_Master_Executive_Report_${dateStr}.xlsx`;
+    const wb = XLSX.read(html, { type: 'string' });
+    const sheetNames = [
+      'Executive Summary & Metadata',
+      'KPI Metrics Summary',
+      'Books Catalog & Inventory',
+      'Circulation & Loans',
+      'Members Registry',
+      'Fines & Payments Ledger',
+      'Attendance Logs',
+      'Procurement Requests',
+      'Digital Library Catalog',
+      'Master Classifications',
+      'System Security Audit Logs'
+    ];
+    wb.SheetNames.forEach((oldName, idx) => {
+      if (sheetNames[idx]) {
+        const newName = sheetNames[idx];
+        wb.Sheets[newName] = wb.Sheets[oldName];
+        delete wb.Sheets[oldName];
+        wb.SheetNames[idx] = newName;
+      }
+    });
+
+    // Theme colors for headings and titles per sheet
+    const sheetThemeColors: Record<string, { headerBg: string; headerFont: string; titleBg: string; titleFont: string }> = {
+      'Executive Summary & Metadata': { headerBg: '1E3A8A', headerFont: 'FFFFFF', titleBg: '0F172A', titleFont: 'FBBF24' },
+      'KPI Metrics Summary': { headerBg: '2563EB', headerFont: 'FFFFFF', titleBg: '1E3A8A', titleFont: 'FFFFFF' },
+      'Books Catalog & Inventory': { headerBg: '059669', headerFont: 'FFFFFF', titleBg: '065F46', titleFont: 'FFFFFF' },
+      'Circulation & Loans': { headerBg: '4F46E5', headerFont: 'FFFFFF', titleBg: '3730A3', titleFont: 'FFFFFF' },
+      'Members Registry': { headerBg: '7C3AED', headerFont: 'FFFFFF', titleBg: '5B21B6', titleFont: 'FFFFFF' },
+      'Fines & Payments Ledger': { headerBg: '334155', headerFont: 'FFFFFF', titleBg: '0F172A', titleFont: 'FFFFFF' },
+      'Attendance Logs': { headerBg: 'E11D48', headerFont: 'FFFFFF', titleBg: '881337', titleFont: 'FFFFFF' },
+      'Procurement Requests': { headerBg: 'D97706', headerFont: 'FFFFFF', titleBg: '78350F', titleFont: 'FFFFFF' },
+      'Digital Library Catalog': { headerBg: '0D9488', headerFont: 'FFFFFF', titleBg: '134E4A', titleFont: 'FFFFFF' },
+      'Master Classifications': { headerBg: '0284C7', headerFont: 'FFFFFF', titleBg: '1E40AF', titleFont: 'FFFFFF' },
+      'System Security Audit Logs': { headerBg: '52525B', headerFont: 'FFFFFF', titleBg: '18181B', titleFont: 'FFFFFF' }
+    };
+
+    // Apply cell colors, fonts, borders, alignments, and auto-fit column widths across all sheets
+    wb.SheetNames.forEach((sheetName) => {
+      const ws = wb.Sheets[sheetName];
+      if (ws && ws['!ref']) {
+        const theme = sheetThemeColors[sheetName] || { headerBg: '1E3A8A', headerFont: 'FFFFFF', titleBg: '0F172A', titleFont: 'FFFFFF' };
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        const colWidths: { wch: number }[] = [];
+
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+          for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+            const cell = ws[cellAddress];
+            if (!cell) continue;
+
+            // Auto-fit width calculation
+            if (cell.v !== undefined && cell.v !== null) {
+              const len = String(cell.v).length;
+              if (!colWidths[C] || len > colWidths[C].wch) {
+                colWidths[C] = { wch: Math.min(len + 4, 60) };
+              }
+            }
+
+            // Heading & Banner Styling
+            if (R === 0) {
+              // Section Title / Banner
+              cell.s = {
+                fill: { fgColor: { rgb: theme.titleBg } },
+                font: { name: 'Calibri', sz: 12, bold: true, color: { rgb: theme.titleFont } },
+                alignment: { horizontal: 'left', vertical: 'center' },
+                border: {
+                  top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+                  bottom: { style: 'medium', color: { rgb: theme.titleBg } },
+                  left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+                  right: { style: 'thin', color: { rgb: 'CBD5E1' } }
+                }
+              };
+            } else if (R === 1) {
+              // Table Column Headers
+              cell.s = {
+                fill: { fgColor: { rgb: theme.headerBg } },
+                font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: theme.headerFont } },
+                alignment: { horizontal: C === 0 ? 'center' : 'left', vertical: 'center' },
+                border: {
+                  top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+                  bottom: { style: 'medium', color: { rgb: theme.headerBg } },
+                  left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+                  right: { style: 'thin', color: { rgb: 'CBD5E1' } }
+                }
+              };
+            } else {
+              // Data Rows with alternating zebra-striping & light borders
+              const isEven = R % 2 === 0;
+              cell.s = {
+                fill: { fgColor: { rgb: isEven ? 'F8FAFC' : 'FFFFFF' } },
+                font: { name: 'Calibri', sz: 10, color: { rgb: '1E293B' } },
+                alignment: { horizontal: C === 0 ? 'center' : 'left', vertical: 'center' },
+                border: {
+                  top: { style: 'thin', color: { rgb: 'E2E8F0' } },
+                  bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+                  left: { style: 'thin', color: { rgb: 'E2E8F0' } },
+                  right: { style: 'thin', color: { rgb: 'E2E8F0' } }
+                }
+              };
+            }
+          }
+        }
+        ws['!cols'] = colWidths.map(w => w || { wch: 12 });
+      }
+    });
+
+    XLSX.writeFile(wb, filename);
 
     this.addAuditLog('1', 'Chief Admin Librarian', 'ADMIN', 'EXPORT_MASTER_EXECUTIVE_REPORT', 'ALL_MODULES_REPORTS', 'Generated Executive Styled All-Modules Excel Report');
 
@@ -5211,19 +5980,21 @@ class LibraryStoreService {
     };
   }
 
-  public exportAttendanceReportCSV(records?: AttendanceRecord[]): { success: boolean; filename: string } {
+  public exportAttendanceReportCSV(records?: AttendanceRecord[], customFilename?: string): { success: boolean; filename: string } {
     const list = records || this.snapshot.attendanceRecords || [];
     const dateStr = getLocalDateStr(new Date());
+    const rawFilename = customFilename || `University_Library_Attendance_Report_${dateStr}.xlsx`;
+    const finalFilename = rawFilename.endsWith('.xlsx') ? rawFilename : `${rawFilename.replace(/\.csv$/, '')}.xlsx`;
 
     const headers = [
       'Record ID',
       'Member Name',
-      'Card No',
+      'Card / Roll No',
       'Role',
       'Department',
       'Email',
-      'Check-In Time',
-      'Check-Out Time',
+      'Check-in Time',
+      'Check-out Time',
       'Duration (Mins)',
       'Status',
       'Purpose of Visit',
@@ -5234,10 +6005,10 @@ class LibraryStoreService {
 
     const rows = list.map((r) => [
       r.id,
-      `"${(r.memberName || '').replace(/"/g, '""')}"`,
+      r.memberName || '',
       r.memberCardNo,
       r.role,
-      `"${(r.department || '').replace(/"/g, '""')}"`,
+      r.department || '',
       r.email,
       r.checkInTime,
       r.checkOutTime || 'IN PROGRESS',
@@ -5245,20 +6016,17 @@ class LibraryStoreService {
       r.status,
       r.purposeOfVisit || 'GENERAL_READING',
       r.verificationMethod,
-      `"${(r.entryGate || 'Main Gate').replace(/"/g, '""')}"`,
+      r.entryGate || 'Main Gate',
       r.date,
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `University_Library_Attendance_Report_${dateStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    exportStyledExcelFile({
+      filename: finalFilename,
+      sheetName: 'Attendance Logs',
+      headers,
+      data: rows,
+      themeColor: '1E40AF', // Navy Blue Header
+    });
 
     this.addAuditLog(
       '1',
@@ -5266,10 +6034,10 @@ class LibraryStoreService {
       'ADMIN',
       'EXPORT_ATTENDANCE_REPORT',
       'REPORTS_MODULE',
-      `Exported ${list.length} attendance logs to CSV`
+      `Exported ${list.length} attendance logs to formatted Excel file`
     );
 
-    return { success: true, filename: `University_Library_Attendance_Report_${dateStr}.csv` };
+    return { success: true, filename: finalFilename };
   }
 
   public exportMemberCompleteProfileReportCSV(memberIdOrCardNoOrEmail: string): { success: boolean; filename: string; message: string } {
@@ -5684,6 +6452,545 @@ class LibraryStoreService {
       'PROFILE_MODULE',
       `Printed complete profile report for ${member.name} (${member.memberCardNo})`
     );
+  }
+
+  public getMemberNoDueAudit(memberIdOrCardOrEmail: string): {
+    member: MemberProfile | undefined;
+    isEligible: boolean;
+    activeLoansCount: number;
+    activeLoans: IssueTransaction[];
+    pendingFinesAmount: number;
+    pendingFines: FineRecord[];
+    existingCertificate?: NoDueCertificate;
+    reasons: string[];
+  } {
+    const current = this.snapshot;
+    const term = (memberIdOrCardOrEmail || '').trim().toLowerCase();
+    const member = current.members.find(
+      (m) =>
+        m.id.toLowerCase() === term ||
+        m.memberCardNo.toLowerCase() === term ||
+        m.email.toLowerCase() === term ||
+        m.name.toLowerCase() === term
+    );
+
+    if (!member) {
+      return {
+        member: undefined,
+        isEligible: false,
+        activeLoansCount: 0,
+        activeLoans: [],
+        pendingFinesAmount: 0,
+        pendingFines: [],
+        reasons: ['Member profile record not found in library registry.'],
+      };
+    }
+
+    const mId = member.id;
+    const mCard = member.memberCardNo.toLowerCase();
+
+    // 1. Check Active Loans (Must be 0)
+    const activeLoans = (current.transactions || []).filter(
+      (t) =>
+        (t.memberId === mId || t.memberCardNo.toLowerCase() === mCard) &&
+        (t.status === 'ISSUED' || t.status === 'RENEWED' || t.status === 'OVERDUE')
+    );
+
+    // 2. Check Pending Unpaid Fines (Must be 0)
+    const pendingFines = (current.fines || []).filter(
+      (f) =>
+        (f.memberId === mId || f.memberCardNo.toLowerCase() === mCard) &&
+        f.status === 'UNPAID'
+    );
+
+    let totalPendingFine = pendingFines.reduce((acc, f) => acc + (f.amount || 0), 0);
+
+    // Check transactions with unpaid fines
+    (current.transactions || []).forEach((t) => {
+      if (
+        (t.memberId === mId || t.memberCardNo.toLowerCase() === mCard) &&
+        t.fineAmount &&
+        t.fineAmount > 0 &&
+        t.fineStatus === 'UNPAID'
+      ) {
+        const inFines = pendingFines.some((f) => f.transactionId === t.id);
+        if (!inFines) {
+          totalPendingFine += t.fineAmount;
+        }
+      }
+    });
+
+    const reasons: string[] = [];
+    if (activeLoans.length > 0) {
+      reasons.push(`${activeLoans.length} library book(s) currently issued and not returned.`);
+    }
+    if (totalPendingFine > 0) {
+      reasons.push(`Outstanding unpaid library fine of ₹${totalPendingFine.toFixed(2)}.`);
+    }
+
+    const existingCert = (current.noDueCertificates || []).find(
+      (c) => (c.memberId === mId || c.memberCardNo.toLowerCase() === mCard) && c.status === 'ISSUED'
+    );
+
+    const isEligible = activeLoans.length === 0 && totalPendingFine === 0;
+
+    return {
+      member,
+      isEligible,
+      activeLoansCount: activeLoans.length,
+      activeLoans,
+      pendingFinesAmount: totalPendingFine,
+      pendingFines,
+      existingCertificate: existingCert,
+      reasons,
+    };
+  }
+
+  public issueNoDueCertificate(
+    memberIdOrCard: string,
+    issuedByName: string = 'Dr. M. S. Ramanujan (Chief Admin Librarian & Head of Library)',
+    remarks: string = 'Cleared all library book loans and financial dues upon college course completion.'
+  ): { success: boolean; certificate?: NoDueCertificate; message: string } {
+    const audit = this.getMemberNoDueAudit(memberIdOrCard);
+    if (!audit.member) {
+      return { success: false, message: 'Member record not found.' };
+    }
+
+    if (!audit.isEligible) {
+      return {
+        success: false,
+        message: `Cannot issue No Due Certificate. ${audit.reasons.join(' ')}`,
+      };
+    }
+
+    const current = this.snapshot;
+    const certYear = new Date().getFullYear();
+    const existingCerts = current.noDueCertificates || [];
+    const certSeq = String(existingCerts.length + 1).padStart(4, '0');
+    const certNo = `NDC/LIB/${certYear}/${certSeq}`;
+
+    const newCertificate: NoDueCertificate = {
+      id: `ndc-${Date.now()}`,
+      certificateNo: certNo,
+      memberId: audit.member.id,
+      memberName: audit.member.name,
+      memberCardNo: audit.member.memberCardNo,
+      rollNo: audit.member.rollNo || '22CS104',
+      role: audit.member.role,
+      department: audit.member.department || 'Computer Science & Engineering',
+      academicBatch: audit.member.academicBatch || '2022 - 2026',
+      issuedDate: getLocalDateTimeStr(new Date()),
+      issuedBy: issuedByName,
+      issuedByRole: 'Head of Library Department (Chief Admin Librarian)',
+      activeLoansCount: 0,
+      pendingFinesAmount: 0,
+      status: 'ISSUED',
+      verificationQrCode: `VERIFY:LIBRARY_NDC:${certNo}:${audit.member.memberCardNo}:${audit.member.name}`,
+      remarks,
+    };
+
+    const updatedMembers = current.members.map((m) =>
+      m.id === audit.member!.id
+        ? {
+            ...m,
+            noDueStatus: 'ISSUED' as const,
+            noDueCertificateNo: certNo,
+            noDueIssuedDate: newCertificate.issuedDate,
+            noDueIssuedBy: issuedByName,
+          }
+        : m
+    );
+
+    const updatedCerts = [newCertificate, ...existingCerts.filter((c) => c.memberId !== audit.member!.id)];
+
+    const updated: StateSchema = {
+      ...current,
+      members: updatedMembers,
+      noDueCertificates: updatedCerts,
+    };
+
+    this.state$.next(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    this.addAuditLog(
+      '1',
+      'Chief Admin Librarian',
+      'ADMIN',
+      'ISSUE_NO_DUE_CERTIFICATE',
+      'CLEARANCE_DESK',
+      `Issued official Library No Due Certificate (${certNo}) for ${audit.member.name} (${audit.member.memberCardNo})`
+    );
+
+    return { success: true, certificate: newCertificate, message: `No Due Certificate (${certNo}) issued successfully by Head of Library!` };
+  }
+
+  public submitNoDueApplication(params: {
+    studentId: string;
+    studentName: string;
+    rollNo: string;
+    department: string;
+    program?: string;
+    batch?: string;
+    semesterYear?: string;
+    libraryMembershipId: string;
+    email: string;
+    phone?: string;
+    purpose: NoDuePurpose;
+    purposeOtherDetails?: string;
+  }): { success: boolean; application?: NoDueApplication; message: string } {
+    const current = this.snapshot;
+    const audit = this.getMemberNoDueAudit(params.studentId || params.libraryMembershipId);
+
+    if (!audit.isEligible) {
+      return {
+        success: false,
+        message: `Cannot apply for No Due Certificate. You have outstanding library dues: ${audit.reasons.join(' ')} All books must be returned and fines cleared before applying.`,
+      };
+    }
+
+    const appYear = new Date().getFullYear();
+    const existingApps = current.noDueApplications || [];
+    const seq = String(existingApps.length + 1).padStart(5, '0');
+    const applicationNo = `NDA/${appYear}/${seq}`;
+    const nowStr = getLocalDateTimeStr(new Date());
+
+    const newApp: NoDueApplication = {
+      id: `ndc-app-${Date.now()}`,
+      applicationNo,
+      studentId: params.studentId,
+      studentName: params.studentName,
+      rollNo: params.rollNo,
+      department: params.department,
+      program: params.program || 'Bachelor of Technology',
+      batch: params.batch || '2022 - 2026',
+      semesterYear: params.semesterYear || 'Semester 8 (Final Year)',
+      libraryMembershipId: params.libraryMembershipId,
+      email: params.email,
+      phone: params.phone || '',
+      purpose: params.purpose,
+      purposeOtherDetails: params.purposeOtherDetails || '',
+      applicationDate: nowStr,
+      status: 'SUBMITTED',
+      outstandingLoansCount: audit.activeLoansCount,
+      outstandingFinesAmount: audit.pendingFinesAmount,
+      history: [
+        {
+          status: 'SUBMITTED',
+          changedAt: nowStr,
+          changedBy: `${params.studentName} (Student)`,
+          remarks: `Application submitted for ${params.purpose.replace(/_/g, ' ')}.`,
+        },
+      ],
+    };
+
+    const updatedApps = [newApp, ...existingApps];
+    const updated: StateSchema = {
+      ...current,
+      noDueApplications: updatedApps,
+    };
+
+    this.state$.next(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    this.addAuditLog(
+      params.studentId,
+      params.studentName,
+      'STUDENT',
+      'SUBMIT_NO_DUE_APPLICATION',
+      'CLEARANCE_DESK',
+      `Submitted No Due clearance application ${applicationNo} for ${params.purpose}`
+    );
+
+    return {
+      success: true,
+      application: newApp,
+      message: `No Due Certificate application (${applicationNo}) submitted successfully!`,
+    };
+  }
+
+  public verifyNoDueApplication(
+    applicationId: string,
+    verifiedByName: string = 'Dr. M. S. Ramanujan (Chief Admin Librarian & Head of Library)'
+  ): { success: boolean; application?: NoDueApplication; message: string } {
+    const current = this.snapshot;
+    const app = (current.noDueApplications || []).find((a) => a.id === applicationId);
+    if (!app) return { success: false, message: 'Application not found.' };
+
+    const audit = this.getMemberNoDueAudit(app.studentId || app.libraryMembershipId);
+    const nowStr = getLocalDateTimeStr(new Date());
+
+    const updatedApp: NoDueApplication = {
+      ...app,
+      status: 'UNDER_VERIFICATION',
+      verifiedDate: nowStr,
+      verifiedBy: verifiedByName,
+      outstandingLoansCount: audit.activeLoansCount,
+      outstandingFinesAmount: audit.pendingFinesAmount,
+      adminRemarks: audit.isEligible
+        ? 'Real-time database audit passed: 0 Active Loans & ₹0 Fines. Ready for Head of Library approval.'
+        : `Outstanding liabilities detected: ${audit.reasons.join(', ')}`,
+      history: [
+        ...app.history,
+        {
+          status: 'UNDER_VERIFICATION',
+          changedAt: nowStr,
+          changedBy: verifiedByName,
+          remarks: audit.isEligible
+            ? 'Live clearance audit passed: 0 active loans and 0 fines.'
+            : `Dues pending: ${audit.reasons.join(', ')}`,
+        },
+      ],
+    };
+
+    const updatedApps = (current.noDueApplications || []).map((a) => (a.id === applicationId ? updatedApp : a));
+    const updated: StateSchema = {
+      ...current,
+      noDueApplications: updatedApps,
+    };
+
+    this.state$.next(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    return { success: true, application: updatedApp, message: 'Application verified against real-time library database.' };
+  }
+
+  public approveNoDueApplication(
+    applicationId: string,
+    adminRemarks: string = 'Approved and certified by Head of Library Department.',
+    signerName: string = 'Dr. M. S. Ramanujan (Chief Admin Librarian & Head of Library)'
+  ): { success: boolean; application?: NoDueApplication; certificate?: NoDueCertificate; message: string } {
+    const current = this.snapshot;
+    const app = (current.noDueApplications || []).find((a) => a.id === applicationId);
+    if (!app) return { success: false, message: 'Application not found.' };
+
+    const audit = this.getMemberNoDueAudit(app.studentId || app.libraryMembershipId);
+    if (!audit.isEligible) {
+      return {
+        success: false,
+        message: `Cannot approve application. Student has outstanding liabilities: ${audit.reasons.join(' ')}`,
+      };
+    }
+
+    // Generate Certificate
+    const certYear = new Date().getFullYear();
+    const existingCerts = current.noDueCertificates || [];
+    const certSeq = String(existingCerts.length + 1).padStart(4, '0');
+    const certNo = `NDC/LIB/${certYear}/${certSeq}`;
+    const nowStr = getLocalDateTimeStr(new Date());
+
+    const newCertificate: NoDueCertificate = {
+      id: `ndc-cert-${Date.now()}`,
+      certificateNo: certNo,
+      applicationId: app.id,
+      memberId: app.studentId,
+      memberName: app.studentName,
+      memberCardNo: app.libraryMembershipId,
+      rollNo: app.rollNo,
+      role: 'STUDENT',
+      department: app.department,
+      program: app.program,
+      academicBatch: app.batch,
+      semesterYear: app.semesterYear,
+      purpose: app.purpose.replace(/_/g, ' '),
+      issuedDate: nowStr,
+      issuedBy: signerName,
+      issuedByRole: 'Head of Library Department (Chief Admin Librarian)',
+      activeLoansCount: 0,
+      pendingFinesAmount: 0,
+      status: 'ISSUED',
+      verificationQrCode: `VERIFY:LIBRARY_NDC:${certNo}:${app.libraryMembershipId}:${app.studentName}`,
+      remarks: adminRemarks,
+    };
+
+    const updatedApp: NoDueApplication = {
+      ...app,
+      status: 'CERTIFICATE_ISSUED',
+      certificateNo: certNo,
+      certificateIssuedDate: nowStr,
+      adminRemarks,
+      verifiedDate: nowStr,
+      verifiedBy: signerName,
+      outstandingLoansCount: 0,
+      outstandingFinesAmount: 0,
+      history: [
+        ...app.history,
+        {
+          status: 'APPROVED',
+          changedAt: nowStr,
+          changedBy: signerName,
+          remarks: 'Clearance approved by Head of Library.',
+        },
+        {
+          status: 'CERTIFICATE_ISSUED',
+          changedAt: nowStr,
+          changedBy: signerName,
+          remarks: `Official No Due Certificate (${certNo}) generated and digitally signed.`,
+        },
+      ],
+    };
+
+    const updatedApps = (current.noDueApplications || []).map((a) => (a.id === applicationId ? updatedApp : a));
+    const updatedCerts = [newCertificate, ...existingCerts.filter((c) => c.memberId !== app.studentId)];
+
+    const updatedMembers = current.members.map((m) =>
+      m.id === app.studentId || m.memberCardNo.toLowerCase() === app.libraryMembershipId.toLowerCase()
+        ? {
+            ...m,
+            noDueStatus: 'ISSUED' as const,
+            noDueCertificateNo: certNo,
+            noDueIssuedDate: nowStr,
+            noDueIssuedBy: signerName,
+          }
+        : m
+    );
+
+    const updated: StateSchema = {
+      ...current,
+      noDueApplications: updatedApps,
+      noDueCertificates: updatedCerts,
+      members: updatedMembers,
+    };
+
+    this.state$.next(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    this.addAuditLog(
+      '1',
+      'Chief Admin Librarian',
+      'ADMIN',
+      'APPROVE_NO_DUE_APPLICATION',
+      'CLEARANCE_DESK',
+      `Approved No Due application ${app.applicationNo} & generated certificate ${certNo} for ${app.studentName}`
+    );
+
+    return {
+      success: true,
+      application: updatedApp,
+      certificate: newCertificate,
+      message: `No Due Certificate (${certNo}) approved and issued successfully!`,
+    };
+  }
+
+  public rejectNoDueApplication(
+    applicationId: string,
+    rejectionReason: string = 'Outstanding books or unpaid fine dues pending resolution.',
+    adminName: string = 'Dr. M. S. Ramanujan (Head of Library)'
+  ): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const app = (current.noDueApplications || []).find((a) => a.id === applicationId);
+    if (!app) return { success: false, message: 'Application not found.' };
+
+    const nowStr = getLocalDateTimeStr(new Date());
+
+    const updatedApp: NoDueApplication = {
+      ...app,
+      status: 'REJECTED',
+      rejectionReason,
+      adminRemarks: `Application rejected: ${rejectionReason}`,
+      history: [
+        ...app.history,
+        {
+          status: 'REJECTED',
+          changedAt: nowStr,
+          changedBy: adminName,
+          remarks: `Application rejected. Reason: ${rejectionReason}`,
+        },
+      ],
+    };
+
+    const updatedApps = (current.noDueApplications || []).map((a) => (a.id === applicationId ? updatedApp : a));
+    const updated: StateSchema = {
+      ...current,
+      noDueApplications: updatedApps,
+    };
+
+    this.state$.next(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    this.addAuditLog(
+      '1',
+      'Chief Admin Librarian',
+      'ADMIN',
+      'REJECT_NO_DUE_APPLICATION',
+      'CLEARANCE_DESK',
+      `Rejected No Due application ${app.applicationNo} for ${app.studentName}. Reason: ${rejectionReason}`
+    );
+
+    return { success: true, message: `Application ${app.applicationNo} rejected.` };
+  }
+
+  public reverifyStudentClearance(applicationIdOrStudentId: string): {
+    audit: ReturnType<typeof this.getMemberNoDueAudit>;
+    application?: NoDueApplication;
+  } {
+    const current = this.snapshot;
+    let app = (current.noDueApplications || []).find((a) => a.id === applicationIdOrStudentId);
+    let term = applicationIdOrStudentId;
+    if (app) {
+      term = app.studentId || app.libraryMembershipId;
+    } else {
+      app = (current.noDueApplications || []).find(
+        (a) => a.studentId === term || a.libraryMembershipId.toLowerCase() === term.toLowerCase()
+      );
+    }
+
+    const audit = this.getMemberNoDueAudit(term);
+
+    if (app) {
+      const updatedApp: NoDueApplication = {
+        ...app,
+        outstandingLoansCount: audit.activeLoansCount,
+        outstandingFinesAmount: audit.pendingFinesAmount,
+      };
+      const updatedApps = (current.noDueApplications || []).map((a) => (a.id === app!.id ? updatedApp : a));
+      const updated: StateSchema = { ...current, noDueApplications: updatedApps };
+      this.state$.next(updated);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return { audit, application: updatedApp };
+    }
+
+    return { audit };
+  }
+
+  public revokeNoDueCertificate(certificateId: string, reason: string = 'Administrative review'): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const cert = (current.noDueCertificates || []).find((c) => c.id === certificateId);
+    if (!cert) return { success: false, message: 'Certificate not found.' };
+
+    const updatedCerts = (current.noDueCertificates || []).map((c) =>
+      c.id === certificateId ? { ...c, status: 'REVOKED' as const, remarks: `Revoked: ${reason}` } : c
+    );
+
+    const updatedMembers = current.members.map((m) =>
+      m.id === cert.memberId
+        ? {
+            ...m,
+            noDueStatus: 'ELIGIBLE' as const,
+            noDueCertificateNo: undefined,
+            noDueIssuedDate: undefined,
+          }
+        : m
+    );
+
+    const updated: StateSchema = {
+      ...current,
+      members: updatedMembers,
+      noDueCertificates: updatedCerts,
+    };
+
+    this.state$.next(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    this.addAuditLog(
+      '1',
+      'Chief Admin Librarian',
+      'ADMIN',
+      'REVOKE_NO_DUE_CERTIFICATE',
+      'CLEARANCE_DESK',
+      `Revoked Library No Due Certificate ${cert.certificateNo} for ${cert.memberName}. Reason: ${reason}`
+    );
+
+    return { success: true, message: `Certificate ${cert.certificateNo} revoked.` };
   }
 
   public restoreFromBackup(backupData: StateSchema) {

@@ -16,8 +16,12 @@ import {
   BookmarkCheck,
   UserCheck,
   XCircle,
+  Download,
+  FileSpreadsheet,
+  Calendar,
 } from 'lucide-react';
-import { libraryStore } from '../../services/libraryStore.service';
+import { libraryStore, getLocalDateStr } from '../../services/libraryStore.service';
+import { exportStyledExcelFile } from '../../utils/excelExport';
 import { Book, BookCopy, CopyCondition, BookStatus } from '../../types/library';
 
 export default function InventoryManagement() {
@@ -150,6 +154,63 @@ export default function InventoryManagement() {
     setExpandedBookId((prev) => (prev === bookId ? null : bookId));
   };
 
+  const handleDirectExportCSV = () => {
+    const targetBooks = filteredBooks.length > 0 ? filteredBooks : state.books;
+
+    const headers = [
+      'S. NO.',
+      'BOOK ID',
+      'ISBN',
+      'BOOK TITLE',
+      'AUTHOR NAME',
+      'CATEGORY',
+      'PUBLISHER',
+      'PUBLISHING YEAR',
+      'TOTAL COPIES',
+      'RACK NO',
+      'SHELF NO',
+      'POSITION',
+      'COST PER BOOK (INR)',
+      'TOTAL INVENTORY VALUE (INR)',
+    ];
+
+    const rows = targetBooks.map((b, index) => {
+      const cost = b.price || 0;
+      const totalCopiesCount = b.totalCopies || (b.copies ? b.copies.length : 0);
+      const totalValue = cost * totalCopiesCount;
+      const rack = b.rackNumber || 'RACK-CS-01';
+      const shelf = b.shelfNumber || 'SHELF-A1';
+      const position = (b as any).position || 'Main Stack Bay';
+
+      return [
+        index + 1,
+        b.id,
+        b.isbn,
+        b.title || '',
+        b.authorName || '',
+        b.categoryName || '',
+        b.publisherName || '',
+        b.publishingYear || 'N/A',
+        totalCopiesCount,
+        rack,
+        shelf,
+        position,
+        `₹${cost.toFixed(2)}`,
+        `₹${totalValue.toFixed(2)}`,
+      ];
+    });
+
+    exportStyledExcelFile({
+      filename: `inventory_shelf_allocation_${getLocalDateStr(new Date())}.xlsx`,
+      sheetName: 'Shelf Allocation Inventory',
+      headers,
+      data: rows,
+      themeColor: '0284C7', // Sky / Cyan Blue Header
+    });
+
+    triggerToast(`Inventory Excel exported successfully (${targetBooks.length} books)!`);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -162,31 +223,43 @@ export default function InventoryManagement() {
           <p className="text-sm text-slate-500 mt-1">Book-wise copy breakdown, rack & shelf allocations, and physical condition tracking.</p>
         </div>
 
-        {/* View Mode Toggle */}
-        <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold shrink-0">
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          {/* Export CSV Button */}
           <button
-            onClick={() => setViewMode('BOOK_WISE')}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-              viewMode === 'BOOK_WISE'
-                ? 'bg-white text-indigo-900 shadow-sm border border-slate-200'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            type="button"
+            onClick={handleDirectExportCSV}
+            className="px-4 py-2.5 rounded-2xl bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 font-bold text-xs transition-all flex items-center gap-2 cursor-pointer shadow-2xs active:scale-95 shrink-0"
           >
-            <BookOpen className="w-4 h-4 text-indigo-600" />
-            <span>Book-Wise Inventory</span>
+            <Download className="h-4 w-4 text-indigo-600" />
+            <span>Export CSV Report</span>
           </button>
 
-          <button
-            onClick={() => setViewMode('ALL_COPIES')}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-              viewMode === 'ALL_COPIES'
-                ? 'bg-white text-indigo-900 shadow-sm border border-slate-200'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Barcode className="w-4 h-4 text-indigo-600" />
-            <span>All Accession Copies ({allCopies.length})</span>
-          </button>
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold shrink-0">
+            <button
+              onClick={() => setViewMode('BOOK_WISE')}
+              className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+                viewMode === 'BOOK_WISE'
+                  ? 'bg-white text-indigo-900 shadow-sm border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <BookOpen className="w-4 h-4 text-indigo-600" />
+              <span>Book-Wise Inventory</span>
+            </button>
+
+            <button
+              onClick={() => setViewMode('ALL_COPIES')}
+              className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+                viewMode === 'ALL_COPIES'
+                  ? 'bg-white text-indigo-900 shadow-sm border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Barcode className="w-4 h-4 text-indigo-600" />
+              <span>All Accession Copies ({allCopies.length})</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -312,9 +385,18 @@ export default function InventoryManagement() {
       <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         {/* Single Integrated Search & Book Selector Bar */}
         <div className="space-y-1">
-          <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
-            Search Inventory & Filter Catalog:
-          </label>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+              Search Inventory & Filter Catalog:
+            </label>
+            <button
+              type="button"
+              onClick={handleDirectExportCSV}
+              className="px-3.5 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0 self-start sm:self-auto"
+            >
+              <Download className="h-3.5 w-3.5 text-indigo-600" /> Export CSV
+            </button>
+          </div>
           <div className="relative" ref={bookSelectRef}>
             <div
               className={`w-full px-4 py-3 rounded-2xl border bg-white flex items-center justify-between gap-3 transition-all shadow-xs ${
@@ -373,27 +455,6 @@ export default function InventoryManagement() {
             {/* Dropdown Options */}
             {isBookSelectOpen && (
               <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200 z-30 max-h-64 overflow-y-auto divide-y divide-slate-100 animate-fadeIn">
-                <div
-                  onClick={() => {
-                    setSelectedBookId('ALL');
-                    setIsBookSelectOpen(false);
-                  }}
-                  className={`p-3.5 cursor-pointer flex items-center justify-between transition-colors ${
-                    selectedBookId === 'ALL' ? 'bg-indigo-50/80 text-indigo-900 font-extrabold' : 'hover:bg-slate-50 text-slate-800'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
-                      📚
-                    </div>
-                    <div>
-                      <p className="text-xs font-extrabold text-slate-900">All Books (Complete Library Catalog Inventory)</p>
-                      <p className="text-[11px] text-slate-500">View inventory items across all cataloged books</p>
-                    </div>
-                  </div>
-                  {selectedBookId === 'ALL' && <CheckCircle2 className="h-4 w-4 text-indigo-600 shrink-0 ml-2" />}
-                </div>
-
                 {filteredBookOptions.length > 0 ? (
                   filteredBookOptions.map((b) => {
                     const isSelected = selectedBookId === b.id;
@@ -762,6 +823,7 @@ export default function InventoryManagement() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

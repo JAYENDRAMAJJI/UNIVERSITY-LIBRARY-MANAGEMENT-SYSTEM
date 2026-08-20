@@ -201,6 +201,25 @@ export interface DigitalResource {
   newspaperRssFeedUrl?: string;
   contentSnippet?: string;
   thumbnailUrl?: string;
+  uploadedFileData?: string;
+  uploadedFileName?: string;
+  fileMimeType?: string;
+}
+
+export interface OfficialDocument {
+  id: string;
+  title: string;
+  category: 'Forms & Membership Applications' | 'Library Policies & Conduct Rules' | 'Academic Exam & Curriculum' | string;
+  description: string;
+  fileSize: string;
+  fileType: string;
+  updatedDate: string;
+  uploadedFileData?: string;
+  uploadedFileName?: string;
+  isArchived?: boolean;
+  downloadCount: number;
+  createdAt: string;
+  uploadedBy?: string;
 }
 
 export interface DigitalDownloadLog {
@@ -230,6 +249,14 @@ export interface MemberProfile {
   registeredDate: string;
   avatarUrl?: string;
   phone?: string;
+  rollNo?: string;
+  academicBatch?: string;
+  address?: string;
+  emergencyContact?: string;
+  noDueStatus?: 'ELIGIBLE' | 'DUES_PENDING' | 'ISSUED';
+  noDueCertificateNo?: string;
+  noDueIssuedDate?: string;
+  noDueIssuedBy?: string;
 }
 
 export interface AuditLog {
@@ -399,4 +426,73 @@ export interface AttendanceRecord {
   checkedOutBy?: string;
   notes?: string;
   date: string;
+}
+
+export type NoDueStatus = 'DRAFT' | 'SUBMITTED' | 'UNDER_VERIFICATION' | 'APPROVED' | 'REJECTED' | 'CERTIFICATE_ISSUED';
+export type NoDuePurpose =
+  | 'COURSE_COMPLETION'
+  | 'COLLEGE_TRANSFER'
+  | 'SEMESTER_CLEARANCE'
+  | 'INTERNSHIP_PROJECT'
+  | 'EXAM_HALL_TICKET'
+  | 'HOSTEL_CLEARANCE'
+  | 'OTHER';
+
+export interface NoDueApplicationHistory {
+  status: NoDueStatus;
+  changedAt: string;
+  changedBy: string;
+  remarks?: string;
+}
+
+export interface NoDueApplication {
+  id: string;
+  applicationNo: string;
+  studentId: string;
+  studentName: string;
+  rollNo: string;
+  department: string;
+  program: string;
+  batch: string;
+  semesterYear: string;
+  libraryMembershipId: string;
+  email: string;
+  phone?: string;
+  purpose: NoDuePurpose;
+  purposeOtherDetails?: string;
+  applicationDate: string;
+  status: NoDueStatus;
+  adminRemarks?: string;
+  rejectionReason?: string;
+  verifiedDate?: string;
+  verifiedBy?: string;
+  certificateNo?: string;
+  certificateIssuedDate?: string;
+  outstandingLoansCount: number;
+  outstandingFinesAmount: number;
+  history: NoDueApplicationHistory[];
+}
+
+export interface NoDueCertificate {
+  id: string;
+  certificateNo: string;
+  applicationId?: string;
+  memberId: string;
+  memberName: string;
+  memberCardNo: string;
+  rollNo?: string;
+  role: Role;
+  department?: string;
+  program?: string;
+  academicBatch?: string;
+  semesterYear?: string;
+  purpose?: string;
+  issuedDate: string;
+  issuedBy: string; // e.g. "Dr. M. S. Ramanujan (Chief Admin Librarian & Head of Library)"
+  issuedByRole?: string;
+  activeLoansCount: number;
+  pendingFinesAmount: number;
+  status: 'ISSUED' | 'REVOKED';
+  verificationQrCode?: string;
+  remarks?: string;
 }

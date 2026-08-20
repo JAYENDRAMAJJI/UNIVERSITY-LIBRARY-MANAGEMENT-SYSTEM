@@ -25,10 +25,15 @@ import {
   RotateCcw,
   Tag,
   GraduationCap,
+  Building2,
+  BookmarkCheck,
+  Calendar,
 } from 'lucide-react';
 import { libraryStore } from '../../services/libraryStore.service';
 import { useAuth } from '../../context/AuthContext';
 import { DigitalResource, DigitalResourceType } from '../../types/library';
+import { generateTopicPdfBlobUrl, getDigitalResourceBlobUrl } from '../../utils/digitalPdfGenerator';
+import { digitalFileStorage } from '../../utils/digitalFileStorage';
 
 export default function DigitalLibraryAdmin() {
   const { user } = useAuth();
@@ -39,11 +44,11 @@ export default function DigitalLibraryAdmin() {
     title: string;
     author: string;
     url: string;
-    department: string;
-    type: string;
-    description?: string;
     fileName?: string;
     fileObject?: File | null;
+    department?: string;
+    type?: string;
+    description?: string;
     textContent?: string | null;
   } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -54,17 +59,21 @@ export default function DigitalLibraryAdmin() {
   const [resourceType, setResourceType] = useState<DigitalResourceType>('RESEARCH_PAPER');
   const [categoryName, setCategoryName] = useState('Computer Science & Engineering');
   const [authorName, setAuthorName] = useState('');
+  const [publisherName, setPublisherName] = useState('');
+  const [issnIsbn, setIssnIsbn] = useState('');
   const [department, setDepartment] = useState('Computer Science & Engineering');
   const [subject, setSubject] = useState('');
   const [semester, setSemester] = useState('Sem 4');
-  const [year, setYear] = useState(2026);
+  const [year, setYear] = useState<string | number>(2026);
   const [description, setDescription] = useState('');
+  const [contentSnippet, setContentSnippet] = useState('');
   const [externalUrl, setExternalUrl] = useState('');
   const [accessLevel, setAccessLevel] = useState<'OPEN_ACCESS' | 'CAMPUS_ONLY' | 'SUBSCRIBED' | 'RESTRICTED'>('OPEN_ACCESS');
   const [uploadMode, setUploadMode] = useState<'FILE' | 'URL'>('FILE');
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [uploadedFileSize, setUploadedFileSize] = useState<string | null>(null);
   const [uploadedFileObject, setUploadedFileObject] = useState<File | null>(null);
+  const [uploadedFileData, setUploadedFileData] = useState<string | null>(null);
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
   const [uploadedFileText, setUploadedFileText] = useState<string | null>(null);
 
@@ -92,14 +101,20 @@ export default function DigitalLibraryAdmin() {
       setUploadedFileSize(`${sizeMb} MB`);
       const blobUrl = URL.createObjectURL(file);
       setPreviewBlobUrl(blobUrl);
-      setExternalUrl(blobUrl);
+
+      // Persistent base64 data conversion for permanent storage
+      const dataReader = new FileReader();
+      dataReader.onload = (event) => {
+        setUploadedFileData(event.target?.result as string);
+      };
+      dataReader.readAsDataURL(file);
 
       if (file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.csv') || file.name.endsWith('.json') || file.name.endsWith('.md')) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
+        const textReader = new FileReader();
+        textReader.onload = (event) => {
           setUploadedFileText(event.target?.result as string);
         };
-        reader.readAsText(file);
+        textReader.readAsText(file);
       } else {
         setUploadedFileText(null);
       }
@@ -113,17 +128,23 @@ export default function DigitalLibraryAdmin() {
       setResourceType(resToEdit.resourceType);
       setCategoryName(resToEdit.categoryName);
       setAuthorName(resToEdit.authorName);
+      setPublisherName(resToEdit.publisherName || 'University Press & Academic Library');
+      setIssnIsbn(resToEdit.issnIsbn || '');
       setDepartment(resToEdit.department || 'Computer Science & Engineering');
       setSubject(resToEdit.subject || '');
       setSemester(resToEdit.semester || 'Sem 4');
       setYear(resToEdit.year || 2026);
       setDescription(resToEdit.description || '');
+      setContentSnippet(resToEdit.contentSnippet || '');
       setExternalUrl(resToEdit.externalUrl || '');
       setAccessLevel(resToEdit.accessLevel || 'OPEN_ACCESS');
-      setUploadedFileName(resToEdit.externalUrl ? resToEdit.externalUrl.split('/').pop() || null : null);
+      const fileData = resToEdit.uploadedFileData || digitalFileStorage.getSyncFile(resToEdit.id) || null;
+      setUploadedFileData(fileData);
+      setUploadedFileName(resToEdit.uploadedFileName || (resToEdit.externalUrl ? resToEdit.externalUrl.split('/').pop() || null : null));
       setUploadedFileSize(resToEdit.fileSizeMb ? `${resToEdit.fileSizeMb} MB` : '2.4 MB');
       setUploadedFileObject(null);
-      setPreviewBlobUrl(resToEdit.externalUrl || null);
+      const liveBlobUrl = getDigitalResourceBlobUrl(resToEdit);
+      setPreviewBlobUrl(liveBlobUrl);
       setUploadedFileText(null);
       setUploadMode(resToEdit.externalUrl?.startsWith('http') ? 'URL' : 'FILE');
     } else {
@@ -132,13 +153,17 @@ export default function DigitalLibraryAdmin() {
       setResourceType('RESEARCH_PAPER');
       setCategoryName('Computer Science & Engineering');
       setAuthorName(user?.name || 'Librarian Officer');
+      setPublisherName('University Press / Academic Digital Vault');
+      setIssnIsbn('');
       setDepartment('Computer Science & Engineering');
       setSubject('');
       setSemester('Sem 4');
       setYear(2026);
       setDescription('');
+      setContentSnippet('');
       setExternalUrl('');
       setAccessLevel('OPEN_ACCESS');
+      setUploadedFileData(null);
       setUploadedFileName(null);
       setUploadedFileSize(null);
       setUploadedFileObject(null);
@@ -149,11 +174,14 @@ export default function DigitalLibraryAdmin() {
     setShowUploadModal(true);
   };
 
-  const handleSaveResource = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+  const handleSaveResource = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!title.trim()) {
+      alert('Please enter a document title.');
+      return;
+    }
 
-    const calcFileSizeMb = uploadedFileObject ? Number((uploadedFileObject.size / (1024 * 1024)).toFixed(1)) : 3.5;
+    const calcFileSizeMb = uploadedFileObject ? Number((uploadedFileObject.size / (1024 * 1024)).toFixed(1)) : (editingResource?.fileSizeMb || 3.5);
 
     if (editingResource) {
       const res = libraryStore.updateDigitalResource(
@@ -162,13 +190,19 @@ export default function DigitalLibraryAdmin() {
           title: title.trim(),
           resourceType,
           categoryName: department,
-          authorName: authorName.trim(),
+          authorName: authorName.trim() || user?.name || 'Librarian Officer',
+          publisherName: publisherName.trim() || 'University Press',
+          issnIsbn: issnIsbn.trim() || undefined,
           department,
-          subject,
+          subject: subject.trim() || 'General Studies',
           semester,
-          year: Number(year),
-          description,
+          year: Number(year) || 2026,
+          description: description.trim() || undefined,
+          contentSnippet: contentSnippet.trim() || undefined,
           externalUrl: externalUrl.trim() || undefined,
+          uploadedFileData: uploadedFileData || editingResource.uploadedFileData || undefined,
+          uploadedFileName: uploadedFileName || editingResource.uploadedFileName || undefined,
+          fileMimeType: uploadedFileObject?.type || editingResource.fileMimeType || 'application/pdf',
           accessLevel,
           fileSizeMb: calcFileSizeMb,
         },
@@ -181,14 +215,20 @@ export default function DigitalLibraryAdmin() {
           title: title.trim(),
           resourceType,
           categoryName: department,
-          authorName: authorName.trim() || 'Librarian Officer',
+          authorName: authorName.trim() || user?.name || 'Librarian Officer',
+          publisherName: publisherName.trim() || 'University Press & Academic Vault',
+          issnIsbn: issnIsbn.trim() || undefined,
           fileUrl: externalUrl.trim() || '/docs/digital-paper.pdf',
+          uploadedFileData: uploadedFileData || undefined,
+          uploadedFileName: uploadedFileName || undefined,
+          fileMimeType: uploadedFileObject?.type || 'application/pdf',
           fileSizeMb: calcFileSizeMb,
           department,
-          subject: subject || 'General Studies',
+          subject: subject.trim() || 'General Studies',
           semester,
-          year: Number(year),
-          description,
+          year: Number(year) || 2026,
+          description: description.trim() || undefined,
+          contentSnippet: contentSnippet.trim() || undefined,
           externalUrl: externalUrl.trim() || undefined,
           accessLevel,
         },
@@ -197,6 +237,7 @@ export default function DigitalLibraryAdmin() {
       triggerToast(res.message);
     }
 
+    setEditingResource(null);
     setShowUploadModal(false);
   };
 
@@ -221,6 +262,36 @@ export default function DigitalLibraryAdmin() {
 
   const handleExportCSV = () => {
     libraryStore.exportDigitalLibraryReportCSV(filteredDigitalResources);
+  };
+
+  const handlePreviewDoc = (res: DigitalResource) => {
+    const pdfUrl = getDigitalResourceBlobUrl(res);
+    setPreviewDoc({
+      title: res.title,
+      author: res.authorName,
+      url: pdfUrl,
+      fileName: res.uploadedFileName || `${res.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+      department: res.department || res.categoryName,
+      type: res.resourceType,
+      description: res.description,
+      textContent: res.uploadedFileData ? undefined : undefined,
+    });
+  };
+
+  const handleDownloadPdf = (res: DigitalResource) => {
+    libraryStore.incrementDownload(res.id, user || undefined);
+    const pdfUrl = getDigitalResourceBlobUrl(res);
+    const link = document.createElement('a');
+    const safeFilename = (res.title || 'digital_document')
+      .replace(/[^a-zA-Z0-9\s-_]/g, '')
+      .trim()
+      .replace(/\s+/g, '_');
+    link.href = pdfUrl;
+    link.download = res.uploadedFileName || `${safeFilename}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    triggerToast(`Downloaded PDF file for "${res.title}"!`);
   };
 
   const filteredDigitalResources = useMemo(() => {
@@ -257,40 +328,48 @@ export default function DigitalLibraryAdmin() {
   return (
     <div className="space-y-6 pb-12">
       {/* Header Banner */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-purple-700 bg-purple-50 px-3 py-1 rounded-full mb-2">
-            <Download className="h-3.5 w-3.5" /> Digital Resource Hub & Control
+      <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-900 p-6 sm:p-9 rounded-3xl border border-slate-800/80 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-6 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 space-y-2">
+          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-300 bg-white/10 px-3.5 py-1.5 rounded-full border border-blue-400/20 shadow-xs backdrop-blur-xs">
+            <Download className="h-4 w-4 text-blue-300" />
+            <span>Digital Repository Desk & Control</span>
           </div>
-          <h1 className="text-2xl font-bold font-poppins text-slate-900">Digital Resource Hub & Control</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold font-poppins tracking-tight text-white leading-tight">
+            Digital Resource Hub & <span className="bg-gradient-to-r from-blue-300 via-indigo-200 to-sky-200 bg-clip-text text-transparent">Repository Control</span>
+          </h1>
+          <p className="text-slate-300 text-xs sm:text-sm md:text-base max-w-2xl font-medium leading-relaxed">
             Manage 20+ digital resource categories, RSS newspaper sync, document archival, access rights, and usage telemetry reports.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+        <div className="relative z-10 flex flex-wrap items-center gap-2.5 shrink-0">
           <button
             onClick={handleRssSync}
             disabled={isRssRefreshing}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 font-bold text-xs hover:bg-amber-100 transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-blue-400/20 text-white font-bold text-xs backdrop-blur-md transition-all cursor-pointer shadow-xs"
             title="Fetch today's RSS e-paper feeds"
           >
-            <RefreshCw className={`h-4 w-4 text-amber-600 ${isRssRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 text-amber-300 ${isRssRefreshing ? 'animate-spin' : ''}`} />
             <span>Sync Daily RSS</span>
           </button>
 
           <button
             onClick={handleExportCSV}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 font-bold text-xs hover:bg-slate-100 transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-blue-400/20 text-white font-bold text-xs backdrop-blur-md transition-all cursor-pointer shadow-xs"
           >
-            <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Export Report CSV
+            <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
+            <span>Export CSV</span>
           </button>
 
           <button
             onClick={() => handleOpenUploadModal()}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-600 text-white font-bold text-xs shadow-md hover:bg-purple-700 cursor-pointer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition-all cursor-pointer active:scale-95 border border-blue-400/30"
           >
-            <Plus className="h-4 w-4" /> Publish Digital Asset
+            <Plus className="h-4 w-4" />
+            <span>Publish Digital Asset</span>
           </button>
         </div>
       </div>
@@ -406,7 +485,7 @@ export default function DigitalLibraryAdmin() {
                 onChange={(e) => setTypeFilter(e.target.value)}
                 className="w-full pl-9 pr-8 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all cursor-pointer shadow-xs appearance-none"
               >
-                <option value="ALL">📁 All Categories ({state.digitalResources.length})</option>
+                <option value="ALL">All Resource Categories</option>
                 <option value="RESEARCH_PAPER">📄 Research Papers</option>
                 <option value="EBOOK">📚 E-Books</option>
                 <option value="QUESTION_PAPER">📝 Question Papers</option>
@@ -505,18 +584,18 @@ export default function DigitalLibraryAdmin() {
                   </td>
                   <td className="p-4 text-right space-x-1 whitespace-nowrap">
                     <button
-                      onClick={() => setPreviewDoc({
-                        title: res.title,
-                        author: res.authorName,
-                        url: res.externalUrl,
-                        department: res.department || res.categoryName,
-                        type: res.resourceType,
-                        description: res.description
-                      })}
+                      onClick={() => handlePreviewDoc(res)}
                       className="p-2 rounded-xl text-slate-600 hover:text-purple-700 hover:bg-purple-50 transition-colors cursor-pointer"
                       title="Preview Document File"
                     >
                       <Eye className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDownloadPdf(res)}
+                      className="p-2 rounded-xl text-slate-600 hover:text-blue-700 hover:bg-blue-50 transition-colors cursor-pointer"
+                      title="Download Document PDF"
+                    >
+                      <Download className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleOpenUploadModal(res)}
@@ -684,8 +763,38 @@ export default function DigitalLibraryAdmin() {
                 </div>
               </div>
 
-              {/* Semester & Access Level */}
+              {/* Publisher & ISSN / ISBN */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Publisher / Institution</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. IEEE Press, Pearson, MIT Press, Springer"
+                    value={publisherName}
+                    onChange={(e) => setPublisherName(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 bg-slate-50/50 focus:bg-white transition-all shadow-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
+                    <BookmarkCheck className="w-3.5 h-3.5 text-purple-600" />
+                    <span>ISSN / ISBN / DOI (Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. ISBN 978-0134685991, ISSN 0975-8887"
+                    value={issnIsbn}
+                    onChange={(e) => setIssnIsbn(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 bg-slate-50/50 focus:bg-white transition-all shadow-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Semester, Year & Access Level */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
                     <GraduationCap className="w-3.5 h-3.5 text-purple-600" />
@@ -705,23 +814,41 @@ export default function DigitalLibraryAdmin() {
                     <option value="Sem 7">Semester 7</option>
                     <option value="Sem 8">Semester 8</option>
                     <option value="All Semesters">All Semesters</option>
+                    <option value="Faculty Research">Faculty Research</option>
+                    <option value="Doctoral / Ph.D.">Doctoral / Ph.D.</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Publication Year</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={1900}
+                    max={2099}
+                    placeholder="e.g. 2026"
+                    value={year}
+                    onChange={(e) => setYear(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 bg-slate-50/50 focus:bg-white transition-all shadow-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                    <span>Access Rights / Permission</span>
+                    <span>Access Permission</span>
                   </label>
                   <select
                     value={accessLevel}
                     onChange={(e) => setAccessLevel(e.target.value as any)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 cursor-pointer shadow-xs"
                   >
-                    <option value="OPEN_ACCESS">🌐 Open Access (All Members)</option>
+                    <option value="OPEN_ACCESS">🌐 Open Access</option>
                     <option value="CAMPUS_ONLY">🏫 Campus Wi-Fi Only</option>
-                    <option value="SUBSCRIBED">🔐 Subscribed Members Only</option>
-                    <option value="RESTRICTED">🔒 Restricted / Faculty Only</option>
+                    <option value="SUBSCRIBED">🔐 Subscribed Only</option>
+                    <option value="RESTRICTED">🔒 Faculty Only</option>
                   </select>
                 </div>
               </div>
@@ -874,7 +1001,8 @@ export default function DigitalLibraryAdmin() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-500/20 transition-all cursor-pointer"
+                  onClick={(e) => handleSaveResource(e)}
+                  className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-500/20 transition-all cursor-pointer active:scale-95"
                 >
                   {editingResource ? 'Update Metadata' : 'Publish Asset'}
                 </button>
@@ -907,16 +1035,26 @@ export default function DigitalLibraryAdmin() {
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <a
-                  href={previewDoc.url}
-                  download={previewDoc.fileName || 'uploaded_document'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition-all flex items-center gap-2 shadow-md shadow-purple-500/20 whitespace-nowrap shrink-0"
+                <button
+                  type="button"
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = previewDoc.url;
+                    link.download = previewDoc.fileName || 'document.pdf';
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => {
+                      try {
+                        document.body.removeChild(link);
+                      } catch (e) {}
+                    }, 300);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition-all flex items-center gap-2 shadow-md shadow-purple-500/20 whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   <Download className="w-4 h-4 shrink-0" />
                   <span className="whitespace-nowrap">Download File</span>
-                </a>
+                </button>
                 <button
                   onClick={() => setPreviewDoc(null)}
                   className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer shrink-0"
@@ -949,32 +1087,17 @@ export default function DigitalLibraryAdmin() {
                     {previewDoc.textContent}
                   </pre>
                 </div>
-              ) : previewDoc.url && (previewDoc.url.startsWith('blob:') || previewDoc.url.startsWith('http') || previewDoc.url.endsWith('.pdf')) ? (
-                /* 3. Embedded Local PDF / Document File Preview */
+              ) : previewDoc.url ? (
+                /* 3. Embedded Native PDF Document File Preview */
                 <div className="w-full h-full min-h-[620px] flex flex-col bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
-                  <object
-                    data={previewDoc.url}
-                    type="application/pdf"
-                    className="w-full flex-1 min-h-[600px] bg-slate-900 rounded-2xl"
-                  >
-                    <div className="flex flex-col items-center justify-center p-12 text-center text-slate-300 space-y-4">
-                      <FileText className="w-16 h-16 text-purple-400" />
-                      <div>
-                        <p className="text-base font-bold text-white">{previewDoc.fileName || 'Uploaded Document'}</p>
-                        <p className="text-xs text-slate-400 mt-1">Uploaded document file is ready.</p>
-                      </div>
-                      <a
-                        href={previewDoc.url}
-                        download={previewDoc.fileName || 'document.pdf'}
-                        className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition-all"
-                      >
-                        Download File
-                      </a>
-                    </div>
-                  </object>
+                  <iframe
+                    src={previewDoc.url}
+                    title={previewDoc.title}
+                    className="w-full flex-1 min-h-[600px] border-0 rounded-2xl bg-white"
+                  />
                 </div>
               ) : (
-                /* 4. Fallback File Info Card if no binary file object is attached */
+                /* 4. Fallback File Info Card */
                 <div className="max-w-md w-full bg-slate-900 rounded-2xl p-8 border border-slate-800 text-center space-y-4 shadow-2xl">
                   <div className="w-16 h-16 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center mx-auto border border-purple-500/30">
                     <FileText className="w-8 h-8" />

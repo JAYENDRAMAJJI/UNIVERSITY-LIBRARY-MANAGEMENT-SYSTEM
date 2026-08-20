@@ -142,7 +142,7 @@ export default function Login() {
       <div className="flex items-center justify-start w-full">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl border border-slate-200 bg-white text-xs font-bold text-slate-800 hover:bg-slate-50 hover:text-blue-700 hover:border-blue-300 transition-all shadow-2xs group"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-800 hover:bg-slate-50 hover:text-blue-700 hover:border-blue-300 transition-all shadow-2xs group"
         >
           <ArrowLeft className="w-4 h-4 text-blue-600 group-hover:-translate-x-1 transition-transform" />
           <span>Return to Home Page</span>
@@ -309,13 +309,13 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setIsRegisterModalOpen(true)}
-              className="w-full py-2.5 rounded-2xl border border-blue-200 bg-blue-50/60 text-blue-700 font-bold text-xs hover:bg-blue-100/70 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-2.5 rounded-2xl border border-blue-200 bg-blue-50/60 text-blue-700 font-bold text-sm hover:bg-blue-100/70 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <UserPlus className="w-4 h-4" /> Register New Library Account
             </button>
 
-            <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors">
-              <ArrowLeft className="w-3.5 h-3.5" /> Return to Public Home Page
+            <Link to="/" className="inline-flex items-center gap-2 text-sm sm:text-base font-semibold text-slate-600 hover:text-blue-600 transition-colors py-1 px-2.5 rounded-lg hover:bg-slate-100/60">
+              <ArrowLeft className="w-4.5 h-4.5" /> Return to Public Home Page
             </Link>
           </div>
         </div>

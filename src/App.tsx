@@ -48,11 +48,13 @@ import MembersManagement from './pages/admin/MembersManagement';
 import MasterData from './pages/admin/MasterData';
 import DigitalLibraryAdmin from './pages/admin/DigitalLibraryAdmin';
 import UsersManagement from './pages/admin/UsersManagement';
-import ReportsAnalytics from './pages/admin/ReportsAnalytics';
 import SettingsManagement from './pages/admin/SettingsManagement';
 import ProcurementManagement from './pages/admin/ProcurementManagement';
 import BookBorrowHistory from './pages/admin/BookBorrowHistory';
 import AttendanceManagement from './pages/admin/AttendanceManagement';
+import NoDueClearanceDesk from './pages/admin/NoDueClearanceDesk';
+import DownloadsManagement from './pages/admin/DownloadsManagement';
+import NoDueClearance from './pages/NoDueClearance';
 
 function PortalPage({
   title,
@@ -133,6 +135,7 @@ export default function App() {
               <Route path="book-search" element={<BookSearch />} />
               <Route path="attendance" element={<AttendanceManagement />} />
               <Route path="borrow-history" element={<BookBorrowHistory />} />
+              <Route path="no-due" element={<NoDueClearance />} />
               <Route path="new-arrivals" element={<Navigate to="/catalog?filter=new-arrivals" replace />} />
               <Route path="digital-resources" element={<DigitalResources />} />
               <Route path="downloads" element={<Downloads />} />
@@ -163,13 +166,15 @@ export default function App() {
                 <Route path="admin/reservations" element={<ReservationsManagement />} />
                 <Route path="admin/fines" element={<FineManagement />} />
                 <Route path="admin/procurement" element={<ProcurementManagement />} />
+                <Route path="admin/no-due" element={<NoDueClearanceDesk />} />
                 <Route path="admin/members" element={<MembersManagement />} />
                 <Route path="admin/categories" element={<MasterData />} />
                 <Route path="admin/authors" element={<MasterData />} />
                 <Route path="admin/publishers" element={<MasterData />} />
                 <Route path="admin/digital-library" element={<DigitalLibraryAdmin />} />
+                <Route path="admin/downloads" element={<DownloadsManagement />} />
                 <Route path="admin/users" element={<UsersManagement />} />
-                <Route path="admin/reports" element={<ReportsAnalytics />} />
+                <Route path="admin/reports" element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="admin/settings" element={<SettingsManagement />} />
               </Route>
 

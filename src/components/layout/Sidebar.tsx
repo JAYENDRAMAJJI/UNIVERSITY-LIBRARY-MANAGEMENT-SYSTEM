@@ -20,6 +20,8 @@ import {
   History,
   X,
   UserCheck,
+  Award,
+  FileDown,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -48,6 +50,7 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
         { to: '/admin/reservations', icon: Bell, label: 'Reservations Queue' },
         { to: '/admin/fines', icon: IndianRupee, label: 'Fine Management' },
         { to: '/admin/procurement', icon: ShoppingBag, label: 'Book Purchasing & Orders' },
+        { to: '/admin/no-due', icon: Award, label: 'Issue No Due Certificate' },
       ],
     },
     {
@@ -57,6 +60,7 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
         { to: '/admin/books', icon: Layers, label: 'Manage Books' },
         { to: '/admin/inventory', icon: Tag, label: 'Inventory & Shelves' },
         { to: '/admin/digital-library', icon: Download, label: 'Digital Library' },
+        { to: '/admin/downloads', icon: FileDown, label: 'Official Forms & Downloads' },
       ],
     },
     {
@@ -66,12 +70,6 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
         { to: '/admin/users', icon: ShieldCheck, label: 'User Roles & Permissions' },
       ],
     },
-    {
-      title: 'REPORTS & SYSTEM',
-      links: [
-        { to: '/admin/reports', icon: BarChart3, label: 'Executive Reports' },
-      ],
-    },
   ];
 
   const getFacultySections = () => [
@@ -79,6 +77,7 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'FACULTY WORKSPACE',
       links: [
         { to: '/faculty/dashboard', icon: LayoutDashboard, label: 'Faculty Portal' },
+        { to: '/no-due', icon: Award, label: 'Apply for No Due' },
         { to: '/borrow-history', icon: History, label: 'My Borrowed Books' },
         { to: '/attendance', icon: UserCheck, label: 'Library Attendance' },
       ],
@@ -104,6 +103,7 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'ACADEMIC WORKSPACE',
       links: [
         { to: '/student/dashboard', icon: LayoutDashboard, label: 'Student Academic Portal' },
+        { to: '/no-due', icon: Award, label: 'Apply for No Due' },
         { to: '/borrow-history', icon: History, label: 'My Borrowed Books' },
         { to: '/attendance', icon: UserCheck, label: 'Library Attendance' },
       ],

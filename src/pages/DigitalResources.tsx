@@ -32,10 +32,12 @@ import {
   Library,
   Award,
   Lock,
+  UploadCloud,
 } from 'lucide-react';
 import { libraryStore } from '../services/libraryStore.service';
 import { useAuth } from '../context/AuthContext';
-import { DigitalResource, DigitalResourceType, DigitalDownloadLog } from '../types/library';
+import { DigitalResource, DigitalResourceType } from '../types/library';
+import { getDigitalResourceBlobUrl, downloadDigitalResource } from '../utils/digitalPdfGenerator';
 
 export default function DigitalResources() {
   const { user } = useAuth();
@@ -65,141 +67,60 @@ export default function DigitalResources() {
   const [uploadType, setUploadType] = useState<DigitalResourceType>('RESEARCH_PAPER');
   const [uploadDept, setUploadDept] = useState('Computer Science & Engineering');
   const [uploadAuthor, setUploadAuthor] = useState(user?.name || '');
+  const [uploadPublisher, setUploadPublisher] = useState('University Press & Academic Library');
+  const [uploadIssnIsbn, setUploadIssnIsbn] = useState('');
   const [uploadSubject, setUploadSubject] = useState('');
   const [uploadSemester, setUploadSemester] = useState('Sem 4');
+  const [uploadYear, setUploadYear] = useState<string | number>(2026);
+  const [uploadAccessLevel, setUploadAccessLevel] = useState<'OPEN_ACCESS' | 'CAMPUS_ONLY' | 'SUBSCRIBED' | 'RESTRICTED'>('OPEN_ACCESS');
   const [uploadDescription, setUploadDescription] = useState('');
+  const [uploadSnippet, setUploadSnippet] = useState('');
   const [uploadExternalUrl, setUploadExternalUrl] = useState('');
+  const [uploadedFileData, setUploadedFileData] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadFileSizeMb, setUploadFileSizeMb] = useState<number>(3.5);
 
   useEffect(() => {
     const sub = libraryStore.getObservable().subscribe(setState);
     return () => sub.unsubscribe();
   }, []);
 
-  // Generate a valid PDF-1.4 blob URL for viewing or downloading
-  const createPdfBlobUrl = (res: DigitalResource): string => {
-    const title = (res.title || 'Digital Document').replace(/[()\\]/g, '');
-    const author = (res.authorName || 'University Library').replace(/[()\\]/g, '');
-    const dept = (res.department || res.categoryName || 'Academic').replace(/[()\\]/g, '');
-    const typeStr = (res.resourceType || 'DOCUMENT').replace(/_/g, ' ').replace(/[()\\]/g, '');
-    const desc = (res.description || 'Institutional research digital document repository item.').replace(/[()\\]/g, '');
-    const snippet = (res.contentSnippet || 'Full reference materials, research papers, and academic proceedings.').replace(/[()\\]/g, '');
-    const dateStr = new Date().toLocaleDateString();
-
-    const streamText =
-      `BT\n` +
-      `/F1 16 Tf\n` +
-      `40 740 Td\n` +
-      `(UNIVERSITY CENTRAL LIBRARY - ENTERPRISE DIGITAL REPOSITORY) Tj\n` +
-      `0 -24 Td\n` +
-      `/F1 12 Tf\n` +
-      `(TYPE: ${typeStr}) Tj\n` +
-      `0 -20 Td\n` +
-      `(TITLE: ${title.substring(0, 55)}) Tj\n` +
-      `0 -18 Td\n` +
-      `(AUTHOR: ${author.substring(0, 55)}) Tj\n` +
-      `0 -18 Td\n` +
-      `(DEPARTMENT: ${dept.substring(0, 55)}) Tj\n` +
-      `0 -18 Td\n` +
-      `(DATE: ${dateStr}) Tj\n` +
-      `0 -30 Td\n` +
-      `/F1 11 Tf\n` +
-      `(ABSTRACT OVERVIEW:) Tj\n` +
-      `0 -16 Td\n` +
-      `(${desc.substring(0, 75)}) Tj\n` +
-      `0 -14 Td\n` +
-      `(${desc.length > 75 ? desc.substring(75, 150) : ''}) Tj\n` +
-      `0 -30 Td\n` +
-      `(EXTRACT CONTENT SNIPPET:) Tj\n` +
-      `0 -16 Td\n` +
-      `(${snippet.substring(0, 75)}) Tj\n` +
-      `0 -14 Td\n` +
-      `(${snippet.length > 75 ? snippet.substring(75, 150) : ''}) Tj\n` +
-      `0 -45 Td\n` +
-      `/F1 9 Tf\n` +
-      `(Digitally Verified & Certified by University Central Digital Library Vault) Tj\n` +
-      `ET`;
-
-    const streamLength = streamText.length;
-
-    const pdfString =
-`%PDF-1.4
-1 0 obj
-<< /Type /Catalog /Pages 2 0 R >>
-endobj
-2 0 obj
-<< /Type /Pages /Kids [3 0 R] /Count 1 >>
-endobj
-3 0 obj
-<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 4 0 R >> >> /MediaBox [0 0 612 792] /Contents 5 0 R >>
-endobj
-4 0 obj
-<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
-endobj
-5 0 obj
-<< /Length ${streamLength} >>
-stream
-${streamText}
-endstream
-endobj
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000224 00000 n 
-0000000293 00000 n 
-trailer
-<< /Size 6 /Root 1 0 R >>
-startxref
-${350 + streamLength}
-%%EOF`;
-
-    const blob = new Blob([pdfString], { type: 'application/pdf' });
-    return URL.createObjectURL(blob);
+  const handleModalFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadedFileName(file.name);
+      const sizeMb = Number((file.size / (1024 * 1024)).toFixed(2)) || 2.5;
+      setUploadFileSizeMb(sizeMb);
+      if (!uploadTitle.trim()) {
+        setUploadTitle(file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' '));
+      }
+      const dataReader = new FileReader();
+      dataReader.onload = (event) => {
+        setUploadedFileData(event.target?.result as string);
+      };
+      dataReader.readAsDataURL(file);
+    }
   };
 
-  // Direct "View PDF": Opens native browser PDF viewer in a new tab
+  // Direct "View PDF": Opens native browser PDF viewer in a new tab with REAL uploaded PDF
   const handleViewPdf = (res: DigitalResource) => {
     if (!user) {
       navigate('/login', { state: { from: location } });
       return;
     }
-
-    if (res.externalUrl && res.externalUrl.startsWith('http')) {
-      window.open(res.externalUrl, '_blank');
-    } else {
-      const pdfUrl = createPdfBlobUrl(res);
-      window.open(pdfUrl, '_blank');
-    }
+    const pdfUrl = getDigitalResourceBlobUrl(res);
+    window.open(pdfUrl, '_blank');
   };
 
-  // Direct "Download PDF": Downloads the PDF file to disk
+  // Direct "Download PDF": Downloads the EXACT uploaded PDF file
   const handleDownload = (res: DigitalResource) => {
     if (!user) {
       navigate('/login', { state: { from: location } });
       return;
     }
     libraryStore.incrementDownload(res.id, user);
-
-    const pdfUrl = createPdfBlobUrl(res);
-    const link = document.createElement('a');
-    const safeFilename = (res.title || 'digital_document')
-      .replace(/[^a-zA-Z0-9\s-_]/g, '')
-      .trim()
-      .replace(/\s+/g, '_');
-
-    link.href = pdfUrl;
-    link.download = `${safeFilename}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    if (res.externalUrl && res.externalUrl.startsWith('http')) {
-      window.open(res.externalUrl, '_blank');
-    }
-
-    setDownloadToast(`Downloaded file "${res.title}" (${res.fileSizeMb || 0} MB). Saved to your browser downloads!`);
+    downloadDigitalResource(res);
+    setDownloadToast(`Downloaded "${res.title}" (${res.fileSizeMb || 0} MB). Saved to your downloads!`);
     setTimeout(() => setDownloadToast(null), 4500);
   };
 
@@ -232,23 +153,32 @@ ${350 + streamLength}
         resourceType: uploadType,
         categoryName: uploadDept,
         authorName: uploadAuthor.trim() || user?.name || 'Chief Librarian',
+        publisherName: uploadPublisher.trim() || 'University Press & Academic Library',
+        issnIsbn: uploadIssnIsbn.trim() || undefined,
         fileUrl: uploadExternalUrl.trim() || '/docs/sample-paper.pdf',
-        fileSizeMb: 12.5,
+        fileSizeMb: uploadFileSizeMb,
+        uploadedFileData: uploadedFileData || undefined,
+        uploadedFileName: uploadedFileName || undefined,
+        fileMimeType: 'application/pdf',
         department: uploadDept,
-        subject: uploadSubject || 'General',
+        subject: uploadSubject || 'General Studies',
         semester: uploadSemester,
-        year: 2026,
+        year: Number(uploadYear) || 2026,
         description: uploadDescription || 'Admin published academic digital resource.',
-        accessLevel: 'OPEN_ACCESS',
+        contentSnippet: uploadSnippet.trim() || undefined,
+        accessLevel: uploadAccessLevel,
         externalUrl: uploadExternalUrl.trim() || undefined,
       },
       user || undefined
     );
 
-    setShowUploadModal(false);
+    // Reset upload state
+    setUploadedFileData(null);
+    setUploadedFileName(null);
     setUploadTitle('');
     setUploadDescription('');
     setUploadExternalUrl('');
+    setShowUploadModal(false);
     setDownloadToast(`Published "${uploadTitle}" to Enterprise Digital Library successfully!`);
     setTimeout(() => setDownloadToast(null), 4000);
   };
@@ -324,29 +254,29 @@ ${350 + streamLength}
     return (state.digitalResources || []).filter((r) => r.resourceType === 'NEWSPAPER');
   }, [state.digitalResources]);
 
-  // Categories list
+  // Categories list with simplified easy names
   const resourceCategories: Array<{ type: string; label: string; icon: React.ComponentType<any> }> = [
-    { type: 'ALL', label: 'All Digital Assets', icon: Layers },
-    { type: 'NEWSPAPER', label: 'Digital Newspapers', icon: Newspaper },
+    { type: 'ALL', label: 'All Assets', icon: Layers },
+    { type: 'NEWSPAPER', label: 'Newspapers', icon: Newspaper },
     { type: 'EBOOK', label: 'E-Books', icon: BookOpen },
     { type: 'JOURNAL', label: 'E-Journals', icon: FileText },
     { type: 'QUESTION_PAPER', label: 'Question Papers', icon: GraduationCap },
     { type: 'SYLLABUS', label: 'Syllabus', icon: FileCode },
     { type: 'LECTURE_NOTES', label: 'Lecture Notes', icon: FileText },
     { type: 'RESEARCH_PAPER', label: 'Research Papers', icon: Sparkles },
-    { type: 'THESIS_DISSERTATION', label: 'Research & Academic Theses', icon: Award },
+    { type: 'THESIS_DISSERTATION', label: 'Theses & Dissertations', icon: Award },
     { type: 'PROJECT_REPORT', label: 'Project Reports', icon: Database },
-    { type: 'FACULTY_PUBLICATION', label: 'Faculty Publications', icon: GraduationCap },
-    { type: 'MAGAZINE', label: 'Digital Magazines', icon: BookMarked },
-    { type: 'NPTEL', label: 'NPTEL Courseware', icon: Video },
-    { type: 'SWAYAM', label: 'SWAYAM MOOCs', icon: Globe },
-    { type: 'NDLI', label: 'NDLI Repository', icon: Library },
+    { type: 'FACULTY_PUBLICATION', label: 'Faculty Papers', icon: GraduationCap },
+    { type: 'MAGAZINE', label: 'Magazines', icon: BookMarked },
+    { type: 'NPTEL', label: 'NPTEL', icon: Video },
+    { type: 'SWAYAM', label: 'SWAYAM', icon: Globe },
+    { type: 'NDLI', label: 'NDLI', icon: Library },
     { type: 'IEEE_XPLORE', label: 'IEEE Xplore', icon: Database },
-    { type: 'ACM_DIGITAL_LIBRARY', label: 'ACM Digital Library', icon: Globe },
+    { type: 'ACM_DIGITAL_LIBRARY', label: 'ACM Library', icon: Globe },
     { type: 'SPRINGER_LINK', label: 'SpringerLink', icon: Library },
     { type: 'SCIENCE_DIRECT', label: 'ScienceDirect', icon: Sparkles },
-    { type: 'JSTOR', label: 'JSTOR Archives', icon: BookOpen },
-    { type: 'MULTIMEDIA', label: 'Multimedia', icon: Video },
+    { type: 'JSTOR', label: 'JSTOR', icon: BookOpen },
+    { type: 'MULTIMEDIA', label: 'Videos & Media', icon: Video },
   ];
 
   const totalDownloads = (state.digitalResources || []).reduce((acc, r) => acc + (r.downloadCount || 0), 0);
@@ -355,50 +285,52 @@ ${350 + streamLength}
   return (
     <div className="space-y-8 pb-12">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-950 via-purple-950 to-indigo-950 rounded-3xl p-6 sm:p-10 text-white shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 space-y-3 max-w-3xl">
+      <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-900 rounded-2xl p-5 sm:p-6 lg:p-7 text-white shadow-lg flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative overflow-hidden border border-slate-800/80">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 space-y-2 max-w-3xl">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-purple-300 bg-white/10 px-3.5 py-1 rounded-full">
-              <Sparkles className="h-4 w-4 text-purple-400" /> Digital Resource Hub & Control
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-blue-300 bg-white/10 px-3 py-1 rounded-full border border-blue-400/20 shadow-xs backdrop-blur-xs">
+              <Sparkles className="h-3.5 w-3.5 text-blue-300" /> Digital Resource Hub & Control
             </span>
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 bg-emerald-500/20 px-3 py-1 rounded-full border border-emerald-500/30">
-              <Globe className="h-3.5 w-3.5 text-emerald-400" /> Open & Subscribed Access
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-300 bg-emerald-500/15 px-2.5 py-1 rounded-full border border-emerald-400/30 shadow-xs backdrop-blur-xs">
+              <Globe className="h-3 w-3 text-emerald-400" /> Open & Subscribed Access
             </span>
           </div>
-          <h1 className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-poppins tracking-tight text-white leading-tight">
-            Digital Resource Hub & Learning Repositories
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold font-poppins tracking-tight text-white leading-tight">
+            Digital Resource Hub & <span className="bg-gradient-to-r from-blue-300 via-indigo-200 to-sky-200 bg-clip-text text-transparent">Learning Repositories</span>
           </h1>
-          <p className="text-purple-200 text-xs sm:text-sm leading-relaxed max-w-2xl">
+          <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-2xl font-medium">
             20+ integrated digital asset modules including IEEE Xplore, ACM, SpringerLink, ScienceDirect, NPTEL, SWAYAM, NDLI, daily e-newspapers, question banks, and faculty research thesis.
           </p>
         </div>
 
-        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 relative z-10 shrink-0">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 relative z-10 shrink-0">
           {/* ONLY ADMIN / STAFF can Publish Digital Assets */}
           {isAdmin && (
             <button
               onClick={() => setShowUploadModal(true)}
-              className="px-4.5 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs shadow-lg transition-all flex items-center gap-2 cursor-pointer active:scale-95 whitespace-nowrap"
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/25 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap border border-blue-400/30"
             >
-              <Plus className="h-4 w-4" /> Publish Digital Asset
+              <Plus className="h-3.5 w-3.5" /> Publish Digital Asset
             </button>
           )}
 
           <button
             onClick={() => setShowHistoryModal(true)}
-            className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap"
+            className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-blue-400/20 backdrop-blur-md transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs"
           >
-            <History className="h-4 w-4 text-purple-300" /> Download Log
+            <History className="h-3.5 w-3.5 text-blue-300" /> Download Log
           </button>
 
           <button
             onClick={handleRssRefresh}
             disabled={isRssRefreshing}
-            className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap"
+            className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-blue-400/20 backdrop-blur-md transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs"
             title="Auto-sync daily newspaper RSS feeds"
           >
-            <RefreshCw className={`h-4 w-4 text-amber-300 ${isRssRefreshing ? 'animate-spin' : ''}`} /> Sync Newspapers
+            <RefreshCw className={`h-3.5 w-3.5 text-amber-300 ${isRssRefreshing ? 'animate-spin' : ''}`} /> Sync Newspapers
           </button>
         </div>
       </div>
@@ -501,8 +433,23 @@ ${350 + streamLength}
           </button>
         </div>
 
-        {/* Secondary Dropdown Filters: Department, Semester, Year */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-100 text-xs">
+        {/* Dropdown Filters: Category, Department, Semester, Year */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 pt-3 border-t border-slate-100 text-xs">
+          <div>
+            <label className="block text-[10px] font-extrabold uppercase text-slate-400 mb-1">Resource Category</label>
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-slate-50 focus:bg-white cursor-pointer"
+            >
+              {resourceCategories.map((rc) => (
+                <option key={rc.type} value={rc.type}>
+                  {rc.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label className="block text-[10px] font-extrabold uppercase text-slate-400 mb-1">Department</label>
             <select
@@ -567,32 +514,10 @@ ${350 + streamLength}
                 }}
                 className="w-full py-2 px-3 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold text-xs transition-colors cursor-pointer"
               >
-                Reset All Filters
+                Reset Filters
               </button>
             )}
           </div>
-        </div>
-
-        {/* 20 Resource Type Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pt-2 border-t border-slate-100 text-xs">
-          {resourceCategories.map((rc) => {
-            const Icon = rc.icon;
-            const isSelected = selectedType === rc.type;
-            return (
-              <button
-                key={rc.type}
-                onClick={() => setSelectedType(rc.type)}
-                className={`px-3.5 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                  isSelected
-                    ? 'bg-purple-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{rc.label}</span>
-              </button>
-            );
-          })}
         </div>
       </div>
 
@@ -768,16 +693,11 @@ ${350 + streamLength}
                       onChange={(e) => setUploadType(e.target.value as DigitalResourceType)}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50"
                     >
-                      <option value="RESEARCH_PAPER">Research Paper</option>
-                      <option value="FACULTY_PUBLICATION">Faculty Publication</option>
-                      <option value="LECTURE_NOTES">Lecture Notes</option>
-                      <option value="QUESTION_PAPER">Question Paper</option>
-                      <option value="EBOOK">E-Book</option>
-                      <option value="THESIS_DISSERTATION">Research & Academic Theses</option>
-                      <option value="PROJECT_REPORT">Project Report</option>
-                      <option value="JOURNAL">E-Journal</option>
-                      <option value="NEWSPAPER">Digital Newspaper</option>
-                      <option value="SYLLABUS">Syllabus</option>
+                      {resourceCategories.map((rc) => (
+                        <option key={rc.type} value={rc.type}>
+                          {rc.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -793,6 +713,8 @@ ${350 + streamLength}
                       <option value="Electrical & Electronics">Electrical & Electronics</option>
                       <option value="Mechanical Engineering">Mechanical Engineering</option>
                       <option value="Management Studies">Management Studies</option>
+                      <option value="Mathematics & Basic Sciences">Mathematics & Basic Sciences</option>
+                      <option value="All Departments">All Departments</option>
                     </select>
                   </div>
                 </div>
@@ -802,21 +724,121 @@ ${350 + streamLength}
                     <label className="block font-bold text-slate-700 mb-1">Author / Faculty Name</label>
                     <input
                       type="text"
+                      placeholder="e.g. Prof. R. Vance"
                       value={uploadAuthor}
                       onChange={(e) => setUploadAuthor(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold"
                     />
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Subject</label>
+                    <label className="block font-bold text-slate-700 mb-1">Subject / Domain</label>
                     <input
                       type="text"
-                      placeholder="e.g. Machine Learning"
+                      placeholder="e.g. VLSI Circuit Design"
                       value={uploadSubject}
                       onChange={(e) => setUploadSubject(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold"
                     />
                   </div>
+                </div>
+
+                {/* Publisher & ISSN / ISBN */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Publisher / Institution</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. IEEE Press, Pearson, MIT Press, Springer"
+                      value={uploadPublisher}
+                      onChange={(e) => setUploadPublisher(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">ISSN / ISBN / DOI (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. ISBN 978-0134685991, ISSN 0975-8887"
+                      value={uploadIssnIsbn}
+                      onChange={(e) => setUploadIssnIsbn(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Semester, Year & Access Rights */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Target Semester</label>
+                    <select
+                      value={uploadSemester}
+                      onChange={(e) => setUploadSemester(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50"
+                    >
+                      <option value="Sem 1">Semester 1</option>
+                      <option value="Sem 2">Semester 2</option>
+                      <option value="Sem 3">Semester 3</option>
+                      <option value="Sem 4">Semester 4</option>
+                      <option value="Sem 5">Semester 5</option>
+                      <option value="Sem 6">Semester 6</option>
+                      <option value="Sem 7">Semester 7</option>
+                      <option value="Sem 8">Semester 8</option>
+                      <option value="All Semesters">All Semesters</option>
+                      <option value="Faculty Research">Faculty Research</option>
+                      <option value="Doctoral / Ph.D.">Doctoral / Ph.D.</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Publication Year</label>
+                    <input
+                      type="number"
+                      min={1900}
+                      max={2099}
+                      placeholder="e.g. 2026"
+                      value={uploadYear}
+                      onChange={(e) => setUploadYear(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Access Rights</label>
+                    <select
+                      value={uploadAccessLevel}
+                      onChange={(e) => setUploadAccessLevel(e.target.value as any)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50"
+                    >
+                      <option value="OPEN_ACCESS">🌐 Open Access</option>
+                      <option value="CAMPUS_ONLY">🏫 Campus Wi-Fi Only</option>
+                      <option value="SUBSCRIBED">🔐 Subscribed Only</option>
+                      <option value="RESTRICTED">🔒 Faculty Only</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Attach File Option */}
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-700">Attach Document File (PDF, DOCX, EPUB)</label>
+                  <label className="flex items-center justify-between p-3 border-2 border-dashed border-purple-200 hover:border-purple-500 rounded-xl bg-purple-50/40 hover:bg-purple-50 transition-all cursor-pointer">
+                    <div className="flex items-center gap-2.5">
+                      <UploadCloud className="w-4 h-4 text-purple-600 shrink-0" />
+                      <span className="text-xs font-semibold text-slate-700">
+                        {uploadedFileName ? (
+                          <span className="text-purple-700 font-bold">{uploadedFileName} ({uploadFileSizeMb} MB)</span>
+                        ) : (
+                          'Click to select PDF/DOCX file from computer'
+                        )}
+                      </span>
+                    </div>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.epub,.pptx,.zip,.csv"
+                      onChange={handleModalFileChange}
+                      className="hidden"
+                    />
+                    <span className="text-[11px] font-bold text-purple-600 bg-white px-2.5 py-1 rounded-lg border border-purple-200 shadow-2xs">
+                      {uploadedFileName ? 'Change File' : 'Browse File'}
+                    </span>
+                  </label>
                 </div>
 
                 <div>
@@ -830,15 +852,27 @@ ${350 + streamLength}
                   />
                 </div>
 
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Abstract Description</label>
-                  <textarea
-                    rows={3}
-                    placeholder="Provide an overview description of the digital document..."
-                    value={uploadDescription}
-                    onChange={(e) => setUploadDescription(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Abstract Description</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Summary overview of the digital document..."
+                      value={uploadDescription}
+                      onChange={(e) => setUploadDescription(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Key Excerpt / Content Snippet</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Formulas, key takeaways, chapter summary..."
+                      value={uploadSnippet}
+                      onChange={(e) => setUploadSnippet(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
