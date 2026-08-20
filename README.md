@@ -6,7 +6,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.1-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-An enterprise-grade, responsive **University Library Management System & Microsite** built with React 19, TypeScript, Vite, and Tailwind CSS. Designed for higher education institutions to digitize cataloging, circulation, digital asset delivery, fine accounting, member management, and administrative reporting.
+An enterprise-grade, responsive **University Library Management System & Digital Learning Microsite** built with React 19, TypeScript, Vite, and Tailwind CSS. Designed for higher education institutions to digitize cataloging, circulation, digital asset repositories, institutional clearance certifications (NDC), fine accounting, member management, and official university document downloads.
 
 ---
 
@@ -14,49 +14,68 @@ An enterprise-grade, responsive **University Library Management System & Microsi
 
 Try out the application with built-in test accounts across different user roles:
 
-| Role | Email | Password | Access Level |
+| Role | Email | Password | Access Level & Capabilities |
 | :--- | :--- | :--- | :--- |
-| 👨‍💼 **Head Admin / Librarian** | `admin@university.edu` | `admin123` | Full Administrative & System Control |
-| 🧑‍🏫 **Faculty Member** | `faculty@university.edu` | `faculty123` | High Loan Limit, Extended Due Days, Digital Resources |
-| 🎓 **Student** | `student@university.edu` | `student123` | Catalog Search, Book Reservations, Profile & Borrow History |
+| 👨‍💼 **Head Admin / Librarian** | `admin@university.edu` | `admin123` | Full Circulation, Inventory, No Due Clearance Desk, Official Forms Admin, Digital Hub |
+| 🧑‍🏫 **Faculty Member** | `faculty@university.edu` | `faculty123` | High Loan Quota (10 Books / 30 Days), Extended Renewals, Digital Library, No Due Desk |
+| 🎓 **Student** | `student@university.edu` | `student123` | Catalog Search, Book Reservations, Borrow History, No Due Clearance Application, Downloads |
 
 ---
 
 ## 🔥 Key Features & Capabilities
 
 ### 🔐 1. Role-Based Access Control (RBAC) & Authentication
-- Protected routes and dynamic dashboards for **Admin**, **Faculty**, and **Student** roles.
+- Protected routes and customized dashboards for **Admin**, **Faculty**, and **Student** roles.
 - Interactive Account Registration and Login with role selector.
-- Member ID and digital Library Card generation.
+- Member RFID Smart Card generation and digital barcode IDs.
 
 ### 📚 2. Book Search & Catalog Management
-- **Multi-criteria Filtering**: Search by Title, Author, ISBN, Category, Department, Availability, and Rack/Shelf physical location.
-- **Barcode & QR Code Scanner Integration**: Scan physical barcodes/QR codes using device camera or barcode reader modal.
+- **Multi-criteria Filtering**: Search by Title, Author, ISBN, Category, Department, Availability, and physical Rack/Shelf location.
+- **Barcode & QR Code Scanner Integration**: Scan physical barcodes/QR codes using the device camera or interactive barcode scanner modal.
 - **Book Badges**: Highlight *Featured Books*, *New Arrivals*, and *Book of the Month*.
 
 ### 🔄 3. Circulation Management Engine
-- **Book Issue Desk**: Issue books by Accession Number / Barcode to verified students or faculty. Automatic eligibility check for active fines or max book limits.
-- **Book Return Desk**: Process book returns with real-time overdue fine calculation, damage/loss flags, and automated copy status update (`AVAILABLE`, `ISSUED`, `RESERVED`, `LOST`).
-- **Book Renewals**: Extend due dates easily unless reserved by another member.
+- **Book Issue Desk**: Issue books by Accession Number / Barcode to verified students or faculty with automated eligibility verification.
+- **Book Return Desk**: Process book returns with real-time overdue fine calculation, damage/loss flags, and automated copy status updates (`AVAILABLE`, `ISSUED`, `RESERVED`, `LOST`).
+- **Book Renewals & Due Date Extension**: Extend due dates easily with admin approval workflows.
 - **Reservation Queue**: Priority-based booking list for high-demand titles.
+- **Complete Borrowing History Log**: Full historical audit trail with Excel/CSV export capabilities.
 
-### 💰 4. Fine & Fee Accounting
+### 📜 4. Institutional No Due Clearance Desk (NDC)
+- **Student Clearance Workflow**: Students and faculty can apply online for their official University No Due Certificate.
+- **Strict Compliance Verification**: System validates **0 active book loans** and **₹0.00 outstanding fines** before permitting application submission or certificate issuance.
+- **Admin Clearance Desk (`/admin/no-due`)**: Chief Librarian verifies returns, clears fine liabilities, and approves clearance applications.
+- **Official Signed Certificate Generator**: Generates and prints authorized institutional No Due Certificates with university seals, verification QR codes, and registrar signatures.
+
+### 📥 5. Official Forms & University Downloads Center
+- **Librarian Management Portal (`/admin/downloads`)**: Upload, edit, categorize, and archive official university library forms, policies, and academic schedules.
+- **Real-Time Dynamic Synchronization**: Public Download Center (`/downloads`) dynamically displays all active forms managed by the librarian.
+- **Authentic Multi-Page PDF Engine**: Built-in generator for standardized official documents:
+  - *Library Membership Registration Form*
+  - *Book Procurement Suggestion Form*
+  - *No Dues Clearance Certificate Form*
+  - *University Library Rules & Regulations*
+  - *Digital Lab & Workstation Code of Conduct*
+  - *Overdue Fine & Penalty Guidelines*
+  - *University Academic Calendar 2026-2027*
+  - *End Semester Exam Timetable & Guidelines*
+  - *Library Catalog & Circulation User Manual*
+- **Native PDF Preview & Direct Download**: Inspect documents in high definition before downloading.
+
+### 💻 6. Digital Resource Hub & Learning Repositories
+- Access 20+ digital resource categories: IEEE Xplore, ACM, SpringerLink, ScienceDirect, NPTEL, SWAYAM, NDLI, daily e-newspapers, question banks, and faculty research thesis.
+- **Custom File Storage**: IndexedDB + synchronous memory cache store for heavy PDF documents and files.
+- **Daily Newspaper RSS Feeds**: Automatic live synchronization of daily e-paper feeds.
+- **Interactive PDF Viewer**: Embedded iframe viewer with cross-browser download support.
+
+### 💰 7. Fine & Fee Accounting
 - Automatic overdue fine calculation based on university policies (e.g., ₹5/day after due date).
 - **Fine Ledger**: Collect payments, issue printable receipts (`receipt_no`), or record waiver reasons with librarian approval.
-- Detailed fine transaction history for each member.
+- Detailed fine transaction history and automated audit logs.
 
-### 💻 5. Digital Library & Open Access Hub
-- Access e-books, research journals, previous year question papers, syllabus copies, and lecture notes.
-- Direct PDF downloads with download tracking and category filtering.
-
-### 📊 6. Admin Analytics & Reporting Dashboard
-- Interactive statistical widgets: Total Books, Available vs. Issued Copies, Overdue Count, Fine Collection, Daily Visitors.
-- Tabular reports with filtering and export capabilities (CSV/PDF output ready).
-- Member Management: Activate, suspend, or update student and faculty profiles.
-- Book Master Data: Categorization, Authors, Publishers, and Physical Rack/Shelf allocations.
-
-### 🕒 7. Attendance & Traffic Tracker
-- Real-time digital check-in / check-out tracker for library visitors and study room users.
+### 🕒 8. Attendance & Visitor Traffic Tracker
+- Real-time digital check-in / check-out tracker for library visitors, study rooms, and digital multimedia labs.
+- Auto-checkout timers aligned with institutional operating hours.
 
 ---
 
@@ -67,13 +86,14 @@ Try out the application with built-in test accounts across different user roles:
 - **Language**: [TypeScript 5.8](https://www.typescriptlang.org/) for strict type safety
 - **Styling & UI**: [Tailwind CSS v4](https://tailwindcss.com/) & Vanilla CSS Design Tokens
 - **Icons**: [Lucide React](https://lucide.dev/)
-- **Routing**: [React Router v7 / v8](https://reactrouter.com/)
+- **Routing**: [React Router v7](https://reactrouter.com/)
 - **Build Tool**: [Vite 6](https://vitejs.dev/)
+- **Storage**: IndexedDB API + LocalStorage with automated payload sanitization
 
 ### **Backend Architecture & Database Schema (MySQL Specs)**
-The repository includes complete backend specifications in [`src/docs/database-and-backend-architecture.md`](src/docs/database-and-backend-architecture.md):
-- **12 Relational Tables**: `users`, `members`, `categories`, `authors`, `publishers`, `books`, `book_copies`, `issue_transactions`, `reservations`, `fine_records`, `digital_resources`, `audit_logs`.
-- **Spring Boot REST Specification**: Prepared endpoints for production integration (`/api/v1/circulation/issue`, `/api/v1/circulation/return`, etc.).
+The repository includes backend specifications in [`src/docs/database-and-backend-architecture.md`](src/docs/database-and-backend-architecture.md):
+- **14 Relational Tables**: `users`, `members`, `categories`, `authors`, `publishers`, `books`, `book_copies`, `issue_transactions`, `reservations`, `fine_records`, `digital_resources`, `official_documents`, `no_due_applications`, `audit_logs`.
+- **Spring Boot REST Specification**: Prepared endpoints for production integration (`/api/v1/circulation/issue`, `/api/v1/circulation/return`, `/api/v1/no-due/apply`, etc.).
 
 ---
 
@@ -95,18 +115,18 @@ library-microsite/
     ├── index.css               # Global styles & design system
     ├── components/             # Reusable UI Components
     │   ├── admin/              # Admin-specific modals & tables
-    │   ├── common/             # Barcode Scanner, Register Modal
+    │   ├── common/             # Barcode Scanner, No Due Modal, Register Modal
     │   ├── guards/             # ProtectedRoute & RoleRoute guards
     │   └── layout/             # Navbar, Footer, Sidebar, Breadcrumbs
     ├── context/                # AuthContext (State Management)
     ├── docs/                   # DB Architecture & Admin Feature Docs
     ├── pages/                  # Public & Member Pages
-    │   ├── admin/              # Admin Operation Pages (Books, Issue, Return, Fines, Users)
+    │   ├── admin/              # Admin Desks (Books, Issue, Return, Fines, No Due, Downloads)
     │   ├── auth/               # Login & Access Denied Pages
     │   └── dashboards/         # Admin, Faculty, and Student Dashboards
-    ├── services/               # Data Store & Mock API Services
+    ├── services/               # libraryStore (Observable State & Storage)
     ├── types/                  # TypeScript Data Models & Interfaces
-    └── utils/                  # Barcode & QR Code Generators
+    └── utils/                  # Barcode, PDF Generators, Digital Storage, Excel Exports
 ```
 
 ---
