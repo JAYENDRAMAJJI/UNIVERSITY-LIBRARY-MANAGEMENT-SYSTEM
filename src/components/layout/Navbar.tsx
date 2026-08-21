@@ -140,7 +140,7 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
   const displayAvatar = user?.avatarUrl || currentMember?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
 
   return (
-    <nav className="h-20 shrink-0 border-b border-slate-200/80 bg-white/95 shadow-2xs backdrop-blur-xl transition-all z-40 w-full relative">
+    <nav className="h-20 shrink-0 bg-white/95 shadow-2xs backdrop-blur-xl transition-all z-40 w-full relative">
       <div className="w-full px-4 sm:px-6 lg:px-8 h-full">
         <div className="flex h-full justify-between items-center gap-4">
           {/* Brand Logo */}
@@ -254,6 +254,16 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
                           <p className="text-[11px] text-slate-400">All clear! Overdue alerts and announcements will appear here.</p>
                         </div>
                       )}
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border-t border-slate-100 text-center">
+                      <Link
+                        to="/notifications"
+                        onClick={() => setIsNotifOpen(false)}
+                        className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center gap-1"
+                      >
+                        Open Notification Center &rarr;
+                      </Link>
                     </div>
                   </div>
                 )}

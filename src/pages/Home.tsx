@@ -180,7 +180,7 @@ export default function Home() {
                 Track borrowed books, request return date extensions, reserve hold titles, and download exam question banks.
               </p>
               <div className="space-y-1.5 text-xs text-slate-700 font-medium pt-1">
-                <div className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-blue-600" /> Max 3 Books / 14 Days Borrowing</div>
+                <div className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-blue-600" /> Max 3 Books / 7 Days Borrowing</div>
                 <div className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-blue-600" /> Self-Service Extension Privileges</div>
               </div>
             </div>

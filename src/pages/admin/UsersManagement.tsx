@@ -205,7 +205,7 @@ export default function UsersManagement() {
               
               <div class="card-footer">
                 <span>Issued: ${member.registeredDate || '2026-01-15'}</span>
-                <span>Valid Thru: DEC 2028</span>
+                <span>Valid Through: DEC 2028</span>
                 <span style="color: #f59e0b; font-weight: bold;">SECURITY VERIFIED</span>
               </div>
             </div>
@@ -224,7 +224,7 @@ export default function UsersManagement() {
               </div>
               
               <div class="rules-notice">
-                • Present card at library turnstiles, borrowing counters, and RFID gates.<br/>
+                • Present card at library turnstiles, circulation counters, and RFID gates.<br/>
                 • Non-transferable official pass. Max Quota: ${member.maxAllowedBooks || 5} Books.
               </div>
               

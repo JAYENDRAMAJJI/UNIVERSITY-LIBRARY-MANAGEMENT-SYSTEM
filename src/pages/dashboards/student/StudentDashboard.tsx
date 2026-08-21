@@ -1,33 +1,31 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   BookOpen,
-  Download,
-  Bell,
-  Clock,
-  RefreshCw,
-  CreditCard,
-  AlertCircle,
-  CheckCircle,
-  Search,
   Bookmark,
+  ShoppingBag,
+  UserCheck,
+  CheckCircle,
+  AlertCircle,
+  AlertTriangle,
+  IndianRupee,
+  Sparkles,
+  Clock,
+  History,
   PlusCircle,
   Send,
-  Sparkles,
-  ShoppingBag,
-  History,
-  FileText,
-  UserCheck,
   Award,
   ShieldCheck,
+  X,
 } from 'lucide-react';
 import { libraryStore, formatOnlyTimeInBracket, getMemberPendingFines, getTransactionFineAmount } from '../../../services/libraryStore.service';
 import { useAuth } from '../../../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { IssueTransaction } from '../../../types/library';
 import NoDueCertificateModal from '../../../components/common/NoDueCertificateModal';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [state, setState] = useState(libraryStore.snapshot);
   const [activeTab, setActiveTab] = useState<'loans' | 'extensions' | 'reservations' | 'procurement' | 'history'>('loans');
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -49,6 +47,19 @@ export default function StudentDashboard() {
   const [extensionDays, setExtensionDays] = useState(14);
   const [extensionReason, setExtensionReason] = useState('');
 
+  // Sync tab with URL search parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['loans', 'extensions', 'reservations', 'procurement', 'history'].includes(tab)) {
+      setActiveTab(tab as any);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: 'loans' | 'extensions' | 'reservations' | 'procurement' | 'history') => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
+
   useEffect(() => {
     const sub = libraryStore.getObservable().subscribe(setState);
     return () => sub.unsubscribe();
@@ -66,7 +77,22 @@ export default function StudentDashboard() {
     state.members.find((m) => user?.id && m.id === user.id) ||
     state.members.find((m) => user?.name && m.name.toLowerCase() === user.name.toLowerCase()) ||
     state.members.find((m) => m.role === 'STUDENT') ||
-    state.members[0];
+    state.members[0] || {
+      id: '3',
+      userId: '3',
+      name: user?.name || 'Alex Johnson',
+      email: user?.email || 'student@college.edu',
+      role: 'STUDENT' as const,
+      memberCardNo: 'STU-2022-0891',
+      rollNo: '22CS104',
+      department: 'Computer Science & Engineering',
+      status: 'ACTIVE' as const,
+      maxAllowedBooks: 5,
+      currentActiveLoans: 0,
+      pendingFines: 0,
+      registeredDate: '2022-08-01',
+      academicBatch: '2022 - 2026',
+    };
 
   const studentDisplayName = user?.name || studentMember?.name || 'Student Member';
 
@@ -95,8 +121,13 @@ export default function StudentDashboard() {
   }, [myActiveAttendance, nowClock]);
 
   const studentActiveTransactions = state.transactions.filter(
-    (t) => (t.memberId === studentMember.id || t.memberName === studentMember.name || t.memberName === studentDisplayName) && (t.status === 'ISSUED' || t.status === 'OVERDUE')
+    (t) => (t.memberId === studentMember?.id || t.memberName === studentMember?.name || t.memberName === studentDisplayName) && (t.status === 'ISSUED' || t.status === 'OVERDUE')
   );
+
+  const loanQuotaPercentage = useMemo(() => {
+    const maxAllowed = studentMember?.maxAllowedBooks || 5;
+    return Math.min(100, Math.round((studentActiveTransactions.length / maxAllowed) * 100));
+  }, [studentActiveTransactions, studentMember]);
 
   const studentExtensionRequests = (state.extensionRequests || []).filter(
     (r) => r.memberId === studentMember.id || r.memberName === studentMember.name || r.memberName === studentDisplayName
@@ -203,8 +234,8 @@ export default function StudentDashboard() {
       isbn: procurementForm.isbn,
       publisherName: procurementForm.publisherName,
       reason: procurementForm.reason || 'Required for academic coursework.',
-      requestedById: studentMember.id,
-      requestedByName: studentMember.name,
+      requestedById: studentMember?.id || '3',
+      requestedByName: studentMember?.name || studentDisplayName,
       requestedByRole: 'STUDENT',
     });
 
@@ -212,8 +243,6 @@ export default function StudentDashboard() {
     setIsProcurementModalOpen(false);
     setProcurementForm({ bookTitle: '', authorName: '', isbn: '', publisherName: '', reason: '' });
   };
-
-  const loanQuotaPercentage = Math.min(100, Math.round((studentActiveTransactions.length / studentMember.maxAllowedBooks) * 100));
 
   return (
     <div className="space-y-8 pb-12">
@@ -251,17 +280,26 @@ export default function StudentDashboard() {
                 ● In Library ({myActiveAttendance.checkInTime})
               </span>
             ) : (
-              <span>My Attendance ({myAttendanceRecords.length})</span>
+              <span>My Attendance</span>
             )}
           </Link>
 
-          <Link
-            to="/no-due"
-            className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-blue-400/30 text-xs font-bold text-blue-200 backdrop-blur-md flex items-center gap-2 transition-all cursor-pointer shadow-xs"
-          >
-            <Award className="w-4 h-4 text-blue-300" />
-            <span>Apply No Due (NDC)</span>
-          </Link>
+          {(() => {
+            const pendingFineVal = getMemberPendingFines(studentMember.id, state);
+            return (
+              <Link
+                to="/fines"
+                className={`px-4 py-2.5 rounded-2xl border text-xs font-bold backdrop-blur-md flex items-center gap-2 transition-all cursor-pointer ${
+                  pendingFineVal > 0
+                    ? 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-400/40 text-rose-200 shadow-xs animate-pulse'
+                    : 'bg-white/10 hover:bg-white/20 border-white/20 text-white'
+                }`}
+              >
+                <IndianRupee className="w-4 h-4 text-amber-300" />
+                <span>My Fines {pendingFineVal > 0 ? `(₹${pendingFineVal.toFixed(0)})` : ''}</span>
+              </Link>
+            );
+          })()}
         </div>
       </div>
 
@@ -275,6 +313,35 @@ export default function StudentDashboard() {
           <span>{alert.message}</span>
         </div>
       )}
+
+      {/* Outstanding Fine Notice Banner if member has pending dues */}
+      {(() => {
+        const pendingFineVal = getMemberPendingFines(studentMember.id, state);
+        if (pendingFineVal <= 0) return null;
+        return (
+          <div className="p-5 rounded-3xl bg-rose-50 border-2 border-rose-200 text-rose-900 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeIn">
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 bg-rose-100 rounded-2xl text-rose-700 shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-rose-950 font-poppins">
+                  Outstanding Overdue Fine: ₹{pendingFineVal.toFixed(2)} Pending
+                </h3>
+                <p className="text-xs text-rose-800 mt-0.5 leading-relaxed">
+                  Fines have been assessed on your account for late book returns. Please settle your dues at the circulation desk or online to maintain full borrowing privileges.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/fines"
+              className="px-4 py-2.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs transition-all shadow-sm shrink-0 self-end md:self-center flex items-center gap-1.5 cursor-pointer"
+            >
+              <IndianRupee className="w-3.5 h-3.5" /> View Fine Details &rarr;
+            </Link>
+          </div>
+        );
+      })()}
 
       {/* Metrics Summary Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -322,23 +389,37 @@ export default function StudentDashboard() {
         {(() => {
           const calculatedPendingFine = getMemberPendingFines(studentMember.id, state);
           return (
-            <div className="bg-white p-5 rounded-3xl shadow-xs border border-rose-200/80 bg-rose-50/20 space-y-3 flex flex-col justify-between min-w-0">
+            <Link
+              to="/fines"
+              className={`p-5 rounded-3xl shadow-xs border space-y-3 flex flex-col justify-between min-w-0 transition-all hover:scale-[1.02] cursor-pointer ${
+                calculatedPendingFine > 0
+                  ? 'bg-rose-50/50 border-rose-200 hover:border-rose-300'
+                  : 'bg-white border-slate-200 hover:border-blue-200'
+              }`}
+            >
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-rose-100 text-rose-600 rounded-2xl">
-                  <CreditCard className="w-6 h-6" />
+                <div className={`p-3 rounded-2xl ${calculatedPendingFine > 0 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                  <IndianRupee className="w-6 h-6" />
                 </div>
                 <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${calculatedPendingFine > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
                   {calculatedPendingFine > 0 ? 'Unpaid Dues' : 'Clear Account'}
                 </span>
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-rose-700 uppercase tracking-wider truncate">Pending Fines Balance</p>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Pending Fines Balance</p>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="text-2xl font-extrabold font-poppins text-rose-900">₹{calculatedPendingFine.toFixed(2)}</span>
+                  <span className={`text-2xl font-extrabold font-poppins ${calculatedPendingFine > 0 ? 'text-rose-700' : 'text-slate-900'}`}>
+                    ₹{calculatedPendingFine.toFixed(2)}
+                  </span>
                 </div>
               </div>
-              <p className="text-xs text-slate-500 truncate">Overdue rate: ₹{(state.config?.fineRatePerDay || 10).toFixed(2)} / day</p>
-            </div>
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span>Overdue: ₹{(state.config?.fineRatePerDay || 5).toFixed(2)}/day</span>
+                <span className="text-blue-600 font-bold hover:underline flex items-center gap-0.5">
+                  View &rarr;
+                </span>
+              </div>
+            </Link>
           );
         })()}
 
@@ -364,7 +445,7 @@ export default function StudentDashboard() {
       {/* Navigation Tabs Bar - Single Line */}
       <div className="bg-white p-3 rounded-3xl shadow-sm border border-slate-200 flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
         <button
-          onClick={() => setActiveTab('loans')}
+          onClick={() => handleTabChange('loans')}
           className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             activeTab === 'loans' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
           }`}
@@ -373,25 +454,7 @@ export default function StudentDashboard() {
         </button>
 
         <button
-          onClick={() => setActiveTab('reservations')}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
-            activeTab === 'reservations' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Bookmark className="w-3.5 h-3.5" /> My Holds ({studentReservations.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('extensions')}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
-            activeTab === 'extensions' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Clock className="w-3.5 h-3.5" /> Extension Requests ({studentExtensionRequests.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('procurement')}
+          onClick={() => handleTabChange('procurement')}
           className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             activeTab === 'procurement' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
           }`}
@@ -400,7 +463,7 @@ export default function StudentDashboard() {
         </button>
 
         <button
-          onClick={() => setActiveTab('history')}
+          onClick={() => handleTabChange('history')}
           className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             activeTab === 'history' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
           }`}
@@ -412,10 +475,26 @@ export default function StudentDashboard() {
       {/* Tab 1: Active Book Loans */}
       {activeTab === 'loans' && (
         <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
-              <h2 className="text-lg font-bold font-poppins text-slate-900">My Borrowed Books & Return Date Extensions</h2>
+              <h2 className="text-lg font-bold font-poppins text-slate-900">My Borrowed Books & Return Dates</h2>
               <p className="text-xs text-slate-500 mt-0.5">Manage borrowed book copies and submit return time extension requests with valid reasons.</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link
+                to="/extensions"
+                className="px-3.5 py-1.5 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold text-xs border border-purple-200 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Clock className="w-3.5 h-3.5 text-purple-600" />
+                <span>Extend Book Time Desk &rarr;</span>
+              </Link>
+              <Link
+                to="/reservations"
+                className="px-3.5 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-xs border border-indigo-200 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Bookmark className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Reservations Queue &rarr;</span>
+              </Link>
             </div>
           </div>
 
@@ -488,130 +567,7 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* Tab 2: My Holds (Reservations) */}
-      {activeTab === 'reservations' && (
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div>
-              <h2 className="text-lg font-bold font-poppins text-slate-900">My Hold Reservations Queue</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Track your position in queue for checked-out book copies.</p>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="p-3.5 rounded-l-xl">Reserved Book Title</th>
-                  <th className="p-3.5">Request Date</th>
-                  <th className="p-3.5">Hold Expiry</th>
-                  <th className="p-3.5">Queue Position</th>
-                  <th className="p-3.5 text-right rounded-r-xl">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {studentReservations.map((res) => (
-                  <tr key={res.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-3.5 font-bold text-slate-900 text-sm">{res.bookTitle}</td>
-                    <td className="p-3.5 font-mono">{res.requestDate}</td>
-                    <td className="p-3.5 font-mono font-bold text-slate-700">{res.expiryDate || '7 Days'}</td>
-                    <td className="p-3.5 font-bold">
-                      <span className="px-3 py-1 bg-amber-100 text-amber-900 rounded-full font-mono text-xs">
-                        Queue Position #{res.queuePosition}
-                      </span>
-                    </td>
-                    <td className="p-3.5 text-right">
-                      {res.status === 'PENDING' && (
-                        <button
-                          onClick={() => handleCancelReservation(res.id)}
-                          className="px-3.5 py-1.5 rounded-xl border border-rose-200 text-rose-700 font-bold text-xs hover:bg-rose-50 transition-all cursor-pointer"
-                        >
-                          Cancel Hold
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {studentReservations.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="p-12 text-center text-slate-400 font-medium space-y-2">
-                      <p className="text-base font-bold text-slate-700">No Active Book Reservations</p>
-                      <p className="text-xs text-slate-500">When books are currently checked out, place a reservation hold to reserve the next copy.</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 3: My Extension Requests */}
-      {activeTab === 'extensions' && (
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div>
-              <h2 className="text-lg font-bold font-poppins text-slate-900">My Book Return Time Extension Requests</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Track your submitted due date extension requests and librarian approvals.</p>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="p-3.5 rounded-l-xl">Book Title & Accession</th>
-                  <th className="p-3.5">Current Due Date</th>
-                  <th className="p-3.5">Extension Days</th>
-                  <th className="p-3.5">Valid Reason Provided</th>
-                  <th className="p-3.5">Librarian Decision</th>
-                  <th className="p-3.5 text-right rounded-r-xl">Requested Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {studentExtensionRequests.map((req) => (
-                  <tr key={req.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-3.5 font-semibold text-slate-900">
-                      {req.bookTitle}
-                      <span className="block font-mono text-[11px] text-slate-400 font-normal">{req.accessionNo}</span>
-                    </td>
-                    <td className="p-3.5 font-bold text-slate-800">{req.currentDueDate}</td>
-                    <td className="p-3.5 font-bold text-purple-700">+{req.requestedExtensionDays} Days</td>
-                    <td className="p-3.5 text-xs text-slate-700 italic max-w-xs font-medium">"{req.reason}"</td>
-                      <td className="p-3.5 font-bold">
-                        <span
-                          className={`px-3 py-1 rounded-xl text-[10px] uppercase font-extrabold inline-flex flex-col items-center justify-center leading-tight shadow-2xs ${
-                            req.status === 'APPROVED'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : req.status === 'REJECTED'
-                              ? 'bg-rose-100 text-rose-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          <span className="whitespace-nowrap font-extrabold">{req.status}</span>
-                          {req.newDueDate && (
-                            <span className="text-[9px] font-mono font-bold opacity-80">(Extended to {req.newDueDate})</span>
-                          )}
-                        </span>
-                      </td>
-                    <td className="p-3.5 text-right font-mono text-slate-500">{req.requestedDate}</td>
-                  </tr>
-                ))}
-                {studentExtensionRequests.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="p-12 text-center text-slate-400 font-medium space-y-1">
-                      <p className="text-base font-bold text-slate-700">No Extension Requests</p>
-                      <p className="text-xs text-slate-500">You can request a time extension for active borrowed books under Active Borrowed Books.</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 3: Book Procurement Requests */}
+      {/* Tab 2: Book Procurement Requests */}
       {activeTab === 'procurement' && (
         <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -857,11 +813,31 @@ export default function StudentDashboard() {
               </button>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-purple-50/70 border border-purple-100 text-xs space-y-1">
-              <p><strong className="text-slate-800">Book Title:</strong> {extensionModalTx.bookTitle}</p>
-              <p><strong className="text-slate-800">Accession No:</strong> <span className="font-mono text-purple-700 font-bold">{extensionModalTx.accessionNo}</span></p>
-              <p><strong className="text-slate-800">Current Due Date:</strong> <span className="font-bold text-rose-700">{extensionModalTx.dueDate}</span></p>
-            </div>
+            {studentActiveTransactions.length > 1 ? (
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Select Borrowed Book to Extend *</label>
+                <select
+                  value={extensionModalTx.id}
+                  onChange={(e) => {
+                    const found = studentActiveTransactions.find((tx) => tx.id === e.target.value);
+                    if (found) setExtensionModalTx(found);
+                  }}
+                  className="w-full p-2.5 rounded-xl border border-purple-200 text-xs font-bold focus:ring-2 focus:ring-purple-500/20 bg-purple-50/40 text-slate-900"
+                >
+                  {studentActiveTransactions.map((tx) => (
+                    <option key={tx.id} value={tx.id}>
+                      {tx.bookTitle} (Due: {tx.dueDate} | ACC: {tx.accessionNo})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-2xl bg-purple-50/70 border border-purple-100 text-xs space-y-1">
+                <p><strong className="text-slate-800">Book Title:</strong> {extensionModalTx.bookTitle}</p>
+                <p><strong className="text-slate-800">Accession No:</strong> <span className="font-mono text-purple-700 font-bold">{extensionModalTx.accessionNo}</span></p>
+                <p><strong className="text-slate-800">Current Due Date:</strong> <span className="font-bold text-rose-700">{extensionModalTx.dueDate}</span></p>
+              </div>
+            )}
 
             <form onSubmit={handleRequestExtensionSubmit} className="space-y-4 text-xs">
               <div>

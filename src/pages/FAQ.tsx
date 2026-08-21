@@ -8,7 +8,7 @@ const FAQ_DATA = [
   },
   {
     question: 'What are the borrowing limits and borrowing periods for Students & Faculty?',
-    answer: 'Undergraduate students can borrow up to 5 books for 14 days. Faculty members can borrow up to 10 books for 30 days. Renewals can be performed up to 2 times via your online student or faculty portal unless the book is reserved by another member.',
+    answer: 'Undergraduate students can borrow up to 5 books for 7 days. Faculty members can borrow up to 10 books for 30 days. Renewals can be performed up to 2 times via your online student or faculty portal unless the book is reserved by another member.',
   },
   {
     question: 'What are the overdue fine rates and penalty policies?',

@@ -152,7 +152,7 @@ export function generateOfficialDownloadPdf(docTitle: string): string {
     p1Lines.push({ text: 'Permanent Residential Address: __________________________________________________', isBold: false, fontSize: 9.5, spacingAfter: 18 });
 
     p1Lines.push({ text: 'SECTION 2: MEMBERSHIP PRIVILEGES & BORROWING LIMITS', isBold: true, fontSize: 11, spacingAfter: 12 });
-    p1Lines.push({ text: '1. Undergraduate Students: Eligible to borrow up to 4 books for a duration of 14 days.', isBold: false, fontSize: 9, spacingAfter: 8 });
+    p1Lines.push({ text: '1. Undergraduate Students: Eligible to borrow up to 4 books for a duration of 7 days.', isBold: false, fontSize: 9, spacingAfter: 8 });
     p1Lines.push({ text: '2. Postgraduate & Research Scholars: Eligible for 6 books for a duration of 30 days.', isBold: false, fontSize: 9, spacingAfter: 8 });
     p1Lines.push({ text: '3. Faculty Members: Eligible for up to 10 books for an entire academic semester.', isBold: false, fontSize: 9, spacingAfter: 16 });
 

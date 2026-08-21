@@ -23,6 +23,8 @@ export default function Downloads() {
   const [state, setState] = useState(libraryStore.snapshot);
   const [downloadToast, setDownloadToast] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<{ name: string; url: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
 
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'STAFF';
 
@@ -31,23 +33,40 @@ export default function Downloads() {
     return () => sub.unsubscribe();
   }, []);
 
-  const categories = [
-    {
-      id: 'Forms & Membership Applications',
-      title: 'Forms & Membership Applications',
-      icon: FileText,
-    },
-    {
-      id: 'Library Policies & Conduct Rules',
-      title: 'Library Policies & Conduct Rules',
-      icon: ShieldCheck,
-    },
-    {
-      id: 'Academic Exam & Curriculum',
-      title: 'Academic Exam & Curriculum',
-      icon: GraduationCap,
-    },
-  ];
+  const activeDocuments = useMemo(() => {
+    return (state.officialDocuments || []).filter((d) => !d.isArchived);
+  }, [state.officialDocuments]);
+
+  // Dynamically compute all unique categories from documents
+  const dynamicCategories = useMemo(() => {
+    const defaultCats = [
+      { id: 'Forms & Membership Applications', title: 'Forms & Membership Applications', icon: FileText },
+      { id: 'Library Policies & Conduct Rules', title: 'Library Policies & Conduct Rules', icon: ShieldCheck },
+      { id: 'Academic Exam & Curriculum', title: 'Academic Exam & Curriculum', icon: GraduationCap },
+    ];
+
+    const existingCatIds = new Set(defaultCats.map((c) => c.id));
+    const allDocCats: string[] = Array.from(new Set(activeDocuments.map((d) => d.category).filter((c): c is string => Boolean(c))));
+
+    const extraCats = allDocCats
+      .filter((catName) => !existingCatIds.has(catName))
+      .map((catName) => ({
+        id: catName,
+        title: catName,
+        icon: FileDown,
+      }));
+
+    return [...defaultCats, ...extraCats];
+  }, [activeDocuments]);
+
+  const filteredDocuments = useMemo(() => {
+    return activeDocuments.filter((d) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = !q || d.title.toLowerCase().includes(q) || d.description?.toLowerCase().includes(q) || d.category.toLowerCase().includes(q);
+      const matchesCat = selectedCategory === 'ALL' || d.category === selectedCategory;
+      return matchesSearch && matchesCat;
+    });
+  }, [activeDocuments, searchQuery, selectedCategory]);
 
   const handleDownloadFile = (doc: OfficialDocument) => {
     if (!user) {
@@ -68,10 +87,6 @@ export default function Downloads() {
     const blobUrl = getOfficialDocumentBlobUrl(doc);
     setPreviewDoc({ name: doc.title, url: blobUrl });
   };
-
-  const activeDocuments = useMemo(() => {
-    return (state.officialDocuments || []).filter((d) => !d.isArchived);
-  }, [state.officialDocuments]);
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -112,102 +127,155 @@ export default function Downloads() {
             <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
             <span>{downloadToast}</span>
           </div>
-          <button onClick={() => setDownloadToast(null)} className="text-emerald-600 hover:text-emerald-800 p-1">
+          <button onClick={() => setDownloadToast(null)} className="text-emerald-600 hover:text-emerald-800 p-1 cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* 3 Categories Dynamic Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-        {categories.map((cat) => {
-          const CategoryIcon = cat.icon;
-          const items = activeDocuments.filter((d) => d.category === cat.id);
-
-          return (
-            <div
-              key={cat.id}
-              className="bg-white rounded-3xl shadow-xs border border-slate-200/80 hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between overflow-hidden"
+      {/* Search & Category Filter Toolbar */}
+      <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="relative flex-1 w-full">
+          <input
+            type="text"
+            placeholder="Search forms, guidelines, exam schedules by keyword..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-4 pr-10 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
             >
-              {/* Category Header */}
-              <div className="bg-slate-50/90 px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 shrink-0 shadow-2xs">
-                    <CategoryIcon className="w-4 h-4" />
-                  </div>
-                  <h2 className="text-sm sm:text-base font-bold font-poppins text-slate-900 leading-snug">
-                    {cat.title}
-                  </h2>
-                </div>
-                <span className="text-[11px] font-bold text-slate-400 font-mono">
-                  {items.length} {items.length === 1 ? 'doc' : 'docs'}
-                </span>
-              </div>
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
-              {/* Items List */}
-              <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-between">
-                {items.length > 0 ? (
-                  items.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="p-5 hover:bg-slate-50/70 transition-all flex flex-col justify-between gap-3 group"
-                    >
-                      <div className="flex items-start gap-3.5">
-                        <div className="p-2.5 rounded-2xl bg-slate-100 text-slate-600 group-hover:bg-purple-600 group-hover:text-white transition-all shrink-0 mt-0.5 shadow-2xs">
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-purple-700 transition-colors leading-snug">
-                            {doc.title}
-                          </h3>
-                          <p className="text-[11px] text-slate-500 line-clamp-2 mt-1 leading-normal">
-                            {doc.description}
-                          </p>
-                          <div className="flex items-center gap-2 mt-2 flex-wrap">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold font-mono bg-purple-50 text-purple-700 border border-purple-200/60">
-                              {doc.fileSize}
-                            </span>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600">
-                              {doc.fileType}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-medium">
-                              • {doc.updatedDate}
-                            </span>
+        {/* Filter Pills */}
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <button
+            onClick={() => setSelectedCategory('ALL')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              selectedCategory === 'ALL'
+                ? 'bg-purple-600 text-white shadow-sm shadow-purple-200'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            All Forms ({activeDocuments.length})
+          </button>
+          {dynamicCategories.map((cat) => {
+            const count = activeDocuments.filter((d) => d.category === cat.id).length;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  selectedCategory === cat.id
+                    ? 'bg-purple-600 text-white shadow-sm shadow-purple-200'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {cat.title} ({count})
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Dynamic Categories Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        {dynamicCategories
+          .filter((cat) => selectedCategory === 'ALL' || cat.id === selectedCategory)
+          .map((cat) => {
+            const CategoryIcon = cat.icon || FileText;
+            const items = filteredDocuments.filter((d) => d.category === cat.id);
+
+            return (
+              <div
+                key={cat.id}
+                className="bg-white rounded-3xl shadow-xs border border-slate-200/80 hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between overflow-hidden"
+              >
+                {/* Category Header */}
+                <div className="bg-slate-50/90 px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 shrink-0 shadow-2xs">
+                      <CategoryIcon className="w-4 h-4" />
+                    </div>
+                    <h2 className="text-sm sm:text-base font-bold font-poppins text-slate-900 leading-snug">
+                      {cat.title}
+                    </h2>
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-400 font-mono">
+                    {items.length} {items.length === 1 ? 'doc' : 'docs'}
+                  </span>
+                </div>
+
+                {/* Items List */}
+                <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-between">
+                  {items.length > 0 ? (
+                    items.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="p-5 hover:bg-slate-50/70 transition-all flex flex-col justify-between gap-3 group"
+                      >
+                        <div className="flex items-start gap-3.5">
+                          <div className="p-2.5 rounded-2xl bg-slate-100 text-slate-600 group-hover:bg-purple-600 group-hover:text-white transition-all shrink-0 mt-0.5 shadow-2xs">
+                            <FileText className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-purple-700 transition-colors leading-snug">
+                              {doc.title}
+                            </h3>
+                            <p className="text-[11px] text-slate-500 line-clamp-2 mt-1 leading-normal">
+                              {doc.description}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold font-mono bg-purple-50 text-purple-700 border border-purple-200/60">
+                                {doc.fileSize}
+                              </span>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600">
+                                {doc.fileType}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                • {doc.updatedDate}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-2 pt-2 border-t border-slate-100/80">
-                        <button
-                          type="button"
-                          onClick={() => handlePreviewFile(doc)}
-                          className="flex-1 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>Preview</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadFile(doc)}
-                          className="flex-1 px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/20 cursor-pointer active:scale-95"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>Download</span>
-                        </button>
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2 pt-2 border-t border-slate-100/80">
+                          <button
+                            type="button"
+                            onClick={() => handlePreviewFile(doc)}
+                            className="flex-1 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Preview</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadFile(doc)}
+                            className="flex-1 px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/20 cursor-pointer active:scale-95"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Download</span>
+                          </button>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center text-slate-400 flex flex-col items-center justify-center">
+                      <FileDown className="w-8 h-8 text-slate-300 mb-1" />
+                      <p className="text-xs font-semibold">No official documents in this category.</p>
                     </div>
-                  ))
-                ) : (
-                  <div className="p-8 text-center text-slate-400 flex flex-col items-center justify-center">
-                    <FileDown className="w-8 h-8 text-slate-300 mb-1" />
-                    <p className="text-xs font-semibold">No official documents in this category.</p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
 
       {/* Embedded Document Preview Modal */}

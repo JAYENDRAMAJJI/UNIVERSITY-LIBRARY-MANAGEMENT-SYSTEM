@@ -3,6 +3,7 @@ import { IndianRupee, CheckCircle, Printer, Bell, Send, Search, X, Download, Fil
 import { libraryStore, getSystemFineSummary, getTransactionFineAmount, getLocalDateStr } from '../../services/libraryStore.service';
 import { exportStyledExcelFile } from '../../utils/excelExport';
 import { FineRecord } from '../../types/library';
+import SendNotificationModal from '../../components/common/SendNotificationModal';
 
 export default function FineManagement() {
   const [state, setState] = useState(libraryStore.snapshot);
@@ -12,6 +13,7 @@ export default function FineManagement() {
   const [waiveModalFine, setWaiveModalFine] = useState<FineRecord | null>(null);
   const [waiveReasonInput, setWaiveReasonInput] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [notificationModalData, setNotificationModalData] = useState<{ member: any; context: any } | null>(null);
 
   // Export CSV/Excel Modal State
   const [showExportModal, setShowExportModal] = useState(false);
@@ -172,8 +174,21 @@ export default function FineManagement() {
   };
 
   const handleSendReminder = (fine: FineRecord) => {
-    const res = libraryStore.sendOverdueReminder(fine.transactionId);
-    triggerToast(res.message);
+    const member = state.members.find((m) => m.id === fine.memberId || m.memberCardNo === fine.memberCardNo);
+    setNotificationModalData({
+      member: {
+        id: fine.memberId,
+        name: fine.memberName,
+        email: member?.email,
+        memberCardNo: fine.memberCardNo,
+        role: member?.role,
+      },
+      context: {
+        type: 'FINE_DUE',
+        bookTitle: fine.bookTitle,
+        fineAmount: fine.amount,
+      },
+    });
   };
 
   return (
@@ -188,15 +203,35 @@ export default function FineManagement() {
           <p className="text-sm text-slate-500 mt-1">Collect overdue fines, issue official payment receipts, and manage fee waivers.</p>
         </div>
 
-        {/* Export CSV Report Button */}
-        <button
-          type="button"
-          onClick={openExportModal}
-          className="px-4 py-2.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 font-bold text-xs transition-all flex items-center gap-2 cursor-pointer shadow-2xs active:scale-95 shrink-0"
-        >
-          <Download className="h-4 w-4 text-blue-600" />
-          <span>Export CSV Report</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setNotificationModalData({
+                member: null,
+                context: {
+                  type: 'FINE_DUE',
+                  fineAmount: 50,
+                },
+              });
+            }}
+            className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-all flex items-center gap-2 cursor-pointer shadow-md shadow-rose-200 active:scale-95"
+            title="Dispatch Fine & Dues Settlement Notice to Member"
+          >
+            <Bell className="h-4 w-4" />
+            <span>Send Dues Notice</span>
+          </button>
+
+          {/* Export CSV Report Button */}
+          <button
+            type="button"
+            onClick={openExportModal}
+            className="px-4 py-2.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 font-bold text-xs transition-all flex items-center gap-2 cursor-pointer shadow-2xs active:scale-95 shrink-0"
+          >
+            <Download className="h-4 w-4 text-blue-600" />
+            <span>Export CSV Report</span>
+          </button>
+        </div>
       </div>
 
       {toastMessage && (
@@ -334,11 +369,13 @@ export default function FineManagement() {
                       {fine.status === 'UNPAID' && (
                         <>
                           <button
+                            type="button"
                             onClick={() => handleSendReminder(fine)}
-                            className="px-2.5 py-1.5 rounded-lg bg-amber-500 text-white font-semibold text-xs shadow-xs hover:bg-amber-600 flex items-center gap-1"
-                            title="Send Automated Email & SMS Overdue Alert"
+                            className="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                            title="Send Fine Settlement & Dues Notice to Member"
                           >
-                            <Bell className="h-3.5 w-3.5" /> Send Alert
+                            <Bell className="h-3.5 w-3.5" />
+                            <span>Dues Notice</span>
                           </button>
                           <button
                             onClick={() => handlePay(fine)}
@@ -730,6 +767,16 @@ export default function FineManagement() {
             </div>
           </div>
         </div>
+      )}
+      {notificationModalData && (
+        <SendNotificationModal
+          isOpen={!!notificationModalData}
+          onClose={() => setNotificationModalData(null)}
+          mode="FINES"
+          initialMember={notificationModalData.member}
+          initialContext={notificationModalData.context}
+          onSuccess={triggerToast}
+        />
       )}
     </div>
   );

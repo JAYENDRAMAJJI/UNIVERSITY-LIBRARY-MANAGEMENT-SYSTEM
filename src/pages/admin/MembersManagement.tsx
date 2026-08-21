@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Users, Search, CreditCard, Download, CheckCircle, Shield, AlertTriangle, UserPlus, RotateCw, Barcode, BookOpen, X, FileSpreadsheet, Calendar, Sparkles } from 'lucide-react';
+import { Users, Search, CreditCard, Download, CheckCircle, Shield, AlertTriangle, UserPlus, RotateCw, Barcode, BookOpen, X, FileSpreadsheet, Calendar, Sparkles, Bell, Send } from 'lucide-react';
 import { libraryStore, getMemberPendingFines, getLocalDateStr } from '../../services/libraryStore.service';
 import { exportStyledExcelFile } from '../../utils/excelExport';
 import { MemberProfile } from '../../types/library';
 import RegisterAccountModal from '../../components/common/RegisterAccountModal';
+import SendNotificationModal from '../../components/common/SendNotificationModal';
 import { generateQrSvgString, generateBarcodeSvgString, svgToDataUrl } from '../../utils/barcodeQrGenerator';
 
 export default function MembersManagement() {
@@ -13,6 +14,8 @@ export default function MembersManagement() {
   const [selectedCardModal, setSelectedCardModal] = useState<MemberProfile | null>(null);
   const [cardSide, setCardSide] = useState<'front' | 'back'>('front');
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [notificationModalData, setNotificationModalData] = useState<{ member: any; context: any } | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Export CSV Modal State
   const [showExportModal, setShowExportModal] = useState(false);
@@ -214,7 +217,7 @@ export default function MembersManagement() {
               
               <div class="card-footer">
                 <span>Issued: ${member.registeredDate || '2026-01-15'}</span>
-                <span>Valid Thru: DEC 2028</span>
+                <span>Valid Through: DEC 2028</span>
                 <span style="color: #f59e0b; font-weight: bold;">SECURITY VERIFIED</span>
               </div>
             </div>
@@ -233,7 +236,7 @@ export default function MembersManagement() {
               </div>
               
               <div class="rules-notice">
-                • Present card at library turnstiles, borrowing counters, and RFID gates.<br/>
+                • Present card at library turnstiles, circulation counters, and RFID gates.<br/>
                 • Non-transferable official pass. Max Quota: ${member.maxAllowedBooks} Books.
               </div>
               
@@ -423,6 +426,30 @@ export default function MembersManagement() {
               </button>
 
               <button
+                type="button"
+                onClick={() => {
+                  const pending = getMemberPendingFines(member.id, state);
+                  setNotificationModalData({
+                    member: {
+                      id: member.id,
+                      name: member.name,
+                      email: member.email,
+                      memberCardNo: member.memberCardNo,
+                      role: member.role,
+                    },
+                    context: {
+                      type: pending > 0 ? 'FINE_DUE' : 'CUSTOM',
+                      fineAmount: pending,
+                    },
+                  });
+                }}
+                className="p-2.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-500 hover:text-white text-amber-800 transition-all cursor-pointer flex items-center justify-center shadow-2xs"
+                title="Send Notification / Due Reminder to Member"
+              >
+                <Bell className="h-4 w-4" />
+              </button>
+
+              <button
                 onClick={() => libraryStore.exportMemberCompleteProfileReportCSV(member.id)}
                 className="p-2.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-all cursor-pointer flex items-center justify-center"
                 title="Export Complete Member Activity Report (CSV)"
@@ -489,7 +516,7 @@ export default function MembersManagement() {
 
                   <div className="flex items-center justify-between border-t border-white/15 pt-2 text-[9px] text-slate-400 font-mono">
                     <span>Issued: {selectedCardModal.registeredDate || '2026-01-15'}</span>
-                    <span>Valid Thru: DEC 2028</span>
+                    <span>Valid Through: DEC 2028</span>
                     <span className="text-amber-400 font-bold">SECURITY VERIFIED</span>
                   </div>
                 </>
@@ -656,6 +683,19 @@ export default function MembersManagement() {
         isOpen={isRegisterModalOpen}
         onClose={() => setIsRegisterModalOpen(false)}
       />
+
+      {notificationModalData && (
+        <SendNotificationModal
+          isOpen={!!notificationModalData}
+          onClose={() => setNotificationModalData(null)}
+          initialMember={notificationModalData.member}
+          initialContext={notificationModalData.context}
+          onSuccess={(msg) => {
+            setToastMessage(msg);
+            setTimeout(() => setToastMessage(null), 4000);
+          }}
+        />
+      )}
     </div>
   );
 }

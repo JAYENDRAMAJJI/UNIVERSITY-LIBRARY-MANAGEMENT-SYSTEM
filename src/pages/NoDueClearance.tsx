@@ -479,21 +479,29 @@ export default function NoDueClearance() {
                 {/* Specific Issue 2: Unpaid Fines */}
                 {audit.pendingFinesAmount > 0 && (
                   <div className="bg-white/90 rounded-2xl p-4 border border-rose-200 space-y-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <span className="text-xs font-extrabold text-rose-900 uppercase tracking-wider flex items-center gap-1.5">
                         <IndianRupee className="h-4 w-4 text-rose-600" />
                         2. Unpaid Library Fines: ₹{audit.pendingFinesAmount.toFixed(2)}
                       </span>
-                      <button
-                        type="button"
-                        onClick={handleSettleFines}
-                        className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10.5px] cursor-pointer shadow-xs transition-all active:scale-95"
-                      >
-                        Settle Fines
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to="/fines"
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10.5px] cursor-pointer shadow-2xs transition-all flex items-center gap-1"
+                        >
+                          View Breakdown & Receipts &rarr;
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={handleSettleFines}
+                          className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10.5px] cursor-pointer shadow-xs transition-all active:scale-95"
+                        >
+                          Settle Fines
+                        </button>
+                      </div>
                     </div>
                     <p className="text-xs text-slate-600">
-                      Please settle fine liabilities to unlock the clearance application.
+                      Please settle fine liabilities online or at the circulation desk to unlock your clearance application.
                     </p>
                   </div>
                 )}

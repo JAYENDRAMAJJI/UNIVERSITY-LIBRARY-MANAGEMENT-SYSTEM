@@ -28,10 +28,13 @@ import {
   ArrowRightLeft,
   X,
   ShieldCheck,
+  Bell,
+  Send,
 } from 'lucide-react';
 import { libraryStore, getLocalDateStr, getTransactionFineAmount } from '../../services/libraryStore.service';
 import { exportStyledExcelFile } from '../../utils/excelExport';
 import { Book, IssueTransaction } from '../../types/library';
+import SendNotificationModal from '../../components/common/SendNotificationModal';
 
 const splitDateTime = (rawStr?: string, defaultTimeStr = '10:00 AM') => {
   if (!rawStr) return { date: 'N/A', time: '' };
@@ -96,6 +99,7 @@ export default function BookBorrowHistory() {
   const [selectedExportBookIds, setSelectedExportBookIds] = useState<string[]>([]);
   const [modalBookSearch, setModalBookSearch] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [notificationModalData, setNotificationModalData] = useState<{ member: any; context: any } | null>(null);
 
   // Searchable Book Select Dropdown State
   const [isBookSelectOpen, setIsBookSelectOpen] = useState(false);
@@ -476,6 +480,26 @@ export default function BookBorrowHistory() {
 
         {/* Global Export & Clear Controls */}
         <div className="relative z-10 flex items-center gap-2 flex-wrap shrink-0">
+          {isAdminOrStaff && (
+            <button
+              type="button"
+              onClick={() => {
+                setNotificationModalData({
+                  member: null,
+                  context: {
+                    type: 'DUE_SOON',
+                    bookTitle: '',
+                  },
+                });
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm backdrop-blur-md border border-white/20 transition-all cursor-pointer active:scale-95"
+              title="Dispatch book return reminder or circular notice to members"
+            >
+              <Bell className="h-4 w-4 text-amber-300" />
+              <span>Send Return / Due Notice</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={openExportModal}
@@ -641,6 +665,7 @@ export default function BookBorrowHistory() {
                   <th className="py-3.5 px-2 text-center text-purple-950 font-bold">Duration</th>
                   <th className="py-3.5 px-2 text-center text-rose-950 font-bold">Fine Status</th>
                   <th className="py-3.5 px-3 text-right text-purple-950 font-bold">Status</th>
+                  {isAdminOrStaff && <th className="py-3.5 px-3 text-right text-indigo-950 font-bold">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -707,7 +732,7 @@ export default function BookBorrowHistory() {
                                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                   <span>{date}</span>
                                 </div>
-                                {time && <p className="text-[11px] font-medium text-emerald-600/80 pl-4.5">{time}</p>}
+                                <div className="text-[11px] font-medium text-emerald-600/80 pl-4.5">{time}</div>
                               </div>
                             );
                           })()
@@ -759,13 +784,79 @@ export default function BookBorrowHistory() {
                           {record.status === 'ISSUED' ? 'BORROWED' : record.status}
                         </span>
                       </td>
+
+                      {/* Action: Send Reminder / Alert */}
+                      {isAdminOrStaff && (
+                        <td className="py-3 px-3 align-middle text-right whitespace-nowrap">
+                          {record.status === 'RETURNED' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                              Returned
+                            </span>
+                          ) : (() => {
+                            const isOverdue = record.status === 'OVERDUE' || (record.status === 'ISSUED' && new Date(record.dueDate).getTime() < Date.now());
+                            const daysUntilDue = Math.ceil((new Date(record.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                            const isDueSoon = !isOverdue && daysUntilDue <= 3;
+                            const member = storeState.members.find((m) => m.id === record.memberId || m.memberCardNo === record.memberCardNo);
+
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNotificationModalData({
+                                    member: {
+                                      id: record.memberId,
+                                      name: record.memberName,
+                                      email: member?.email,
+                                      memberCardNo: record.memberCardNo,
+                                      role: record.role,
+                                    },
+                                    context: {
+                                      type: isOverdue ? 'OVERDUE' : daysUntilDue <= 1 ? 'LAST_DAY' : 'DUE_SOON',
+                                      bookTitle: record.bookTitle,
+                                      accessionNo: record.accessionNo,
+                                      barcode: record.barcode,
+                                      dueDate: record.dueDate,
+                                      fineAmount: record.fineAmount || 25,
+                                      daysOverdue: isOverdue ? Math.abs(daysUntilDue) : undefined,
+                                    },
+                                  });
+                                }}
+                                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer shadow-2xs inline-flex items-center gap-1.5 font-bold text-[11px] ${
+                                  isOverdue
+                                    ? 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 animate-pulse'
+                                    : isDueSoon
+                                    ? 'bg-amber-50 hover:bg-amber-600 text-amber-800 hover:text-white border border-amber-300'
+                                    : 'bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200'
+                                }`}
+                                title={
+                                  isOverdue
+                                    ? 'Send Urgent Overdue Warning & Fine Alert'
+                                    : isDueSoon
+                                    ? 'Send Last Day / Due Soon Return Reminder'
+                                    : 'Send Book Due Date Notice'
+                                }
+                              >
+                                <Bell className="w-3.5 h-3.5" />
+                                <span>
+                                  {isOverdue
+                                    ? 'Overdue Alert'
+                                    : isDueSoon
+                                    ? 'Last Day Remind'
+                                    : 'Remind'}
+                                </span>
+                              </button>
+                            );
+                          })()}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
 
                 {filteredRecords.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="py-16 text-center text-slate-400 font-medium space-y-2">
+                    <td colSpan={isAdminOrStaff ? 9 : 8} className="py-16 text-center text-slate-400 font-medium space-y-2">
                       <p className="text-base font-bold text-slate-700">No Borrowing History Found</p>
                       <p className="text-xs text-slate-500">No checkout transaction records match your search or filter options.</p>
                     </td>
@@ -1109,6 +1200,18 @@ export default function BookBorrowHistory() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Admin Send Notification Modal */}
+      {notificationModalData && (
+        <SendNotificationModal
+          isOpen={!!notificationModalData}
+          onClose={() => setNotificationModalData(null)}
+          mode="BORROW_HISTORY"
+          initialMember={notificationModalData.member}
+          initialContext={notificationModalData.context}
+          onSuccess={triggerToast}
+        />
       )}
     </div>
   );

@@ -250,6 +250,9 @@ export interface MemberProfile {
   avatarUrl?: string;
   phone?: string;
   rollNo?: string;
+  program?: string;
+  startingYear?: number;
+  passoutYear?: number;
   academicBatch?: string;
   address?: string;
   emergencyContact?: string;
@@ -374,9 +377,11 @@ export interface Notice {
   targetAudience?: string;
   recipientEmail?: string;
   recipientName?: string;
+  recipientMemberId?: string;
   createdDate: string;
   isUrgent?: boolean;
   senderName?: string;
+  category?: 'DUE_REMINDER' | 'OVERDUE_WARNING' | 'FINE_PAYMENT' | 'GENERAL' | 'EXTENSION_UPDATE';
 }
 
 export type ExtensionRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';

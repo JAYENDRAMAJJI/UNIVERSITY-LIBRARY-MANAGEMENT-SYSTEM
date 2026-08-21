@@ -338,6 +338,8 @@ export default function BooksManagement() {
     format: 'PHYSICAL' as 'PHYSICAL' | 'DIGITAL' | 'HYBRID',
     digitalUrl: '',
     keywords: '',
+    collectionType: 'ACADEMIC' as any,
+    isReferenceOnly: false,
   });
 
   // Editing Book & Physical Copies State
@@ -385,6 +387,8 @@ export default function BooksManagement() {
       format: book.format || 'PHYSICAL',
       digitalUrl: book.digitalUrl || '',
       keywords: book.keywords || '',
+      collectionType: book.collectionType || (book.isReferenceOnly ? 'REFERENCE' : 'ACADEMIC'),
+      isReferenceOnly: !!book.isReferenceOnly,
     });
   };
 
@@ -996,71 +1000,87 @@ export default function BooksManagement() {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div>
-          <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-purple-700 bg-purple-50 px-3.5 py-1 rounded-full mb-2 border border-purple-200/80 shadow-2xs">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-purple-700 bg-purple-50 px-3.5 py-1 rounded-full mb-1 border border-purple-200/80 shadow-2xs">
             <BookOpen className="h-3.5 w-3.5" /> Enterprise University Library Catalog
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold font-poppins text-slate-900 tracking-tight">Manage Books</h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-xl">
             Hierarchical classification, department collections, accession numbers, barcodes, digital library resources, and bulk operations.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={() => {
-              setCsvInputText(
-                'Title,ISBN,Category,Author,Publisher,Price,Copies\nQuantum Computing Primer,978-0262039246,Physics & Applied Science,Dr. Alan Turing,MIT Press,850,4\nDatabase System Concepts,978-0078022159,Computer Science,Abraham Silberschatz,McGraw-Hill,1250,5'
-              );
-              setShowImportModal(true);
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
-          >
-            <Upload className="h-4 w-4 text-purple-600" /> Import CSV
-          </button>
-          <button
-            onClick={() => handleExportCSV()}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
-          >
-            <Download className="h-4 w-4 text-purple-600" /> Export CSV
-          </button>
-          <button
-            onClick={handleExportExcel}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-all cursor-pointer"
-          >
-            <FileSpreadsheet className="h-4 w-4" /> Export Excel
-          </button>
-          <button
-            onClick={handleBulkGenerateBarcodes}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-amber-200 bg-amber-50 text-xs font-bold text-amber-800 hover:bg-amber-100 transition-all cursor-pointer"
-            title="Auto-generate and verify unique Barcode & QR Code tags for all book copies"
-          >
-            <Barcode className="h-4 w-4 text-amber-600" /> Bulk Barcode & QR
-          </button>
-          <button
-            onClick={() => {
-              setSelectedBookIdsForPrint([]);
-              setShowBulkPrintModal(true);
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-indigo-200 bg-indigo-50 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition-all cursor-pointer"
-            title="Print barcode & QR label stickers sheet for catalog items"
-          >
-            <Printer className="h-4 w-4 text-indigo-600" /> Bulk Print Labels
-          </button>
-          <button
-            onClick={() => {
-              setAddFormData({
-                ...addFormData,
-                categoryId: state.categories[0]?.id || '',
-                authorId: state.authors[0]?.id || '',
-                publisherId: state.publishers[0]?.id || '',
-              });
-              setShowAddModal(true);
-            }}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-sm hover:shadow transition-all cursor-pointer active:scale-95"
-          >
-            <Plus className="h-4 w-4" /> Add New Book
-          </button>
+
+        {/* Structured Header Actions */}
+        <div className="flex flex-col sm:items-end gap-2.5 shrink-0">
+          {/* Row 1: Data Import / Export Tools */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => {
+                setCsvInputText(
+                  'Title,ISBN,Category,Author,Publisher,Price,Copies\nQuantum Computing Primer,978-0262039246,Physics & Applied Science,Dr. Alan Turing,MIT Press,850,4\nDatabase System Concepts,978-0078022159,Computer Science,Abraham Silberschatz,McGraw-Hill,1250,5'
+                );
+                setShowImportModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-2xs"
+            >
+              <Upload className="h-3.5 w-3.5 text-purple-600" /> Import CSV
+            </button>
+            <button
+              onClick={() => handleExportCSV()}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-2xs"
+            >
+              <Download className="h-3.5 w-3.5 text-purple-600" /> Export CSV
+            </button>
+            <button
+              onClick={handleExportExcel}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-emerald-700 transition-all cursor-pointer shadow-2xs"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" /> Export Excel
+            </button>
+          </div>
+
+          {/* Row 2: Barcode Ops & Primary Book Creation */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsCatalogSearchScannerOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-xs font-bold text-purple-700 transition-all cursor-pointer shadow-2xs"
+              title="Scan ISBN / Barcode / Accession Tag to search catalog"
+            >
+              <ScanBarcode className="h-3.5 w-3.5 text-purple-600" /> Scan Barcode
+            </button>
+            <button
+              onClick={handleBulkGenerateBarcodes}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-800 transition-all cursor-pointer shadow-2xs"
+              title="Auto-generate and verify unique Barcode & QR Code tags for all book copies"
+            >
+              <Barcode className="h-3.5 w-3.5 text-amber-600" /> Bulk Barcode & QR
+            </button>
+            <button
+              onClick={() => {
+                setSelectedBookIdsForPrint([]);
+                setShowBulkPrintModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-xs font-bold text-indigo-800 transition-all cursor-pointer shadow-2xs"
+              title="Print barcode & QR label stickers sheet for catalog items"
+            >
+              <Printer className="h-3.5 w-3.5 text-indigo-600" /> Bulk Print Labels
+            </button>
+            <button
+              onClick={() => {
+                setAddFormData({
+                  ...addFormData,
+                  categoryId: state.categories[0]?.id || '',
+                  authorId: state.authors[0]?.id || '',
+                  publisherId: state.publishers[0]?.id || '',
+                });
+                setShowAddModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-200 transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+            >
+              <Plus className="h-4 w-4" /> Add New Book
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1088,13 +1108,9 @@ export default function BooksManagement() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 font-bold text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 bg-slate-50/50"
             />
-            {searchTerm ? (
+            {searchTerm && (
               <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                 <X className="w-3.5 h-3.5" />
-              </button>
-            ) : (
-              <button onClick={() => setIsCatalogSearchScannerOpen(true)} className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-600 hover:text-purple-800" title="Scan Barcode to Search">
-                <ScanBarcode className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -2190,7 +2206,7 @@ export default function BooksManagement() {
       {editingBook && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fadeIn">
           <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
+            <div className="flex items-center justify-between pb-2">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Edit className="w-5 h-5 text-blue-600" /> Edit Catalog Record
               </h2>
@@ -2238,27 +2254,55 @@ export default function BooksManagement() {
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Collection Classification</label>
-                <select
-                  value={editFormData.collectionType || (editFormData.isReferenceOnly ? 'REFERENCE' : 'ACADEMIC')}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setEditFormData({
-                      ...editFormData,
-                      collectionType: val as any,
-                      isReferenceOnly: val === 'REFERENCE',
-                    });
-                  }}
-                  className="w-full px-3 py-2 border rounded-xl font-semibold text-slate-800"
-                >
-                  <option value="ACADEMIC">Academic Book (Issuable)</option>
-                  <option value="REFERENCE">🚫 Library Reference Book (Non-Issuable / Reading Room Only)</option>
-                  <option value="GENERAL">General Book (Issuable)</option>
-                  <option value="COMPETITIVE">Competitive Exam Book</option>
-                  <option value="RESEARCH">Research Paper & Journal</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Collection Classification</label>
+                  <select
+                    value={editFormData.collectionType || (editFormData.isReferenceOnly ? 'REFERENCE' : 'ACADEMIC')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditFormData({
+                        ...editFormData,
+                        collectionType: val as any,
+                        isReferenceOnly: val === 'REFERENCE',
+                      });
+                    }}
+                    className="w-full px-3 py-2 border rounded-xl font-semibold text-slate-800"
+                  >
+                    <option value="ACADEMIC">Academic Book (Issuable)</option>
+                    <option value="REFERENCE">🚫 Library Reference Book (Non-Issuable / Reading Room Only)</option>
+                    <option value="GENERAL">General Book (Issuable)</option>
+                    <option value="COMPETITIVE">Competitive Exam Book</option>
+                    <option value="RESEARCH">Research Paper & Journal</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Format Type</label>
+                  <select
+                    value={editFormData.format || 'PHYSICAL'}
+                    onChange={(e) => setEditFormData({ ...editFormData, format: e.target.value as any })}
+                    className="w-full px-3 py-2 border rounded-xl font-semibold text-slate-800"
+                  >
+                    <option value="PHYSICAL">Physical Hardcopy</option>
+                    <option value="DIGITAL">Digital E-Resource</option>
+                    <option value="HYBRID">Hybrid (Both Physical & Digital)</option>
+                  </select>
+                </div>
               </div>
+
+              {(editFormData.format === 'DIGITAL' || editFormData.format === 'HYBRID') && (
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Digital Resource / PDF Access Link</label>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={editFormData.digitalUrl}
+                    onChange={(e) => setEditFormData({ ...editFormData, digitalUrl: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-xl text-slate-900"
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -2281,7 +2325,7 @@ export default function BooksManagement() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t">
+              <div className="flex justify-end gap-2 pt-4">
                 <button type="button" onClick={() => setEditingBook(null)} className="px-4 py-2 border rounded-xl font-semibold">
                   Cancel
                 </button>

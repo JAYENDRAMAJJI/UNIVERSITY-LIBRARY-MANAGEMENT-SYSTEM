@@ -52,6 +52,7 @@ export default function AttendanceManagement() {
   const [scanInput, setScanInput] = useState('');
   const [isStudentScannerOpen, setIsStudentScannerOpen] = useState(false);
   const [verificationMethod, setVerificationMethod] = useState<VerificationMethod>('BARCODE');
+  const [isAutoDetectedMethod, setIsAutoDetectedMethod] = useState(true);
   const [purposeOfVisit, setPurposeOfVisit] = useState<VisitPurpose>('GENERAL_READING');
   const [entryGate, setEntryGate] = useState('Main Gate - Central Library');
   const [lastScanResult, setLastScanResult] = useState<{
@@ -333,6 +334,33 @@ export default function AttendanceManagement() {
     });
   }, [attendanceRecords, searchTerm, selectedRole, selectedDepartment, selectedStatus, dateFilter, todayStr]);
 
+  const detectVerificationMethod = (raw: string, fallback: VerificationMethod = 'BARCODE'): VerificationMethod => {
+    const code = (raw || '').trim().toLowerCase();
+    if (!code) return fallback;
+
+    // QR Code detection: prefix 'qr-', 'qr:', URL, or JSON format
+    if (code.startsWith('qr-') || code.startsWith('qr:') || code.startsWith('http://') || code.startsWith('https://') || code.startsWith('{') || code.includes('qrcode')) {
+      return 'QR_CODE';
+    }
+
+    // RFID / Smart Card Scan detection: prefix 'card-', 'rfid-', 'nfc-', 'chip-'
+    if (code.startsWith('card-') || code.startsWith('rfid-') || code.startsWith('nfc-') || code.startsWith('chip-')) {
+      return 'CARD_SCAN';
+    }
+
+    // Manual Email or Name typing
+    if (code.includes('@') || (code.includes(' ') && !code.startsWith('stu-') && !code.startsWith('fac-') && !code.startsWith('adm-') && !code.startsWith('mem-'))) {
+      return 'MANUAL_ID';
+    }
+
+    // Barcode detection (Code128 / Code39 standard prefix or digits or standard member card format)
+    if (code.startsWith('bc-') || code.startsWith('stu-') || code.startsWith('fac-') || code.startsWith('adm-') || code.startsWith('mem-') || /^\d{4,}$/.test(code)) {
+      return 'BARCODE';
+    }
+
+    return fallback;
+  };
+
   const matchedMember = useMemo(() => {
     const term = scanInput.trim().toLowerCase();
     if (!term) return null;
@@ -353,6 +381,9 @@ export default function AttendanceManagement() {
     if (!scanInput.trim()) return;
 
     const term = scanInput.trim();
+    const autoMethod = detectVerificationMethod(term, verificationMethod);
+    setVerificationMethod(autoMethod);
+
     // Check if member already in library -> execute checkout
     const activeSession = activeVisitors.find(
       (v) =>
@@ -367,7 +398,7 @@ export default function AttendanceManagement() {
     } else {
       res = libraryStore.checkInMember(
         term,
-        verificationMethod,
+        autoMethod,
         purposeOfVisit,
         entryGate,
         user?.name || 'Scan Kiosk'
@@ -381,9 +412,13 @@ export default function AttendanceManagement() {
 
   const handleExplicitCheckIn = () => {
     if (!scanInput.trim()) return;
+    const term = scanInput.trim();
+    const autoMethod = detectVerificationMethod(term, verificationMethod);
+    setVerificationMethod(autoMethod);
+
     const res = libraryStore.checkInMember(
-      scanInput.trim(),
-      verificationMethod,
+      term,
+      autoMethod,
       purposeOfVisit,
       entryGate,
       user?.name || 'Scan Kiosk'
@@ -703,7 +738,10 @@ export default function AttendanceManagement() {
             <BarcodeScannerModal
               isOpen={isStudentScannerOpen}
               onClose={() => setIsStudentScannerOpen(false)}
-              onScanSuccess={(scannedCode) => {
+              onScanSuccess={(scannedCode, detectedMethod) => {
+                const autoMethod = (detectedMethod as VerificationMethod) || detectVerificationMethod(scannedCode, 'BARCODE');
+                setVerificationMethod(autoMethod);
+                setIsAutoDetectedMethod(true);
                 setScanInput(scannedCode);
                 const qClean = scannedCode.trim().toLowerCase();
                 const qNorm = qClean.replace(/[^a-z0-9]/g, '');
@@ -733,7 +771,7 @@ export default function AttendanceManagement() {
                 } else {
                   res = libraryStore.checkInMember(
                     scannedCode,
-                    verificationMethod,
+                    autoMethod,
                     purposeOfVisit,
                     entryGate,
                     user?.name || 'Scan Kiosk'
@@ -762,9 +800,17 @@ export default function AttendanceManagement() {
                   <input
                     ref={scanInputRef}
                     type="text"
-                    placeholder="Scan card barcode or type email..."
+                    placeholder="Scan card barcode/QR or type ID / email..."
                     value={scanInput}
-                    onChange={(e) => setScanInput(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setScanInput(val);
+                      if (val.trim()) {
+                        const autoMethod = detectVerificationMethod(val, verificationMethod);
+                        setVerificationMethod(autoMethod);
+                        setIsAutoDetectedMethod(true);
+                      }
+                    }}
                     className="w-full pl-12 pr-4 shadow-2xs py-3 rounded-2xl border-2 border-blue-200 bg-blue-50/20 text-slate-900 font-mono text-base font-bold focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all"
                   />
                 </div>
@@ -839,19 +885,29 @@ export default function AttendanceManagement() {
 
               <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-2">
                 <div className="space-y-1.5 min-w-0">
-                  <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-700 truncate">
-                    Verification Method
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-700 truncate">
+                      Verification Method
+                    </label>
+                    {isAutoDetectedMethod && scanInput.trim() && (
+                      <span className="text-[10px] font-extrabold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-full border border-blue-300 flex items-center gap-1 shrink-0 animate-pulse">
+                        <Sparkles className="w-2.5 h-2.5 text-blue-600" /> Auto-Detected
+                      </span>
+                    )}
+                  </div>
                   <div className="relative">
                     <select
                       value={verificationMethod}
-                      onChange={(e) => setVerificationMethod(e.target.value as VerificationMethod)}
-                      className="w-full pl-3.5 pr-10 py-3 rounded-2xl border border-slate-200 text-xs sm:text-sm font-bold text-slate-900 bg-slate-50/90 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all appearance-none cursor-pointer truncate shadow-2xs"
+                      onChange={(e) => {
+                        setVerificationMethod(e.target.value as VerificationMethod);
+                        setIsAutoDetectedMethod(false);
+                      }}
+                      className="w-full pl-3.5 pr-10 py-3 rounded-2xl border-2 border-blue-200 text-xs sm:text-sm font-bold text-slate-900 bg-blue-50/30 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all appearance-none cursor-pointer truncate shadow-2xs"
                     >
-                      <option value="BARCODE">Barcode Scanner</option>
-                      <option value="QR_CODE">QR Code Scanner</option>
-                      <option value="CARD_SCAN">RFID Card Scan</option>
-                      <option value="MANUAL_ID">Manual Card ID</option>
+                      <option value="BARCODE">⚡ Barcode Scanner (Code128 / USB)</option>
+                      <option value="QR_CODE">📱 QR Code Scanner (Camera / Digital ID)</option>
+                      <option value="CARD_SCAN">🪪 RFID / Smart Card Scan</option>
+                      <option value="MANUAL_ID">⌨️ Manual Card ID Entry</option>
                     </select>
                     <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 pointer-events-none" />
                   </div>
@@ -908,7 +964,10 @@ export default function AttendanceManagement() {
                 <button
                   type="button"
                   onClick={() => {
-                    setScanInput('STU-2026-7326');
+                    const code = 'STU-2026-7326';
+                    setScanInput(code);
+                    setVerificationMethod(detectVerificationMethod(code));
+                    setIsAutoDetectedMethod(true);
                   }}
                   className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-mono font-bold cursor-pointer transition-colors"
                 >
@@ -917,7 +976,10 @@ export default function AttendanceManagement() {
                 <button
                   type="button"
                   onClick={() => {
-                    setScanInput('FAC-2023-1102');
+                    const code = 'FAC-2023-1102';
+                    setScanInput(code);
+                    setVerificationMethod(detectVerificationMethod(code));
+                    setIsAutoDetectedMethod(true);
                   }}
                   className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-mono font-bold cursor-pointer transition-colors"
                 >
@@ -926,7 +988,10 @@ export default function AttendanceManagement() {
                 <button
                   type="button"
                   onClick={() => {
-                    setScanInput('ADM-2024-0001');
+                    const code = 'ADM-2024-0001';
+                    setScanInput(code);
+                    setVerificationMethod(detectVerificationMethod(code));
+                    setIsAutoDetectedMethod(true);
                   }}
                   className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-mono font-bold cursor-pointer transition-colors"
                 >

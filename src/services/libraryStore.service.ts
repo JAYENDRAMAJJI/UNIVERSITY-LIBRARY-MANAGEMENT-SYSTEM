@@ -2433,7 +2433,7 @@ const DEFAULT_AUDIT_LOGS: AuditLog[] = [
 const DEFAULT_CONFIG: SystemConfig = {
   libraryName: 'University Central Library Enterprise Portal',
   fineRatePerDay: 10.00,
-  studentMaxLoanDays: 14,
+  studentMaxLoanDays: 7,
   studentMaxBooks: 5,
   facultyMaxLoanDays: 30,
   facultyMaxBooks: 10,
@@ -5682,6 +5682,16 @@ class LibraryStoreService {
     const dateStr = getLocalDateStr(now);
     const timeStr = getLocalDateTimeStr(now);
 
+    let finalVerificationMethod: VerificationMethod = verificationMethod;
+    const rawClean = (cardNoOrEmail || '').trim().toLowerCase();
+    if (rawClean.startsWith('qr-') || rawClean.startsWith('qr:') || rawClean.startsWith('http') || rawClean.startsWith('{')) {
+      finalVerificationMethod = 'QR_CODE';
+    } else if (rawClean.startsWith('card-') || rawClean.startsWith('rfid-') || rawClean.startsWith('nfc-')) {
+      finalVerificationMethod = 'CARD_SCAN';
+    } else if (rawClean.includes('@')) {
+      finalVerificationMethod = 'MANUAL_ID';
+    }
+
     const newRecord: AttendanceRecord = {
       id: `att-${Date.now()}`,
       memberId: member.id,
@@ -5694,7 +5704,7 @@ class LibraryStoreService {
       status: 'IN_LIBRARY',
       entryGate,
       purposeOfVisit,
-      verificationMethod,
+      verificationMethod: finalVerificationMethod,
       checkedInBy,
       date: dateStr,
     };
@@ -5712,7 +5722,7 @@ class LibraryStoreService {
       member.role,
       'LIBRARY_CHECK_IN',
       'ATTENDANCE',
-      `Checked into library at ${timeStr} via ${verificationMethod}`
+      `Checked into library at ${timeStr} via ${finalVerificationMethod}`
     );
 
     return {
@@ -6991,6 +7001,57 @@ class LibraryStoreService {
     );
 
     return { success: true, message: `Certificate ${cert.certificateNo} revoked.` };
+  }
+
+  public sendMemberNotification(
+    params: {
+      recipientMemberId?: string;
+      recipientName: string;
+      recipientEmail?: string;
+      targetAudience?: string;
+      title: string;
+      content: string;
+      isUrgent?: boolean;
+      senderName?: string;
+      category?: 'DUE_REMINDER' | 'OVERDUE_WARNING' | 'FINE_PAYMENT' | 'GENERAL' | 'EXTENSION_UPDATE';
+    },
+    currentUser?: any
+  ): { success: boolean; message: string; notice: Notice } {
+    const current = this.snapshot;
+    const newNotice: Notice = {
+      id: `notice-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: params.title.trim(),
+      content: params.content.trim(),
+      targetAudience: params.targetAudience || 'INDIVIDUAL',
+      recipientEmail: params.recipientEmail,
+      recipientName: params.recipientName,
+      recipientMemberId: params.recipientMemberId,
+      createdDate: getLocalDateTimeStr(),
+      isUrgent: Boolean(params.isUrgent),
+      senderName: params.senderName || currentUser?.name || 'Chief Librarian & Circulation Desk',
+      category: params.category || 'GENERAL',
+    };
+
+    const updatedNotices = [newNotice, ...(current.notices || [])];
+    const updated: StateSchema = { ...current, notices: updatedNotices };
+
+    this.state$.next(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    this.addAuditLog(
+      currentUser?.id || '1',
+      currentUser?.name || 'Admin',
+      (currentUser?.role || 'ADMIN') as Role,
+      'DISPATCH_MEMBER_NOTIFICATION',
+      'CIRCULATION_NOTICES',
+      `Sent notification "${newNotice.title}" to ${params.recipientName} (${params.recipientEmail || params.recipientMemberId || 'All Members'})`
+    );
+
+    return {
+      success: true,
+      message: `Notification dispatched successfully to ${params.recipientName}!`,
+      notice: newNotice,
+    };
   }
 
   public restoreFromBackup(backupData: StateSchema) {

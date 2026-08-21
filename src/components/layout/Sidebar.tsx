@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard,
@@ -22,6 +22,7 @@ import {
   UserCheck,
   Award,
   FileDown,
+  Bookmark,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -31,6 +32,25 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
   const { user } = useAuth();
+  const location = useLocation();
+
+  const isLinkActive = (to: string) => {
+    const [targetPath, targetSearch] = to.split('?');
+    const currentPath = location.pathname;
+    const currentSearch = location.search.replace(/^\?/, '');
+
+    if (targetSearch) {
+      return currentPath === targetPath && currentSearch.includes(targetSearch);
+    } else {
+      if (currentPath === targetPath) {
+        if (currentPath.includes('/dashboard')) {
+          return !currentSearch || currentSearch.includes('tab=loans');
+        }
+        return true;
+      }
+      return false;
+    }
+  };
 
   const getAdminSections = () => [
     {
@@ -68,6 +88,7 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       links: [
         { to: '/admin/members', icon: Users, label: 'Student & Faculty Members' },
         { to: '/admin/users', icon: ShieldCheck, label: 'User Roles & Permissions' },
+        { to: '/notifications', icon: Bell, label: 'Notifications & Alerts' },
       ],
     },
   ];
@@ -77,6 +98,9 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'FACULTY WORKSPACE',
       links: [
         { to: '/faculty/dashboard', icon: LayoutDashboard, label: 'Faculty Portal' },
+        { to: '/reservations', icon: Bookmark, label: 'Reservations Queue' },
+        { to: '/extensions', icon: RefreshCw, label: 'Extend Book Time' },
+        { to: '/fines', icon: IndianRupee, label: 'My Fines & Dues' },
         { to: '/no-due', icon: Award, label: 'Apply for No Due' },
         { to: '/borrow-history', icon: History, label: 'My Borrowed Books' },
         { to: '/attendance', icon: UserCheck, label: 'Library Attendance' },
@@ -93,7 +117,7 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'RESOURCES & GUIDELINES',
       links: [
         { to: '/downloads', icon: FileText, label: 'Library Forms & Downloads' },
-        { to: '/notices', icon: Bell, label: 'Notices & Circulars' },
+        { to: '/notifications', icon: Bell, label: 'Notifications & Alerts' },
       ],
     },
   ];
@@ -103,6 +127,9 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'ACADEMIC WORKSPACE',
       links: [
         { to: '/student/dashboard', icon: LayoutDashboard, label: 'Student Academic Portal' },
+        { to: '/reservations', icon: Bookmark, label: 'Reservations Queue' },
+        { to: '/extensions', icon: RefreshCw, label: 'Extend Book Time' },
+        { to: '/fines', icon: IndianRupee, label: 'My Fines & Dues' },
         { to: '/no-due', icon: Award, label: 'Apply for No Due' },
         { to: '/borrow-history', icon: History, label: 'My Borrowed Books' },
         { to: '/attendance', icon: UserCheck, label: 'Library Attendance' },
@@ -119,7 +146,7 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'SERVICES & RESOURCES',
       links: [
         { to: '/downloads', icon: FileText, label: 'Library Downloads & Forms' },
-        { to: '/notices', icon: Bell, label: 'Notices & Circulars' },
+        { to: '/notifications', icon: Bell, label: 'Notifications & Alerts' },
       ],
     },
   ];
@@ -136,23 +163,24 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       {sections.map((section) => (
         <div key={section.title} className="space-y-1">
           <p className="px-3 text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">{section.title}</p>
-          {section.links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              onClick={onCloseMobile}
-              className={({ isActive }) =>
-                `group relative flex items-center gap-3.5 rounded-2xl px-3.5 py-2.5 transition-all duration-200 text-sm font-semibold ${
-                  isActive
+          {section.links.map((link) => {
+            const active = isLinkActive(link.to);
+            return (
+              <Link
+                key={link.to}
+                to={link.to}
+                onClick={onCloseMobile}
+                className={`group relative flex items-center gap-3.5 rounded-2xl px-3.5 py-2.5 transition-all duration-200 text-sm font-semibold cursor-pointer ${
+                  active
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-200 font-bold'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`
-              }
-            >
-              <link.icon className="h-5 w-5 shrink-0" />
-              <span>{link.label}</span>
-            </NavLink>
-          ))}
+                }`}
+              >
+                <link.icon className="h-5 w-5 shrink-0" />
+                <span>{link.label}</span>
+              </Link>
+            );
+          })}
         </div>
       ))}
     </nav>

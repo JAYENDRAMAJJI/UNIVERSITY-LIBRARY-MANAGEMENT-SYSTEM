@@ -628,6 +628,12 @@ export default function IssueBooks() {
                   <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">{selectedMember.status}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-500">Allowed Loan Duration:</span>
+                  <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                    {selectedMember.role === 'FACULTY' ? `${state.config.facultyMaxLoanDays} Days (Faculty)` : `${state.config.studentMaxLoanDays} Days (Student)`}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-50">
                   <span className="text-slate-500">Currently Borrowed Books:</span>
                   <span className="font-semibold text-slate-900">
                     {selectedMember.currentActiveLoans} / {selectedMember.maxAllowedBooks} Books

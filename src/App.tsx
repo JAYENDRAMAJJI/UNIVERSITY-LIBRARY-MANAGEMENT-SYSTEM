@@ -55,6 +55,10 @@ import AttendanceManagement from './pages/admin/AttendanceManagement';
 import NoDueClearanceDesk from './pages/admin/NoDueClearanceDesk';
 import DownloadsManagement from './pages/admin/DownloadsManagement';
 import NoDueClearance from './pages/NoDueClearance';
+import MyFines from './pages/MyFines';
+import Notifications from './pages/Notifications';
+import BookReservationsQueue from './pages/BookReservationsQueue';
+import BookTimeExtensions from './pages/BookTimeExtensions';
 
 function PortalPage({
   title,
@@ -135,22 +139,19 @@ export default function App() {
               <Route path="book-search" element={<BookSearch />} />
               <Route path="attendance" element={<AttendanceManagement />} />
               <Route path="borrow-history" element={<BookBorrowHistory />} />
+              <Route path="fines" element={<MyFines />} />
+              <Route path="my-fines" element={<Navigate to="/fines" replace />} />
               <Route path="no-due" element={<NoDueClearance />} />
               <Route path="new-arrivals" element={<Navigate to="/catalog?filter=new-arrivals" replace />} />
               <Route path="digital-resources" element={<DigitalResources />} />
               <Route path="downloads" element={<Downloads />} />
-              <Route path="notices" element={<Notices />} />
+              <Route path="notices" element={<Notifications />} />
+              <Route path="notifications" element={<Notifications />} />
               <Route path="events" element={<Events />} />
-              <Route
-                path="notifications"
-                element={
-                  <ListPage
-                    title="Notifications"
-                    description="Recent alerts, reminders, and system updates appear here."
-                    items={['No unread notifications right now.', 'New activity will show up here as soon as it arrives.']}
-                  />
-                }
-              />
+              <Route path="reservations" element={<BookReservationsQueue />} />
+              <Route path="extensions" element={<BookTimeExtensions />} />
+              <Route path="renew-books" element={<Navigate to="/extensions" replace />} />
+              <Route path="extend-time" element={<Navigate to="/extensions" replace />} />
 
               {/* Admin & Staff Exclusive Modules */}
               <Route element={<RoleRoute allowedRoles={['ADMIN', 'STAFF']} />}>
@@ -179,12 +180,12 @@ export default function App() {
               </Route>
 
               {/* Faculty Exclusive Workspace */}
-              <Route element={<RoleRoute allowedRoles={['FACULTY']} />}>
+              <Route element={<RoleRoute allowedRoles={['FACULTY', 'ADMIN', 'STAFF']} />}>
                 <Route path="faculty/dashboard" element={<FacultyDashboard />} />
               </Route>
 
               {/* Student Exclusive Workspace */}
-              <Route element={<RoleRoute allowedRoles={['STUDENT']} />}>
+              <Route element={<RoleRoute allowedRoles={['STUDENT', 'ADMIN', 'STAFF']} />}>
                 <Route path="student/dashboard" element={<StudentDashboard />} />
               </Route>
             </Route>

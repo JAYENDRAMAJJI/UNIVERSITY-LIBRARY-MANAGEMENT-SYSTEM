@@ -7,7 +7,7 @@ import { libraryStore } from '../../services/libraryStore.service';
 interface BarcodeScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onScanSuccess: (scannedCode: string) => void;
+  onScanSuccess: (scannedCode: string, detectedMethod?: string) => void;
   title?: string;
   scannerType?: 'ISBN' | 'COPY_BARCODE' | 'STUDENT_ID' | 'MEMBER_CARD' | 'ALL';
 }
@@ -389,7 +389,7 @@ export default function BarcodeScannerModal({
                 };
               },
             },
-            (decodedText) => {
+            (decodedText, decodedResult) => {
               if (isStopped || isScanning) return;
               const code = cleanScannedCode(decodedText);
               if (code) {
@@ -397,7 +397,15 @@ export default function BarcodeScannerModal({
                 if (html5Qrcode && html5Qrcode.isScanning) {
                   html5Qrcode.stop().catch(() => {});
                 }
-                handleExecuteScan(code);
+                const formatName = (decodedResult as any)?.result?.format?.formatName?.toUpperCase() || '';
+                const isQr =
+                  formatName.includes('QR') ||
+                  formatName.includes('MATRIX') ||
+                  decodedText.toLowerCase().startsWith('qr-') ||
+                  decodedText.startsWith('http://') ||
+                  decodedText.startsWith('https://');
+                const method = isQr ? 'QR_CODE' : 'BARCODE';
+                handleExecuteScan(code, method);
               }
             },
             () => {
@@ -438,10 +446,18 @@ export default function BarcodeScannerModal({
                 const detected = await detector.detect(video);
                 if (detected && detected.length > 0) {
                   const raw = detected[0].rawValue?.trim();
+                  const format = (detected[0].format || '').toLowerCase();
                   if (raw) {
                     const cleaned = cleanScannedCode(raw);
                     isStopped = true;
-                    handleExecuteScan(cleaned);
+                    const isQr =
+                      format.includes('qr') ||
+                      format.includes('matrix') ||
+                      raw.toLowerCase().startsWith('qr-') ||
+                      raw.startsWith('http://') ||
+                      raw.startsWith('https://');
+                    const method = isQr ? 'QR_CODE' : 'BARCODE';
+                    handleExecuteScan(cleaned, method);
                     return;
                   }
                 }
@@ -456,7 +472,7 @@ export default function BarcodeScannerModal({
             if (ctx) {
               ctx.drawImage(video, 0, 0, w, h);
 
-              // 2b. Full canvas jsQR
+              // 2b. Full canvas jsQR (QR Code detection)
               try {
                 const imgData = ctx.getImageData(0, 0, w, h);
                 const qrResult = jsQR(imgData.data, w, h, { inversionAttempts: 'attemptBoth' });
@@ -464,7 +480,7 @@ export default function BarcodeScannerModal({
                   const decoded = cleanScannedCode(qrResult.data);
                   if (decoded) {
                     isStopped = true;
-                    handleExecuteScan(decoded);
+                    handleExecuteScan(decoded, 'QR_CODE');
                     return;
                   }
                 }
@@ -482,7 +498,7 @@ export default function BarcodeScannerModal({
                   const decoded = cleanScannedCode(cropResult.data);
                   if (decoded) {
                     isStopped = true;
-                    handleExecuteScan(decoded);
+                    handleExecuteScan(decoded, 'QR_CODE');
                     return;
                   }
                 }
@@ -495,7 +511,7 @@ export default function BarcodeScannerModal({
                   const cleaned = cleanScannedCode(code128Result);
                   if (cleaned) {
                     isStopped = true;
-                    handleExecuteScan(cleaned);
+                    handleExecuteScan(cleaned, 'BARCODE');
                     return;
                   }
                 }
@@ -672,7 +688,7 @@ export default function BarcodeScannerModal({
     setActiveTab(tab);
   };
 
-  const handleExecuteScan = (codeToScan?: string) => {
+  const handleExecuteScan = (codeToScan?: string, explicitMethod?: 'BARCODE' | 'QR_CODE' | 'CARD_SCAN' | 'MANUAL_ID') => {
     const defaultFallbackCode = isStudentOrMemberScan
       ? memberCards[0]?.barcode || 'STU-2026-7326'
       : scannerType === 'ISBN'
@@ -725,11 +741,25 @@ export default function BarcodeScannerModal({
       return;
     }
 
+    let detectedMethod: 'BARCODE' | 'QR_CODE' | 'CARD_SCAN' | 'MANUAL_ID' = explicitMethod || 'BARCODE';
+    if (!explicitMethod) {
+      const lowerRaw = rawCode.toLowerCase();
+      if (lowerRaw.startsWith('qr-') || lowerRaw.startsWith('qr:') || lowerRaw.startsWith('http') || lowerRaw.startsWith('{')) {
+        detectedMethod = 'QR_CODE';
+      } else if (lowerRaw.startsWith('card-') || lowerRaw.startsWith('rfid-') || lowerRaw.startsWith('nfc-') || lowerRaw.startsWith('chip-')) {
+        detectedMethod = 'CARD_SCAN';
+      } else if (lowerRaw.includes('@')) {
+        detectedMethod = 'MANUAL_ID';
+      } else {
+        detectedMethod = 'BARCODE';
+      }
+    }
+
     setIsScanning(true);
     stopAllMediaTracks();
     setTimeout(() => {
       setIsScanning(false);
-      onScanSuccess(code);
+      onScanSuccess(code, detectedMethod);
       onClose();
     }, 200);
   };
@@ -1069,12 +1099,12 @@ export default function BarcodeScannerModal({
                               const imgData = ctx.getImageData(0, 0, img.width, img.height);
                               const qrResult = jsQR(imgData.data, img.width, img.height);
                               if (qrResult && qrResult.data) {
-                                handleExecuteScan(cleanScannedCode(qrResult.data));
+                                handleExecuteScan(cleanScannedCode(qrResult.data), 'QR_CODE');
                                 return;
                               }
                               const code128 = scanCode128FromCanvas(ctx, img.width, img.height);
                               if (code128) {
-                                handleExecuteScan(cleanScannedCode(code128));
+                                handleExecuteScan(cleanScannedCode(code128), 'BARCODE');
                                 return;
                               }
                             }
