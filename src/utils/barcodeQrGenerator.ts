@@ -591,7 +591,7 @@ export function generateQrMatrix(dataStr: string): boolean[][] {
       qr.addData(clean);
       qr.make();
       if (qr.modules && qr.modules.length > 0) {
-        return qr.modules;
+        return qr.modules.map((row) => row.map((cell) => Boolean(cell)));
       }
     } catch {
       // If code length overflowed version capacity, scale up to next higher version
@@ -603,7 +603,7 @@ export function generateQrMatrix(dataStr: string): boolean[][] {
     const qr = new QrCodeGenerator(1, 1);
     qr.addData(fallback);
     qr.make();
-    return qr.modules || [];
+    return (qr.modules || []).map((row) => row.map((cell) => Boolean(cell)));
   } catch {
     return [];
   }

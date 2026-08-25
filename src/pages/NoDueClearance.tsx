@@ -455,7 +455,7 @@ export default function NoDueClearance() {
                           <div>
                             <p className="font-bold text-slate-900 text-xs">{loan.bookTitle}</p>
                             <p className="text-[11px] text-slate-500 font-mono">
-                              Barcode/Acc: <strong className="text-slate-700">{loan.barcode || loan.accessionNumber || 'ACC-8910'}</strong> • Issued: {loan.issueDate}
+                              Barcode/Acc: <strong className="text-slate-700">{loan.barcode || loan.accessionNo || 'ACC-8910'}</strong> • Issued: {loan.issueDate}
                             </p>
                           </div>
                           <div className="text-right flex items-center gap-2 shrink-0">

@@ -580,7 +580,7 @@ export default function BookBorrowHistory() {
                   .filter((b) =>
                     !bookSelectSearchTerm ||
                     b.title.toLowerCase().includes(bookSelectSearchTerm.toLowerCase()) ||
-                    (b.author && b.author.toLowerCase().includes(bookSelectSearchTerm.toLowerCase()))
+                    (b.authorName && b.authorName.toLowerCase().includes(bookSelectSearchTerm.toLowerCase()))
                   )
                   .map((book) => (
                     <button
@@ -598,7 +598,7 @@ export default function BookBorrowHistory() {
                       }`}
                     >
                       <p className="truncate font-semibold">{book.title}</p>
-                      <p className="text-[10px] text-slate-400 truncate">{book.author}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{book.authorName}</p>
                     </button>
                   ))}
               </div>
@@ -809,7 +809,7 @@ export default function BookBorrowHistory() {
                                       name: record.memberName,
                                       email: member?.email,
                                       memberCardNo: record.memberCardNo,
-                                      role: record.role,
+                                      role: record.memberType || member?.role || 'STUDENT',
                                     },
                                     context: {
                                       type: isOverdue ? 'OVERDUE' : daysUntilDue <= 1 ? 'LAST_DAY' : 'DUE_SOON',
@@ -1089,8 +1089,8 @@ export default function BookBorrowHistory() {
                       .filter((b) =>
                         !modalBookSearch ||
                         b.title.toLowerCase().includes(modalBookSearch.toLowerCase()) ||
-                        (b.author && b.author.toLowerCase().includes(modalBookSearch.toLowerCase())) ||
-                        (b.category && b.category.toLowerCase().includes(modalBookSearch.toLowerCase()))
+                        (b.authorName && b.authorName.toLowerCase().includes(modalBookSearch.toLowerCase())) ||
+                        (b.categoryName && b.categoryName.toLowerCase().includes(modalBookSearch.toLowerCase()))
                       )
                       .map((book) => {
                         const isChecked = selectedExportBookIds.includes(book.id);
@@ -1120,7 +1120,7 @@ export default function BookBorrowHistory() {
                                 {book.title}
                               </p>
                               <p className="text-[10px] text-slate-500 truncate">
-                                {book.author ? `By ${book.author}` : ''} {book.category ? `• ${book.category}` : ''}
+                                {book.authorName ? `By ${book.authorName}` : ''} {book.categoryName ? `• ${book.categoryName}` : ''}
                               </p>
                             </div>
                           </label>
@@ -1130,8 +1130,8 @@ export default function BookBorrowHistory() {
                     {storeState.books.filter((b) =>
                       !modalBookSearch ||
                       b.title.toLowerCase().includes(modalBookSearch.toLowerCase()) ||
-                      (b.author && b.author.toLowerCase().includes(modalBookSearch.toLowerCase())) ||
-                      (b.category && b.category.toLowerCase().includes(modalBookSearch.toLowerCase()))
+                      (b.authorName && b.authorName.toLowerCase().includes(modalBookSearch.toLowerCase())) ||
+                      (b.categoryName && b.categoryName.toLowerCase().includes(modalBookSearch.toLowerCase()))
                     ).length === 0 && (
                       <div className="py-3 text-center text-xs text-slate-400">
                         No books match "{modalBookSearch}"

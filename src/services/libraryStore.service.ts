@@ -4954,8 +4954,8 @@ class LibraryStoreService {
     const studentCount = current.members.filter((m) => m.role === 'STUDENT').length;
     const facultyCount = current.members.filter((m) => m.role === 'FACULTY').length;
     const staffCount = current.members.filter((m) => m.role === 'STAFF' || m.role === 'ADMIN').length;
-    const attendanceCount = current.attendanceRecords.length;
-    const activeVisitorsCount = current.attendanceRecords.filter((a) => !a.checkOutTime).length;
+    const attendanceCount = (current.attendanceRecords || []).length;
+    const activeVisitorsCount = (current.attendanceRecords || []).filter((a) => !a.checkOutTime).length;
     const reservationsCount = current.reservations.length;
     const procRequests = current.procurementRequests || [];
     const pendingProc = procRequests.filter((r) => r.status === 'PENDING').length;
@@ -5200,7 +5200,7 @@ class LibraryStoreService {
       <th>Verification</th>
       <th>Operator</th>
     </tr>
-    ${current.attendanceRecords.map((a, idx) => `
+    ${(current.attendanceRecords || []).map((a, idx) => `
     <tr class="${idx % 2 === 0 ? 'tr-even' : 'tr-odd'}">
       <td class="sno-cell">${idx + 1}</td>
       <td>${escapeHtml(a.id)}</td>
@@ -6930,7 +6930,7 @@ class LibraryStoreService {
   }
 
   public reverifyStudentClearance(applicationIdOrStudentId: string): {
-    audit: ReturnType<typeof this.getMemberNoDueAudit>;
+    audit: ReturnType<LibraryStoreService['getMemberNoDueAudit']>;
     application?: NoDueApplication;
   } {
     const current = this.snapshot;

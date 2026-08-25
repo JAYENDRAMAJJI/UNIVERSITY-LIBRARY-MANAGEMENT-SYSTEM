@@ -1028,7 +1028,7 @@ export default function DigitalLibraryAdmin() {
                       {previewDoc.title}
                     </h2>
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-purple-500/30 text-purple-200 border border-purple-400/30 shrink-0 whitespace-nowrap">
-                      {previewDoc.fileName || previewDoc.type.replace(/_/g, ' ')}
+                      {previewDoc.fileName || previewDoc.type?.replace(/_/g, ' ') || 'DOCUMENT'}
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 truncate mt-0.5">Uploaded File • {previewDoc.author}</p>

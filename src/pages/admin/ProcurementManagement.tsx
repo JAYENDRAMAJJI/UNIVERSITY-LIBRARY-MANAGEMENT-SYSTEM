@@ -273,7 +273,15 @@ export default function ProcurementManagement() {
   // Submit Advancement Action
   const handleConfirmLifecycleAction = () => {
     if (!selectedRequest || !actionModalType) return;
-    if (actionModalType === 'TIMELINE' || actionModalType === 'PRINT_PO' || actionModalType === 'PRINT_BARCODES') return;
+    if (
+      actionModalType === 'TIMELINE' ||
+      actionModalType === 'PRINT_PO' ||
+      actionModalType === 'PRINT_BARCODES' ||
+      actionModalType === 'NEW_REQUEST' ||
+      actionModalType === 'NEW_VENDOR' ||
+      actionModalType === 'EDIT_VENDOR'
+    )
+      return;
 
     const vendorObj = vendors.find((v) => v.id === selectedVendorId);
 

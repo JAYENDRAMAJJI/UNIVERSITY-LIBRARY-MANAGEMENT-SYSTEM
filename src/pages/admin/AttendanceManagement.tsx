@@ -304,8 +304,8 @@ export default function AttendanceManagement() {
           r.memberName.toLowerCase().includes(q) ||
           r.memberCardNo.toLowerCase().includes(q) ||
           r.email.toLowerCase().includes(q) ||
-          (r.department && r.department.toLowerCase().includes(q)) ||
-          (r.entryGate && r.entryGate.toLowerCase().includes(q));
+          Boolean(r.department && r.department.toLowerCase().includes(q)) ||
+          Boolean(r.entryGate && r.entryGate.toLowerCase().includes(q));
       }
 
       // 2. Role filter

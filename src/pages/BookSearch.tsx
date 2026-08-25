@@ -107,7 +107,7 @@ export default function BookSearch() {
               book.isbn.toLowerCase().includes(term) ||
               book.categoryName.toLowerCase().includes(term) ||
               book.publisherName.toLowerCase().includes(term) ||
-              (book.department && book.department.toLowerCase().includes(term));
+              Boolean(book.department && book.department.toLowerCase().includes(term));
             break;
         }
       }

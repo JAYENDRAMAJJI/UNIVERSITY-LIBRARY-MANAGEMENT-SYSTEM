@@ -386,7 +386,7 @@ export default function BooksManagement() {
       subject: book.subject || 'Core Computer Science',
       format: book.format || 'PHYSICAL',
       digitalUrl: book.digitalUrl || '',
-      keywords: book.keywords || '',
+      keywords: Array.isArray(book.keywords) ? book.keywords.join(', ') : (book.keywords || ''),
       collectionType: book.collectionType || (book.isReferenceOnly ? 'REFERENCE' : 'ACADEMIC'),
       isReferenceOnly: !!book.isReferenceOnly,
     });
@@ -396,7 +396,12 @@ export default function BooksManagement() {
     e.preventDefault();
     if (!editingBook) return;
 
-    libraryStore.updateBook(editingBook.id, editFormData);
+    libraryStore.updateBook(editingBook.id, {
+      ...editFormData,
+      keywords: typeof editFormData.keywords === 'string'
+        ? editFormData.keywords.split(',').map((s) => s.trim()).filter(Boolean)
+        : editFormData.keywords,
+    });
     triggerToast(`Updated catalog record for "${editFormData.title}" successfully!`);
     setEditingBook(null);
   };
@@ -1821,9 +1826,9 @@ export default function BooksManagement() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-bold text-slate-900 text-sm">{copy.accessionNo}</span>
-                            <span className="font-mono text-slate-500 text-xs flex items-center gap-1">
+                            <span className="font-mono text-slate-500 text-xs flex items-center gap-1" title="Barcode generated and locked to physical sticker">
                               ({copy.barcode})
-                              <Lock className="w-3 h-3 text-slate-400" title="Barcode generated and locked to physical sticker" />
+                              <Lock className="w-3 h-3 text-slate-400" />
                             </span>
                           </div>
                           <p className="text-slate-500 font-medium">
@@ -1840,7 +1845,7 @@ export default function BooksManagement() {
                             <span
                               className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${copy.status === 'AVAILABLE'
                                 ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                                : copy.status === 'BORROWED'
+                                : copy.status === 'ISSUED'
                                   ? 'bg-blue-100 text-blue-800 border-blue-200'
                                   : 'bg-amber-100 text-amber-800 border-amber-200'
                                 }`}

@@ -110,7 +110,7 @@ export default function Notifications() {
         id: `notif-ext-${ext.id}`,
         type: 'EXTENSION',
         title: `Book Extension Request: ${ext.status === 'APPROVED' ? 'Approved (+14 Days)' : ext.status === 'REJECTED' ? 'Declined by Admin' : 'Under Review'}`,
-        description: `Your renewal request for "${ext.bookTitle}" is currently marked as ${ext.status}. ${ext.rejectionReason ? `Note: ${ext.rejectionReason}` : ''}`,
+        description: `Your renewal request for "${ext.bookTitle}" is currently marked as ${ext.status}. ${ext.adminNotes ? `Note: ${ext.adminNotes}` : ''}`,
         timestamp: ext.requestedDate,
         urgency: ext.status === 'APPROVED' ? 'INFO' : ext.status === 'REJECTED' ? 'HIGH' : 'MEDIUM',
         actionUrl: userRole === 'FACULTY' ? '/faculty/dashboard' : '/student/dashboard',
@@ -129,11 +129,11 @@ export default function Notifications() {
         id: `notif-res-${res.id}`,
         type: 'RESERVATION',
         title: `Book Reservation: "${res.bookTitle}"`,
-        description: res.status === 'READY_FOR_PICKUP'
-          ? `Your reserved copy is waiting at the counter! Collect it before ${res.holdExpiryDate || 'the expiry window'}.`
+        description: res.status === 'APPROVED'
+          ? `Your reserved copy is waiting at the counter! Collect it before ${res.expiryDate || 'the expiry window'}.`
           : `You are at Queue Position #${res.queuePosition} in the waitlist. We will notify you once a copy is returned.`,
-        timestamp: res.reservationDate,
-        urgency: res.status === 'READY_FOR_PICKUP' ? 'HIGH' : 'MEDIUM',
+        timestamp: res.requestDate,
+        urgency: res.status === 'APPROVED' ? 'HIGH' : 'MEDIUM',
         actionUrl: '/catalog',
         actionText: 'View Catalog Listing',
         sender: 'Automated Hold Queue',
@@ -151,7 +151,7 @@ export default function Notifications() {
         type: 'NO_DUE',
         title: `Institutional No Due Clearance: ${myNoDueApp.status === 'APPROVED' ? 'Certificate Issued' : myNoDueApp.status === 'REJECTED' ? 'Action Required' : 'Under Verification'}`,
         description: myNoDueApp.status === 'APPROVED'
-          ? `Your official digital No Due Clearance Certificate #${myNoDueApp.certificateNumber} is ready for download and verification.`
+          ? `Your official digital No Due Clearance Certificate #${myNoDueApp.certificateNo} is ready for download and verification.`
           : `Clearance request for purpose: "${myNoDueApp.purpose.replace(/_/g, ' ')}" is currently ${myNoDueApp.status.replace(/_/g, ' ')}.`,
         timestamp: myNoDueApp.applicationDate,
         urgency: myNoDueApp.status === 'APPROVED' ? 'INFO' : myNoDueApp.status === 'REJECTED' ? 'HIGH' : 'MEDIUM',

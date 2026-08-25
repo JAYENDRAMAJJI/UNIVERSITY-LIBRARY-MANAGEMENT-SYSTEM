@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Layers,
   FileText,
+  History,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { libraryStore, formatOnlyTimeInBracket } from '../services/libraryStore.service';
@@ -100,6 +101,7 @@ export default function BookTimeExtensions() {
   // Counts
   const pendingCount = myExtensionRequests.filter((r) => r.status === 'PENDING').length;
   const approvedCount = myExtensionRequests.filter((r) => r.status === 'APPROVED').length;
+  const rejectedCount = myExtensionRequests.filter((r) => r.status === 'REJECTED').length;
   const activeLoansCount = activeTransactions.length;
 
   const handleRequestExtensionSubmit = (e: React.FormEvent) => {
@@ -179,8 +181,8 @@ export default function BookTimeExtensions() {
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Active Borrowed Books</p>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-2xl font-extrabold font-poppins text-slate-900">{activeLoansCount}</span>
-              <span className="text-xs font-semibold text-slate-500">Checked Out</span>
+              <span className="text-2xl font-extrabold font-poppins text-purple-950">{activeLoansCount}</span>
+              <span className="text-xs font-semibold text-purple-600">Checked Out</span>
             </div>
           </div>
         </div>
@@ -190,10 +192,10 @@ export default function BookTimeExtensions() {
             <Clock className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Pending Review</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Pending Extension Requests</p>
             <div className="flex items-baseline gap-1.5 mt-0.5">
               <span className="text-2xl font-extrabold font-poppins text-amber-700">{pendingCount}</span>
-              <span className="text-xs font-semibold text-amber-600">Awaiting Admin</span>
+              <span className="text-xs font-semibold text-amber-600">Awaiting Review</span>
             </div>
           </div>
         </div>
@@ -297,7 +299,10 @@ export default function BookTimeExtensions() {
         {/* Search & Filter Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
-            <h2 className="text-base font-bold font-poppins text-slate-900">Submitted Extension Requests History</h2>
+            <h2 className="text-base font-bold font-poppins text-slate-900 flex items-center gap-2">
+              <History className="w-4 h-4 text-purple-600" />
+              Submitted Extension Requests History
+            </h2>
             <p className="text-xs text-slate-500 mt-0.5">Real-time record of all loan extension submissions and librarian review outcomes.</p>
           </div>
 
@@ -307,7 +312,7 @@ export default function BookTimeExtensions() {
                 { id: 'ALL', label: `All (${myExtensionRequests.length})` },
                 { id: 'PENDING', label: `Pending (${pendingCount})` },
                 { id: 'APPROVED', label: `Approved (${approvedCount})` },
-                { id: 'REJECTED', label: 'Rejected' },
+                { id: 'REJECTED', label: `Rejected (${rejectedCount})` },
               ] as const
             ).map((tab) => (
               <button
@@ -328,29 +333,29 @@ export default function BookTimeExtensions() {
 
         {/* Requests Table */}
         {filteredExtensionRequests.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-2xl border border-slate-100">
             <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50/80 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-100">
+              <thead className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200/80">
                 <tr>
-                  <th className="p-4 rounded-l-2xl">Book Title & Accession</th>
-                  <th className="p-4">Original Due Date</th>
-                  <th className="p-4">Requested Extension</th>
-                  <th className="p-4">Academic Reason</th>
-                  <th className="p-4">Librarian Decision</th>
-                  <th className="p-4 text-right rounded-r-2xl">Requested Date</th>
+                  <th className="py-3.5 px-4">Book Title & Accession</th>
+                  <th className="py-3.5 px-4">Original Due Date</th>
+                  <th className="py-3.5 px-4">Requested Extension</th>
+                  <th className="py-3.5 px-4">Academic Reason</th>
+                  <th className="py-3.5 px-4 text-center">Librarian Decision</th>
+                  <th className="py-3.5 px-4 text-right">Requested Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredExtensionRequests.map((req) => (
                   <tr key={req.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-4 font-semibold text-slate-900">
+                    <td className="py-4 px-4 font-semibold text-slate-900">
                       <p className="font-bold text-slate-900 text-sm">{req.bookTitle}</p>
                       <p className="font-mono text-[11px] text-slate-400 mt-0.5">ACC: {req.accessionNo}</p>
                     </td>
-                    <td className="p-4 font-mono font-bold text-slate-700">{req.currentDueDate}</td>
-                    <td className="p-4 font-bold text-purple-700 font-mono">+{req.requestedExtensionDays} Days</td>
-                    <td className="p-4 text-slate-700 italic max-w-xs font-medium">"{req.reason}"</td>
-                    <td className="p-4 font-bold">
+                    <td className="py-4 px-4 font-mono font-bold text-slate-700">{req.currentDueDate}</td>
+                    <td className="py-4 px-4 font-bold text-purple-700 font-mono">+{req.requestedExtensionDays} Days</td>
+                    <td className="py-4 px-4 text-slate-700 italic max-w-xs font-medium">"{req.reason}"</td>
+                    <td className="py-4 px-4 font-bold text-center">
                       <span
                         className={`px-3 py-1 rounded-xl text-[10px] uppercase font-extrabold inline-flex flex-col items-center justify-center leading-tight shadow-2xs ${
                           req.status === 'APPROVED'
@@ -366,7 +371,7 @@ export default function BookTimeExtensions() {
                         )}
                       </span>
                     </td>
-                    <td className="p-4 text-right font-mono text-slate-500">{req.requestedDate}</td>
+                    <td className="py-4 px-4 text-right font-mono text-slate-500">{req.requestedDate}</td>
                   </tr>
                 ))}
               </tbody>
