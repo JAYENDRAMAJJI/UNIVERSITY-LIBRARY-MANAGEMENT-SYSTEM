@@ -81,6 +81,8 @@ export const getAllUnifiedFines = (state: any): FineRecord[] => {
   if (!state) return [];
   const list: FineRecord[] = [...(state.fines || [])];
   const today = new Date();
+  const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const fineRate = state.config?.fineRatePerDay || 5;
 
   // Process transactions for fine amounts not explicitly stored in state.fines
   (state.transactions || []).forEach((t: any) => {
@@ -103,23 +105,50 @@ export const getAllUnifiedFines = (state: any): FineRecord[] => {
           receiptNo: (t as any).receiptNo,
           waiveReason: (t as any).waiveReason,
         });
-      } else if (t.status === 'OVERDUE' || (t.status === 'ISSUED' && new Date(t.dueDate) < today)) {
-        const due = new Date(t.dueDate);
-        const diffDays = Math.max(1, Math.ceil((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)));
-        const fineAmount = diffDays * (state.config?.fineRatePerDay || 5);
-        list.unshift({
-          id: `fine-live-${t.id}`,
-          transactionId: t.id,
-          memberId: t.memberId,
-          memberName: t.memberName,
-          memberCardNo: t.memberCardNo,
-          bookTitle: t.bookTitle,
-          amount: fineAmount,
-          paidAmount: 0,
-          reason: 'OVERDUE',
-          status: 'UNPAID',
-          createdDate: t.dueDate,
-        });
+      } else if (t.returnDate && t.dueDate) {
+        // Returned loan check
+        const returnD = new Date(t.returnDate.split(' ')[0]);
+        const dueD = new Date(t.dueDate.split(' ')[0]);
+        if (returnD > dueD) {
+          const diffDays = Math.max(1, Math.ceil((returnD.getTime() - dueD.getTime()) / (1000 * 3600 * 24)));
+          const computedFine = diffDays * fineRate;
+          list.push({
+            id: `fine-ret-${t.id}`,
+            transactionId: t.id,
+            memberId: t.memberId,
+            memberName: t.memberName,
+            memberCardNo: t.memberCardNo,
+            bookTitle: t.bookTitle,
+            amount: computedFine,
+            paidAmount: t.fineStatus === 'PAID' ? computedFine : 0,
+            reason: 'OVERDUE',
+            status: t.fineStatus === 'PAID' ? 'PAID' : t.fineStatus === 'WAIVED' ? 'WAIVED' : 'UNPAID',
+            createdDate: t.returnDate.split(' ')[0],
+            paidDate: t.fineStatus === 'PAID' ? t.returnDate.split(' ')[0] : undefined,
+            receiptNo: (t as any).receiptNo,
+            waiveReason: (t as any).waiveReason,
+          });
+        }
+      } else if (t.status === 'OVERDUE' || (t.status === 'ISSUED' && t.dueDate)) {
+        // Active loan check
+        const dueD = new Date(t.dueDate.split(' ')[0]);
+        if (todayDateOnly > dueD) {
+          const diffDays = Math.max(1, Math.ceil((todayDateOnly.getTime() - dueD.getTime()) / (1000 * 3600 * 24)));
+          const computedFine = diffDays * fineRate;
+          list.unshift({
+            id: `fine-live-${t.id}`,
+            transactionId: t.id,
+            memberId: t.memberId,
+            memberName: t.memberName,
+            memberCardNo: t.memberCardNo,
+            bookTitle: t.bookTitle,
+            amount: computedFine,
+            paidAmount: 0,
+            reason: 'OVERDUE',
+            status: 'UNPAID',
+            createdDate: t.dueDate,
+          });
+        }
       }
     }
   });
@@ -132,6 +161,7 @@ export const getTransactionFineAmount = (
   state: any
 ): { fineAmount: number; fineStatus: 'UNPAID' | 'PAID' | 'WAIVED' | 'CLEARED'; receiptNo?: string; waiveReason?: string } => {
   if (!tx) return { fineAmount: 0, fineStatus: 'CLEARED' };
+  const fineRate = state?.config?.fineRatePerDay || 5;
 
   // 1. Check matching fine in unified fines
   const allFines = getAllUnifiedFines(state);
@@ -151,7 +181,37 @@ export const getTransactionFineAmount = (
       fineAmount: tx.fineAmount,
       fineStatus: tx.fineStatus || (tx.status === 'RETURNED' || tx.status === 'OVERDUE' ? 'UNPAID' : 'CLEARED'),
       receiptNo: (tx as any).receiptNo,
+      waiveReason: (tx as any).waiveReason,
     };
+  }
+
+  // 3. Dynamic check for returned loans past due date
+  if (tx.returnDate && tx.dueDate) {
+    const returnD = new Date(tx.returnDate.split(' ')[0]);
+    const dueD = new Date(tx.dueDate.split(' ')[0]);
+    if (returnD > dueD) {
+      const diffDays = Math.max(1, Math.ceil((returnD.getTime() - dueD.getTime()) / (1000 * 3600 * 24)));
+      return {
+        fineAmount: diffDays * fineRate,
+        fineStatus: tx.fineStatus === 'PAID' ? 'PAID' : tx.fineStatus === 'WAIVED' ? 'WAIVED' : 'UNPAID',
+        receiptNo: (tx as any).receiptNo,
+        waiveReason: (tx as any).waiveReason,
+      };
+    }
+  }
+
+  // 4. Dynamic check for active unreturned loans past due date
+  if (tx.status === 'OVERDUE' || (tx.status === 'ISSUED' && tx.dueDate)) {
+    const today = new Date();
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const dueD = new Date(tx.dueDate.split(' ')[0]);
+    if (todayDateOnly > dueD) {
+      const diffDays = Math.max(1, Math.ceil((todayDateOnly.getTime() - dueD.getTime()) / (1000 * 3600 * 24)));
+      return {
+        fineAmount: diffDays * fineRate,
+        fineStatus: 'UNPAID',
+      };
+    }
   }
 
   return { fineAmount: 0, fineStatus: 'CLEARED' };
