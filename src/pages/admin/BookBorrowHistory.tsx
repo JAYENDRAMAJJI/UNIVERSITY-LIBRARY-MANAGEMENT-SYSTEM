@@ -797,8 +797,48 @@ export default function BookBorrowHistory() {
                       <td className="py-3 px-2 align-middle text-center text-xs font-bold whitespace-nowrap">
                         {(() => {
                           const fineInfo = getTransactionFineAmount(record, storeState);
+                          const extensionReq = (storeState.extensionRequests || []).find(
+                            (r) => (r.transactionId === record.id || r.accessionNo === record.accessionNo) && r.status === 'APPROVED'
+                          );
+                          const rejectedExtReq = (storeState.extensionRequests || []).find(
+                            (r) => (r.transactionId === record.id || r.accessionNo === record.accessionNo) && r.status === 'REJECTED'
+                          );
+                          const hasExtension = Boolean(extensionReq);
+                          const hasRenewal = (record.renewalCount || 0) > 0;
+
                           if (fineInfo.fineAmount <= 0) {
-                            return <span className="text-slate-400 font-mono font-medium text-[11px]">₹0.00</span>;
+                            return (
+                              <div className="inline-flex flex-col items-center">
+                                <span className="text-slate-600 font-mono font-bold text-[11px]">₹0.00</span>
+                                {hasExtension ? (
+                                  <span
+                                    className="text-[9px] font-extrabold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200/80 mt-0.5 inline-flex items-center gap-0.5"
+                                    title={`Approved extension: +${extensionReq?.requestedExtensionDays} days (${extensionReq?.reason})`}
+                                  >
+                                    <Clock className="w-2.5 h-2.5" /> Extended (+{extensionReq?.requestedExtensionDays}d)
+                                  </span>
+                                ) : rejectedExtReq ? (
+                                  <span
+                                    className="text-[9px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 mt-0.5"
+                                    title={`Extension rejected: ${rejectedExtReq.adminNotes || 'Declined by Admin'}. Returned on time.`}
+                                  >
+                                    Rejected (On Time)
+                                  </span>
+                                ) : hasRenewal ? (
+                                  <span className="text-[9px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/70 mt-0.5">
+                                    Renewed ({record.renewalCount}x)
+                                  </span>
+                                ) : record.memberType === 'FACULTY' ? (
+                                  <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 mt-0.5">
+                                    On Time (30d Quota)
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 mt-0.5">
+                                    On Time (7d Quota)
+                                  </span>
+                                )}
+                              </div>
+                            );
                           }
                           if (fineInfo.fineStatus === 'PAID') {
                             return (
@@ -807,6 +847,11 @@ export default function BookBorrowHistory() {
                                 <span className="text-[9px] font-extrabold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 mt-0.5">
                                   ✓ PAID
                                 </span>
+                                {rejectedExtReq && (
+                                  <span className="text-[8px] font-bold text-rose-600 mt-0.5">
+                                    Extension Rejected
+                                  </span>
+                                )}
                               </div>
                             );
                           }
@@ -826,6 +871,11 @@ export default function BookBorrowHistory() {
                               <span className="text-[9px] font-extrabold uppercase text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200/60 mt-0.5">
                                 UNPAID
                               </span>
+                              {rejectedExtReq && (
+                                <span className="text-[8px] font-bold text-rose-700 bg-rose-100/70 px-1 rounded mt-0.5" title="Extension was rejected by Admin Librarian">
+                                  Extension Rejected
+                                </span>
+                              )}
                             </div>
                           );
                         })()}

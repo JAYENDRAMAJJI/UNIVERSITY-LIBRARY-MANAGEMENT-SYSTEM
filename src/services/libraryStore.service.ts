@@ -1700,28 +1700,40 @@ const DEFAULT_TRANSACTIONS: IssueTransaction[] = [
   },
 
   // --- HISTORICAL COMPLETED CIRCULATIONS (JAN - AUG 2026) ---
-  ...Array.from({ length: 24 }).map((_, i): IssueTransaction => ({
-    id: `tx-2026-hist-${i + 1}`,
-    bookCopyId: `copy-10${(i % 5) + 1}`,
-    bookId: `book-${(i % 5) + 1}`,
-    bookTitle: ['Introduction to Algorithms (4th Edition)', 'Modern Operating Systems (5th Edition)', 'Clean Code: A Handbook of Agile Software Craftsmanship', 'Solid State Electronic Devices', 'Linear Algebra and Its Applications'][i % 5],
-    accessionNo: `ACC-2024-0${(i % 9) + 1}0`,
-    barcode: `BC-9900${i + 1}`,
-    memberId: 'mem-2',
-    memberName: 'Dr. Sarah Connor',
-    memberCardNo: 'FAC-2023-1102',
-    memberType: 'FACULTY' as const,
-    memberDepartment: 'Electrical Engineering',
-    issuedByUserId: '1',
-    issuedByName: 'Chief Admin Librarian',
-    issueDate: `2026-0${(i % 7) + 1}-10 09:30`,
-    dueDate: `2026-0${(i % 7) + 1}-24`,
-    returnDate: `2026-0${(i % 7) + 1}-23 16:40`,
-    renewalCount: 0,
-    maxRenewals: 3,
-    status: 'RETURNED' as const,
-    fineAmount: 0,
-  })),
+  ...Array.from({ length: 24 }).map((_, i): IssueTransaction => {
+    const isLate = i % 3 === 0; // Every 3rd transaction was returned late
+    const borrowMonth = (i % 7) + 1;
+    const borrowDay = 10;
+    const dueDay = 17; // 7 days standard loan
+    const returnDay = isLate ? 20 : 16; // Late return: 10 days duration (3 days late). On time: 6 days duration.
+    const overdueDays = isLate ? returnDay - dueDay : 0; // 3 days late
+    const fineAmt = overdueDays * 5; // 3 * 5 = ₹15.00
+    const isPaid = i % 2 === 0;
+
+    return {
+      id: `tx-2026-hist-${i + 1}`,
+      bookCopyId: `copy-10${(i % 5) + 1}`,
+      bookId: `book-${(i % 5) + 1}`,
+      bookTitle: ['Introduction to Algorithms (4th Edition)', 'Modern Operating Systems (5th Edition)', 'Clean Code: A Handbook of Agile Software Craftsmanship', 'Solid State Electronic Devices', 'Linear Algebra and Its Applications'][i % 5],
+      accessionNo: `ACC-2024-0${(i % 9) + 1}0`,
+      barcode: `BC-9900${i + 1}`,
+      memberId: 'mem-2',
+      memberName: 'Dr. Sarah Connor',
+      memberCardNo: 'FAC-2023-1102',
+      memberType: 'FACULTY' as const,
+      memberDepartment: 'Electrical Engineering',
+      issuedByUserId: '1',
+      issuedByName: 'Chief Admin Librarian',
+      issueDate: `2026-0${borrowMonth}-${borrowDay < 10 ? '0' + borrowDay : borrowDay} 09:30`,
+      dueDate: `2026-0${borrowMonth}-${dueDay < 10 ? '0' + dueDay : dueDay}`,
+      returnDate: `2026-0${borrowMonth}-${returnDay < 10 ? '0' + returnDay : returnDay} 16:40`,
+      renewalCount: 0,
+      maxRenewals: 3,
+      status: 'RETURNED' as const,
+      fineAmount: fineAmt,
+      fineStatus: fineAmt > 0 ? (isPaid ? 'PAID' : 'UNPAID') : undefined,
+    };
+  }),
 ];
 
 const DEFAULT_RESERVATIONS: Reservation[] = [];
@@ -3297,6 +3309,39 @@ class LibraryStoreService {
       initialState = this.getDefaultState();
     }
 
+    // Auto-normalize transactions and compute overdue fines for any transaction that crossed due date
+    if (initialState.transactions) {
+      const today = new Date();
+      const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const fineRate = initialState.config?.fineRatePerDay || 5.00;
+
+      initialState.transactions = initialState.transactions.map((t) => {
+        const dueD = new Date(t.dueDate.split(' ')[0]);
+        if (t.returnDate) {
+          const retD = new Date(t.returnDate.split(' ')[0]);
+          if (retD > dueD) {
+            const diffDays = Math.max(1, Math.ceil((retD.getTime() - dueD.getTime()) / (1000 * 3600 * 24)));
+            const fineAmt = diffDays * fineRate;
+            return {
+              ...t,
+              fineAmount: t.fineAmount && t.fineAmount > 0 ? t.fineAmount : fineAmt,
+              fineStatus: t.fineStatus || 'PAID',
+            };
+          }
+        } else if (todayDateOnly > dueD) {
+          const diffDays = Math.max(1, Math.ceil((todayDateOnly.getTime() - dueD.getTime()) / (1000 * 3600 * 24)));
+          const fineAmt = diffDays * fineRate;
+          return {
+            ...t,
+            status: 'OVERDUE' as const,
+            fineAmount: fineAmt,
+            fineStatus: (t.fineStatus === 'PAID' ? 'PAID' : 'UNPAID') as 'PAID' | 'UNPAID',
+          };
+        }
+        return t;
+      });
+    }
+
     // Auto-deduplicate books by ID, ISBN, or Title combination
     if (initialState.books) {
       const seenBookIds = new Set<string>();
@@ -4439,6 +4484,35 @@ class LibraryStoreService {
       return { success: false, message: 'Extension request record not found.' };
     }
 
+    const originalDueDate = ext.currentDueDate;
+    const today = new Date();
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const dueD = new Date(originalDueDate.split(' ')[0]);
+    const isNowOverdue = todayDateOnly > dueD;
+    const diffDays = isNowOverdue ? Math.max(1, Math.ceil((todayDateOnly.getTime() - dueD.getTime()) / (1000 * 3600 * 24))) : 0;
+    const fineRate = current.config?.fineRatePerDay || 5.00;
+    const fineAmount = diffDays * fineRate;
+
+    let updatedTransactions = current.transactions;
+    const tx = current.transactions.find(
+      (t) => t.id === ext.transactionId || t.accessionNo === ext.accessionNo || t.barcode === ext.barcode
+    );
+
+    if (tx && tx.status !== 'RETURNED') {
+      updatedTransactions = current.transactions.map((t) => {
+        if (t.id === tx.id || t.accessionNo === ext.accessionNo) {
+          return {
+            ...t,
+            status: isNowOverdue ? ('OVERDUE' as const) : t.status,
+            fineAmount: isNowOverdue ? fineAmount : t.fineAmount,
+            fineStatus: isNowOverdue ? (t.fineStatus === 'PAID' ? 'PAID' : 'UNPAID') : t.fineStatus,
+            notes: `Extension request rejected by Admin on ${getLocalDateStr(new Date())}.${isNowOverdue ? ` Overdue fine assessed: ₹${fineAmount.toFixed(2)}` : ''}`,
+          };
+        }
+        return t;
+      });
+    }
+
     const updatedRequests = (current.extensionRequests || []).map((r) => {
       if (r.id === requestId) {
         return {
@@ -4452,14 +4526,43 @@ class LibraryStoreService {
       return r;
     });
 
+    let updatedFines = [...current.fines];
+    if (isNowOverdue && tx && fineAmount > 0) {
+      const existingFine = updatedFines.find((f) => f.transactionId === tx.id);
+      if (existingFine) {
+        updatedFines = updatedFines.map((f) =>
+          f.id === existingFine.id ? { ...f, amount: fineAmount, status: f.status === 'PAID' ? 'PAID' : 'UNPAID' } : f
+        );
+      } else {
+        updatedFines.unshift({
+          id: `fine-${Date.now()}`,
+          transactionId: tx.id,
+          memberId: tx.memberId,
+          memberName: tx.memberName,
+          memberCardNo: tx.memberCardNo,
+          bookTitle: tx.bookTitle,
+          amount: fineAmount,
+          paidAmount: 0,
+          reason: 'OVERDUE',
+          status: 'UNPAID',
+          createdDate: getLocalDateStr(new Date()),
+        });
+      }
+    }
+
     this.state$.next({
       ...current,
+      transactions: updatedTransactions,
       extensionRequests: updatedRequests,
+      fines: updatedFines,
     });
 
-    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'REJECT_EXTENSION', 'CIRCULATION', `Rejected extension request for "${ext.bookTitle}" (Member: ${ext.memberName}).`);
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'REJECT_EXTENSION', 'CIRCULATION', `Rejected extension request for "${ext.bookTitle}" (Member: ${ext.memberName}).${isNowOverdue ? ` Overdue fine assessed: ₹${fineAmount.toFixed(2)}.` : ''}`);
 
-    return { success: true, message: `Extension request for "${ext.bookTitle}" has been rejected.` };
+    return {
+      success: true,
+      message: `Extension request for "${ext.bookTitle}" has been rejected.${isNowOverdue ? ` Overdue fine of ₹${fineAmount.toFixed(2)} (${diffDays} days) has been assessed.` : ''}`,
+    };
   }
 
   public unapproveExtensionRequest(requestId: string, adminNotes?: string): { success: boolean; message: string } {
@@ -4475,17 +4578,26 @@ class LibraryStoreService {
 
     // Revert due date back to original date before extension approval
     const originalDueDate = ext.currentDueDate;
+    const today = new Date();
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const dueD = new Date(originalDueDate.split(' ')[0]);
+    const isNowOverdue = todayDateOnly > dueD;
+    const diffDays = isNowOverdue ? Math.max(1, Math.ceil((todayDateOnly.getTime() - dueD.getTime()) / (1000 * 3600 * 24))) : 0;
+    const fineRate = current.config?.fineRatePerDay || 5.00;
+    const fineAmount = diffDays * fineRate;
+
     let updatedTransactions = current.transactions;
     if (tx && tx.status !== 'RETURNED') {
-      const isNowOverdue = new Date() > new Date(originalDueDate.includes('T') ? originalDueDate : `${originalDueDate}T00:00:00`);
       updatedTransactions = current.transactions.map((t) => {
         if (t.id === tx.id || t.accessionNo === ext.accessionNo) {
           return {
             ...t,
             dueDate: originalDueDate,
             status: isNowOverdue ? ('OVERDUE' as const) : ('ISSUED' as const),
+            fineAmount: isNowOverdue ? fineAmount : t.fineAmount,
+            fineStatus: isNowOverdue ? (t.fineStatus === 'PAID' ? 'PAID' : 'UNPAID') : t.fineStatus,
             renewalCount: Math.max(0, (t.renewalCount || 1) - 1),
-            notes: `Extension approval revoked by Admin on ${getLocalDateStr(new Date())}`,
+            notes: `Extension approval revoked by Admin on ${getLocalDateStr(new Date())}.${isNowOverdue ? ` Overdue fine assessed: ₹${fineAmount.toFixed(2)}` : ''}`,
           };
         }
         return t;
@@ -4506,15 +4618,43 @@ class LibraryStoreService {
       return r;
     });
 
+    let updatedFines = [...current.fines];
+    if (isNowOverdue && tx && fineAmount > 0) {
+      const existingFine = updatedFines.find((f) => f.transactionId === tx.id);
+      if (existingFine) {
+        updatedFines = updatedFines.map((f) =>
+          f.id === existingFine.id ? { ...f, amount: fineAmount, status: f.status === 'PAID' ? 'PAID' : 'UNPAID' } : f
+        );
+      } else {
+        updatedFines.unshift({
+          id: `fine-${Date.now()}`,
+          transactionId: tx.id,
+          memberId: tx.memberId,
+          memberName: tx.memberName,
+          memberCardNo: tx.memberCardNo,
+          bookTitle: tx.bookTitle,
+          amount: fineAmount,
+          paidAmount: 0,
+          reason: 'OVERDUE',
+          status: 'UNPAID',
+          createdDate: getLocalDateStr(new Date()),
+        });
+      }
+    }
+
     this.state$.next({
       ...current,
       transactions: updatedTransactions,
       extensionRequests: updatedRequests,
+      fines: updatedFines,
     });
 
-    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'REJECT_EXTENSION', 'CIRCULATION', `Un-approved extension for "${ext.bookTitle}" (Member: ${ext.memberName}). Due date reverted to ${originalDueDate}.`);
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'REJECT_EXTENSION', 'CIRCULATION', `Un-approved extension for "${ext.bookTitle}" (Member: ${ext.memberName}). Due date reverted to ${originalDueDate}.${isNowOverdue ? ` Overdue fine assessed: ₹${fineAmount.toFixed(2)}.` : ''}`);
 
-    return { success: true, message: `Extension for "${ext.bookTitle}" has been un-approved! Due date reverted back to ${originalDueDate}.` };
+    return {
+      success: true,
+      message: `Extension for "${ext.bookTitle}" has been un-approved! Due date reverted back to ${originalDueDate}.${isNowOverdue ? ` Overdue fine of ₹${fineAmount.toFixed(2)} (${diffDays} days) has been assessed.` : ''}`,
+    };
   }
 
   public processFinePayment(fineId: string, action: 'PAY' | 'WAIVE', waiveReason?: string) {
