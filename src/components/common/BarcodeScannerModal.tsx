@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ScanBarcode, Camera, X, Check, AlertCircle, UserCheck, Cpu, Wifi } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { ScanBarcode, Camera, X, Check, AlertCircle, UserCheck, Cpu, Wifi, Search } from 'lucide-react';
 import jsQR from 'jsqr';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { libraryStore } from '../../services/libraryStore.service';
@@ -192,8 +192,9 @@ export default function BarcodeScannerModal({
   title,
   scannerType = 'ALL',
 }: BarcodeScannerModalProps) {
-  const [selectedBarcode, setSelectedBarcode] = useState('');
+  const [selectedBarcode, setSelectedBarcode] = useState<string>('');
   const [selectedIsbnFilter, setSelectedIsbnFilter] = useState('');
+  const [copySearchTerm, setCopySearchTerm] = useState<string>('');
   const [manualInput, setManualInput] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [activeTab, setActiveTab] = useState<'DEVICE_SCANNER' | 'LIVE_CAMERA'>('DEVICE_SCANNER');
@@ -240,6 +241,7 @@ export default function BarcodeScannerModal({
       bookIsbn: b.isbn,
       status: c.status,
       isReferenceOnly: isRefBook || c.isReferenceOnly,
+      rack: (c as any).rackLocation || (c as any).rack || (b as any).rackLocation || (b as any).shelfLocation || (b as any).callNumber || 'General',
     }));
   });
 
@@ -262,6 +264,18 @@ export default function BarcodeScannerModal({
           c.bookIsbn.replace(/-/g, '') === selectedIsbnFilter.replace(/-/g, '')
       )
     : availableCopies;
+
+  const searchedFilteredCopies = useMemo(() => {
+    if (!copySearchTerm.trim()) return filteredCopies;
+    const term = copySearchTerm.toLowerCase().trim();
+    return filteredCopies.filter(
+      (c) =>
+        c.bookTitle.toLowerCase().includes(term) ||
+        c.accessionNo.toLowerCase().includes(term) ||
+        c.barcode.toLowerCase().includes(term) ||
+        (c.rack && c.rack.toLowerCase().includes(term))
+    );
+  }, [filteredCopies, copySearchTerm]);
 
   // Currently selected member object if any
   const currentMemberObj = memberCards.find((m) => {
@@ -288,6 +302,7 @@ export default function BarcodeScannerModal({
     if (isOpen) {
       setSelectedBarcode('');
       setManualInput('');
+      setCopySearchTerm('');
       setCameraError(null);
       setActiveTab('DEVICE_SCANNER');
       setDeviceScanStatus('Ready & Listening for Hardware Barcode Reader...');
@@ -982,12 +997,39 @@ export default function BarcodeScannerModal({
                 </div>
               )}
 
-              {/* Accession Copy Barcode / QR Code Selector */}
+              {/* Accession Copy Selector with Live Search */}
               {!isStudentOrMemberScan && scannerType !== 'ISBN' && (
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Select Accession Barcode or QR Code:
-                  </label>
+                <div className="space-y-2 pt-1 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Select Available Book Copy:
+                    </label>
+                    <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                      {searchedFilteredCopies.length} Copies Found
+                    </span>
+                  </div>
+
+                  {/* Search Filter Box */}
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      placeholder="Search copy by title, accession no, barcode, rack..."
+                      value={copySearchTerm}
+                      onChange={(e) => setCopySearchTerm(e.target.value)}
+                      className="w-full pl-8.5 pr-8 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                    {copySearchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => setCopySearchTerm('')}
+                        className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
                   <select
                     value={selectedBarcode}
                     onChange={(e) => {
@@ -1001,19 +1043,16 @@ export default function BarcodeScannerModal({
                     className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
                   >
                     <option value="">
-                      {selectedIsbnFilter
-                        ? `-- Choose Accession Copy (${filteredCopies.length} Available) --`
-                        : '-- Choose Accession Barcode / QR Code --'}
+                      {copySearchTerm
+                        ? `-- Matches for "${copySearchTerm}" (${searchedFilteredCopies.length}) --`
+                        : selectedIsbnFilter
+                        ? `-- Select Book Copy (${searchedFilteredCopies.length} Available) --`
+                        : '-- Select Book Copy from Inventory --'}
                     </option>
-                    {filteredCopies.map((item, idx) => (
-                      <React.Fragment key={idx}>
-                        <option value={item.barcode}>
-                          📊 Barcode: {item.barcode} ({item.accessionNo}) - {item.bookTitle} {item.isReferenceOnly ? '🚫 [REFERENCE ONLY]' : `[${item.status}]`}
-                        </option>
-                        <option value={item.qrCode}>
-                          📱 QR Code: {item.qrCode} ({item.accessionNo}) - {item.bookTitle} {item.isReferenceOnly ? '🚫 [REFERENCE ONLY]' : `[${item.status}]`}
-                        </option>
-                      </React.Fragment>
+                    {searchedFilteredCopies.map((item, idx) => (
+                      <option key={idx} value={item.barcode}>
+                        {item.accessionNo} ({item.barcode}) — {item.bookTitle} {item.isReferenceOnly ? '🚫 [REFERENCE ONLY]' : `[${item.status}]`} {item.rack ? `• ${item.rack}` : ''}
+                      </option>
                     ))}
                   </select>
                 </div>

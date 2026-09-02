@@ -94,6 +94,14 @@ export default function DownloadsManagement() {
     }
   };
 
+  const handleRemoveUploadedFile = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setUploadedFileData(null);
+    setUploadedFileName(null);
+    setFileSize('150 KB');
+  };
+
   const handleSave = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!title.trim()) {
@@ -460,27 +468,59 @@ export default function DownloadsManagement() {
               {/* Attach File */}
               <div className="space-y-1.5">
                 <label className="block font-bold text-slate-800">Attach Custom Document / PDF File (Optional)</label>
-                <label className="flex items-center justify-between p-3.5 border-2 border-dashed border-purple-200 hover:border-purple-500 rounded-2xl bg-purple-50/40 hover:bg-purple-50 transition-all cursor-pointer">
-                  <div className="flex items-center gap-2.5">
-                    <UploadCloud className="w-4 h-4 text-purple-600 shrink-0" />
-                    <span className="text-xs font-semibold text-slate-700">
+                <div className="relative">
+                  <label className="flex items-center justify-between p-3.5 border-2 border-dashed border-purple-200 hover:border-purple-500 rounded-2xl bg-purple-50/40 hover:bg-purple-50 transition-all cursor-pointer">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
+                      <UploadCloud className="w-5 h-5 text-purple-600 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        {uploadedFileName ? (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-bold text-purple-900 truncate">{uploadedFileName}</span>
+                            <span className="text-[10px] font-mono font-extrabold bg-purple-200/80 text-purple-800 px-2 py-0.5 rounded-md shrink-0">
+                              {fileSize}
+                            </span>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-xs font-semibold text-slate-800">
+                              Click to attach custom PDF
+                            </p>
+                            <p className="text-[11px] text-slate-500 font-normal">
+                              Leave blank to auto-generate standard official template
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.epub"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <div className="flex items-center gap-2 shrink-0">
                       {uploadedFileName ? (
-                        <span className="text-purple-700 font-bold">{uploadedFileName} ({fileSize})</span>
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleRemoveUploadedFile}
+                            className="text-[11px] font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-xl border border-rose-200 transition-colors"
+                            title="Remove file and use auto-generated template"
+                          >
+                            Remove
+                          </button>
+                          <span className="text-[11px] font-bold text-purple-600 bg-white px-3 py-1 rounded-xl border border-purple-200 shadow-2xs">
+                            Change File
+                          </span>
+                        </>
                       ) : (
-                        'Click to attach custom PDF (Leaves blank to auto-generate standard official template)'
+                        <span className="text-[11px] font-bold text-purple-600 bg-white px-3 py-1 rounded-xl border border-purple-200 shadow-2xs">
+                          Browse File
+                        </span>
                       )}
-                    </span>
-                  </div>
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.epub"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <span className="text-[11px] font-bold text-purple-600 bg-white px-3 py-1 rounded-xl border border-purple-200 shadow-2xs">
-                    {uploadedFileName ? 'Change File' : 'Browse File'}
-                  </span>
-                </label>
+                    </div>
+                  </label>
+                </div>
               </div>
 
               <div>

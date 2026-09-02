@@ -28,12 +28,226 @@ import {
   Building2,
   BookmarkCheck,
   Calendar,
+  ExternalLink,
 } from 'lucide-react';
 import { libraryStore } from '../../services/libraryStore.service';
 import { useAuth } from '../../context/AuthContext';
 import { DigitalResource, DigitalResourceType } from '../../types/library';
 import { generateTopicPdfBlobUrl, getDigitalResourceBlobUrl } from '../../utils/digitalPdfGenerator';
 import { digitalFileStorage } from '../../utils/digitalFileStorage';
+
+// Metadata auto-update mappings
+const RESOURCE_TYPE_METADATA_MAP: Record<
+  DigitalResourceType,
+  { defaultDept: string; defaultSubject: string; defaultSemester?: string; defaultPublisher?: string }
+> = {
+  NEWSPAPER: {
+    defaultDept: 'All Departments',
+    defaultSubject: 'Current Affairs, National Policy & Daily Editorials',
+    defaultSemester: 'All Semesters',
+    defaultPublisher: 'National Daily Press & News Bureau',
+  },
+  MAGAZINE: {
+    defaultDept: 'All Departments',
+    defaultSubject: 'Science, Technology & Modern Perspectives',
+    defaultSemester: 'All Semesters',
+    defaultPublisher: 'University Periodicals & Media Press',
+  },
+  IEEE_XPLORE: {
+    defaultDept: 'Computer Science & Engineering',
+    defaultSubject: 'IEEE Computer Society & AI Signal Transactions',
+    defaultSemester: 'Faculty Research',
+    defaultPublisher: 'IEEE Xplore Digital Vault',
+  },
+  ACM_DIGITAL_LIBRARY: {
+    defaultDept: 'Computer Science & Engineering',
+    defaultSubject: 'Distributed Computing & Algorithms',
+    defaultSemester: 'Faculty Research',
+    defaultPublisher: 'ACM Digital Library',
+  },
+  SPRINGER_LINK: {
+    defaultDept: 'Electronics & Communication',
+    defaultSubject: 'VLSI Systems & Applied Physical Sciences',
+    defaultSemester: 'Faculty Research',
+    defaultPublisher: 'SpringerLink Academic Press',
+  },
+  SCIENCE_DIRECT: {
+    defaultDept: 'Mechanical Engineering',
+    defaultSubject: 'Thermodynamics, Robotics & Energy Materials',
+    defaultSemester: 'Faculty Research',
+    defaultPublisher: 'Elsevier ScienceDirect',
+  },
+  JSTOR: {
+    defaultDept: 'Humanities & Social Sciences',
+    defaultSubject: 'Social Sciences, Public Policy & History Archive',
+    defaultSemester: 'All Semesters',
+    defaultPublisher: 'JSTOR Digital Vault',
+  },
+  NPTEL: {
+    defaultDept: 'Computer Science & Engineering',
+    defaultSubject: 'Computer Architecture & High-Performance Computing',
+    defaultSemester: 'Sem 5',
+    defaultPublisher: 'NPTEL (IITs & IISc)',
+  },
+  SWAYAM: {
+    defaultDept: 'Electrical & Electronics',
+    defaultSubject: 'Power Electronics & Smart Grid Systems',
+    defaultSemester: 'Sem 4',
+    defaultPublisher: 'SWAYAM MOOCs / Ministry of Education',
+  },
+  NDLI: {
+    defaultDept: 'All Departments',
+    defaultSubject: 'National Digital Library Open Repository Index',
+    defaultSemester: 'All Semesters',
+    defaultPublisher: 'National Digital Library of India (IIT Kharagpur)',
+  },
+  QUESTION_PAPER: {
+    defaultDept: 'Computer Science & Engineering',
+    defaultSubject: 'End-Semester University Question Bank',
+    defaultSemester: 'Sem 4',
+    defaultPublisher: 'University Examination Branch',
+  },
+  SYLLABUS: {
+    defaultDept: 'Computer Science & Engineering',
+    defaultSubject: 'Curriculum & Academic Regulation Syllabus',
+    defaultSemester: 'All Semesters',
+    defaultPublisher: 'Academic Affairs Council',
+  },
+  LECTURE_NOTES: {
+    defaultDept: 'Computer Science & Engineering',
+    defaultSubject: 'Faculty Coursework Lecture Notes & Lab Manuals',
+    defaultSemester: 'Sem 4',
+    defaultPublisher: 'Faculty Coursework Repository',
+  },
+  EBOOK: {
+    defaultDept: 'Computer Science & Engineering',
+    defaultSubject: 'Core Academic Reference Textbook',
+    defaultSemester: 'All Semesters',
+    defaultPublisher: 'University Press & Higher Education',
+  },
+  JOURNAL: {
+    defaultDept: 'Electronics & Communication',
+    defaultSubject: 'International Journal of Advanced Engineering & Computing',
+    defaultSemester: 'Faculty Research',
+    defaultPublisher: 'University Research Press',
+  },
+  THESIS_DISSERTATION: {
+    defaultDept: 'Computer Science & Engineering',
+    defaultSubject: 'Doctoral Ph.D. & Masters Dissertation Thesis',
+    defaultSemester: 'Doctoral / Ph.D.',
+    defaultPublisher: 'Graduate School of Research',
+  },
+  PROJECT_REPORT: {
+    defaultDept: 'Computer Science & Engineering',
+    defaultSubject: 'Final Year Capstone Project Report',
+    defaultSemester: 'Sem 8',
+    defaultPublisher: 'Department Project Review Committee',
+  },
+  FACULTY_PUBLICATION: {
+    defaultDept: 'Computer Science & Engineering',
+    defaultSubject: 'Faculty Research Paper & Conference Proceedings',
+    defaultSemester: 'Faculty Research',
+    defaultPublisher: 'University Research Council',
+  },
+  MULTIMEDIA: {
+    defaultDept: 'Computer Science & Engineering',
+    defaultSubject: 'Interactive Virtual Laboratory & Video Masterclass',
+    defaultSemester: 'All Semesters',
+    defaultPublisher: 'Digital Media Studio',
+  },
+  RESEARCH_PAPER: {
+    defaultDept: 'Computer Science & Engineering',
+    defaultSubject: 'Artificial Intelligence, Systems & Engineering Sciences',
+    defaultSemester: 'Faculty Research',
+    defaultPublisher: 'University Press & Academic Library',
+  },
+};
+
+const DEPARTMENT_DEFAULT_SUBJECTS: Record<string, string> = {
+  'Computer Science & Engineering': 'Artificial Intelligence & Distributed Systems',
+  'Electronics & Communication': 'VLSI Design & Digital Signal Processing',
+  'Electrical & Electronics': 'Power Electronics & Smart Grid Automation',
+  'Mechanical Engineering': 'Thermodynamics, Robotics & CAD Modeling',
+  'Management Studies': 'Financial Strategy & Strategic Management',
+  'Mathematics & Basic Sciences': 'Applied Mathematics, Calculus & Optimization',
+  'Humanities & Social Sciences': 'Social Sciences, Public Policy & Ethics',
+  'All Departments': 'Interdisciplinary Universal Studies & General Affairs',
+};
+
+const DEPARTMENT_SUBJECT_OPTIONS: Record<string, string[]> = {
+  'Computer Science & Engineering': [
+    'Artificial Intelligence & Machine Learning',
+    'Distributed Cloud Computing & DevOps',
+    'Data Structures & Advanced Algorithms',
+    'Cyber Security & Cryptography',
+    'Computer Architecture & HPC',
+    'Full Stack Software Engineering',
+    'Database Systems & Big Data Analytics',
+    'Natural Language Processing & LLMs',
+    'Internet of Things (IoT) & Embedded Systems',
+    'Computer Networks & Protocols',
+  ],
+  'Electronics & Communication': [
+    'VLSI System Design & FPGA',
+    'Digital Signal Processing (DSP)',
+    'Wireless & 5G Communications',
+    'Microcontrollers & Embedded C',
+    'RF & Microwave Engineering',
+    'Optical Fiber Communication',
+    'Sensors & Instrumentation',
+    'Analog & Digital Circuit Design',
+  ],
+  'Electrical & Electronics': [
+    'Power Systems & Smart Grids',
+    'Renewable Energy Integration & Solar PV',
+    'Electric Vehicles & Battery Management',
+    'Power Electronics & Drives',
+    'Control Systems & Automation',
+    'High Voltage Engineering',
+    'Industrial Electrical Drives',
+  ],
+  'Mechanical Engineering': [
+    'Thermodynamics & Heat Transfer',
+    'Robotics & Industrial Automation',
+    'Fluid Mechanics & CFD Simulation',
+    'Finite Element Analysis (FEA) & Solid Mechanics',
+    'CAD/CAM & Rapid Prototyping',
+    'Automotive Engineering & Hybrid Powertrains',
+    'Manufacturing Technology & Metallurgy',
+  ],
+  'Management Studies': [
+    'Financial Accounting & Investment Strategy',
+    'Marketing Management & Digital Analytics',
+    'Organizational Behavior & Human Resources',
+    'Operations & Supply Chain Logistics',
+    'Strategic Business Management',
+    'Corporate Finance & Valuation',
+    'Entrepreneurship & Innovation',
+  ],
+  'Mathematics & Basic Sciences': [
+    'Applied Calculus & Linear Algebra',
+    'Engineering Physics & Quantum Optics',
+    'Probability, Statistics & Stochastic Processes',
+    'Numerical Methods & Optimization',
+    'Engineering Chemistry & Materials',
+    'Discrete Mathematics & Graph Theory',
+  ],
+  'Humanities & Social Sciences': [
+    'Economics & Public Policy',
+    'Professional Ethics, Human Values & Law',
+    'Technical English & Communication Skills',
+    'Sociology, Gender & Digital Society',
+    'Environmental Science & Sustainability',
+    'Public Administration & Governance',
+  ],
+  'All Departments': [
+    'Current Affairs, National Policy & Daily Editorials',
+    'General Engineering Aptitude & Logic',
+    'Research Methodology, IPR & Patents',
+    'National Digital Library Index & Open Repositories',
+    'Interdisciplinary Technology & Innovation',
+  ],
+};
 
 export default function DigitalLibraryAdmin() {
   const { user } = useAuth();
@@ -49,6 +263,7 @@ export default function DigitalLibraryAdmin() {
     department?: string;
     type?: string;
     description?: string;
+    externalUrl?: string;
     textContent?: string | null;
   } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -90,6 +305,95 @@ export default function DigitalLibraryAdmin() {
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  // Auto-Update Handlers for Category Type, Department, and Subject
+  const handleResourceTypeChange = (newType: DigitalResourceType) => {
+    setResourceType(newType);
+    const meta = RESOURCE_TYPE_METADATA_MAP[newType];
+    if (meta) {
+      setDepartment(meta.defaultDept);
+      setCategoryName(meta.defaultDept);
+      setSubject(meta.defaultSubject);
+      if (meta.defaultSemester) {
+        setSemester(meta.defaultSemester);
+      }
+      if (!publisherName || publisherName.includes('University Press') || publisherName.includes('Vault') || publisherName.includes('Press')) {
+        if (meta.defaultPublisher) setPublisherName(meta.defaultPublisher);
+      }
+    }
+  };
+
+  const handleDepartmentChange = (newDept: string) => {
+    setDepartment(newDept);
+    setCategoryName(newDept);
+    // Auto-update subject to match department if current subject is default/empty
+    const currentSubjectIsDefault = !subject || Object.values(RESOURCE_TYPE_METADATA_MAP).some(m => m.defaultSubject === subject) || Object.values(DEPARTMENT_DEFAULT_SUBJECTS).some(s => s === subject);
+    if (currentSubjectIsDefault && DEPARTMENT_DEFAULT_SUBJECTS[newDept]) {
+      setSubject(DEPARTMENT_DEFAULT_SUBJECTS[newDept]);
+    }
+    // Context-aware auto-sync of Resource Category Type when Department changes
+    if (newDept === 'All Departments') {
+      setSemester('All Semesters');
+      if (resourceType === 'RESEARCH_PAPER' || resourceType === 'IEEE_XPLORE') {
+        setResourceType('NEWSPAPER');
+      }
+    } else if (newDept === 'Humanities & Social Sciences' && (resourceType === 'IEEE_XPLORE' || resourceType === 'ACM_DIGITAL_LIBRARY')) {
+      setResourceType('JSTOR');
+    }
+  };
+
+  const handleSubjectChange = (newSubject: string) => {
+    setSubject(newSubject);
+    const lower = newSubject.toLowerCase();
+    if (lower.includes('question paper') || lower.includes('mid sem') || lower.includes('end sem') || lower.includes('exam bank')) {
+      setResourceType('QUESTION_PAPER');
+    } else if (lower.includes('syllabus') || lower.includes('curriculum') || lower.includes('regulation')) {
+      setResourceType('SYLLABUS');
+    } else if (lower.includes('thesis') || lower.includes('dissertation') || lower.includes('ph.d') || lower.includes('phd')) {
+      setResourceType('THESIS_DISSERTATION');
+    } else if (lower.includes('newspaper') || lower.includes('e-paper') || lower.includes('daily') || lower.includes('editorial') || lower.includes('hindu') || lower.includes('express')) {
+      setResourceType('NEWSPAPER');
+      setDepartment('All Departments');
+      setCategoryName('All Departments');
+    } else if (lower.includes('magazine') || lower.includes('periodical')) {
+      setResourceType('MAGAZINE');
+      setDepartment('All Departments');
+      setCategoryName('All Departments');
+    } else if (lower.includes('lecture note') || lower.includes('class note') || lower.includes('handout') || lower.includes('lab manual')) {
+      setResourceType('LECTURE_NOTES');
+    } else if (lower.includes('ieee') || lower.includes('xplore')) {
+      setResourceType('IEEE_XPLORE');
+      setDepartment('Computer Science & Engineering');
+    } else if (lower.includes('acm')) {
+      setResourceType('ACM_DIGITAL_LIBRARY');
+      setDepartment('Computer Science & Engineering');
+    } else if (lower.includes('nptel')) {
+      setResourceType('NPTEL');
+    } else if (lower.includes('swayam')) {
+      setResourceType('SWAYAM');
+      setDepartment('Electrical & Electronics');
+    } else if (lower.includes('ndli')) {
+      setResourceType('NDLI');
+      setDepartment('All Departments');
+    } else if (lower.includes('springer')) {
+      setResourceType('SPRINGER_LINK');
+      setDepartment('Electronics & Communication');
+    } else if (lower.includes('sciencedirect') || lower.includes('elsevier')) {
+      setResourceType('SCIENCE_DIRECT');
+      setDepartment('Mechanical Engineering');
+    } else if (lower.includes('jstor')) {
+      setResourceType('JSTOR');
+      setDepartment('Humanities & Social Sciences');
+    } else if (lower.includes('project report') || lower.includes('capstone')) {
+      setResourceType('PROJECT_REPORT');
+    } else if (lower.includes('faculty publication') || lower.includes('proceedings')) {
+      setResourceType('FACULTY_PUBLICATION');
+    } else if (lower.includes('journal')) {
+      setResourceType('JOURNAL');
+    } else if (lower.includes('ebook') || lower.includes('textbook') || lower.includes('handbook')) {
+      setResourceType('EBOOK');
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -274,7 +578,8 @@ export default function DigitalLibraryAdmin() {
       department: res.department || res.categoryName,
       type: res.resourceType,
       description: res.description,
-      textContent: res.uploadedFileData ? undefined : undefined,
+      externalUrl: res.externalUrl || (res.fileUrl?.startsWith('http') ? res.fileUrl : undefined),
+      textContent: undefined,
     });
   };
 
@@ -681,14 +986,19 @@ export default function DigitalLibraryAdmin() {
               {/* Category & Department */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-purple-600" />
-                    <span>Resource Category Type</span>
+                  <label className="block font-bold text-slate-800 mb-1.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Resource Category Type</span>
+                    </span>
+                    <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md">
+                      Auto-syncs Dept & Subject
+                    </span>
                   </label>
                   <select
                     value={resourceType}
-                    onChange={(e) => setResourceType(e.target.value as DigitalResourceType)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 cursor-pointer shadow-xs"
+                    onChange={(e) => handleResourceTypeChange(e.target.value as DigitalResourceType)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-purple-200 text-xs font-bold text-slate-900 bg-purple-50/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 cursor-pointer shadow-xs"
                   >
                     <option value="RESEARCH_PAPER">📄 Research Paper</option>
                     <option value="IEEE_XPLORE">⚡ IEEE Xplore</option>
@@ -714,13 +1024,16 @@ export default function DigitalLibraryAdmin() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
-                    <BookOpen className="w-3.5 h-3.5 text-purple-600" />
-                    <span>Department</span>
+                  <label className="block font-bold text-slate-800 mb-1.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Department</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium">Auto-updated</span>
                   </label>
                   <select
                     value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
+                    onChange={(e) => handleDepartmentChange(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 cursor-pointer shadow-xs"
                   >
                     <option value="Computer Science & Engineering">Computer Science & Engineering</option>
@@ -729,6 +1042,8 @@ export default function DigitalLibraryAdmin() {
                     <option value="Mechanical Engineering">Mechanical Engineering</option>
                     <option value="Management Studies">Management Studies</option>
                     <option value="Mathematics & Basic Sciences">Mathematics & Basic Sciences</option>
+                    <option value="Humanities & Social Sciences">Humanities & Social Sciences</option>
+                    <option value="All Departments">All Departments (Universal / General)</option>
                   </select>
                 </div>
               </div>
@@ -749,17 +1064,31 @@ export default function DigitalLibraryAdmin() {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
-                    <Tag className="w-3.5 h-3.5 text-purple-600" />
-                    <span>Subject / Discipline</span>
+                  <label className="block font-bold text-slate-800 mb-1.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Subject / Discipline</span>
+                    </span>
+                    <span className="text-[10px] text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded-md">
+                      Dropdown Select
+                    </span>
                   </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Cyber Security & Cryptography"
+                  <select
                     value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 bg-slate-50/50 focus:bg-white transition-all shadow-xs"
-                  />
+                    onChange={(e) => handleSubjectChange(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 cursor-pointer shadow-xs"
+                  >
+                    <option value="">-- Select Subject / Discipline --</option>
+                    {/* Include active value if not in predefined list */}
+                    {subject && !(DEPARTMENT_SUBJECT_OPTIONS[department] || []).includes(subject) && (
+                      <option value={subject}>{subject} (Current)</option>
+                    )}
+                    {(DEPARTMENT_SUBJECT_OPTIONS[department] || DEPARTMENT_SUBJECT_OPTIONS['All Departments']).map((subjOption) => (
+                      <option key={subjOption} value={subjOption}>
+                        {subjOption}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -805,6 +1134,7 @@ export default function DigitalLibraryAdmin() {
                     onChange={(e) => setSemester(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 cursor-pointer shadow-xs"
                   >
+                    <option value="All Semesters">All (For All)</option>
                     <option value="Sem 1">Semester 1</option>
                     <option value="Sem 2">Semester 2</option>
                     <option value="Sem 3">Semester 3</option>
@@ -813,7 +1143,6 @@ export default function DigitalLibraryAdmin() {
                     <option value="Sem 6">Semester 6</option>
                     <option value="Sem 7">Semester 7</option>
                     <option value="Sem 8">Semester 8</option>
-                    <option value="All Semesters">All Semesters</option>
                     <option value="Faculty Research">Faculty Research</option>
                     <option value="Doctoral / Ph.D.">Doctoral / Ph.D.</option>
                   </select>
@@ -1035,6 +1364,18 @@ export default function DigitalLibraryAdmin() {
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
+                {previewDoc.externalUrl && (
+                  <a
+                    href={previewDoc.externalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-purple-300 hover:text-white font-bold text-xs transition-all flex items-center gap-1.5 border border-purple-500/30 whitespace-nowrap cursor-pointer shadow-xs"
+                    title="Open official web portal in new tab"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Open Website</span>
+                  </a>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -1053,7 +1394,7 @@ export default function DigitalLibraryAdmin() {
                   className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition-all flex items-center gap-2 shadow-md shadow-purple-500/20 whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   <Download className="w-4 h-4 shrink-0" />
-                  <span className="whitespace-nowrap">Download File</span>
+                  <span className="whitespace-nowrap">Download PDF</span>
                 </button>
                 <button
                   onClick={() => setPreviewDoc(null)}

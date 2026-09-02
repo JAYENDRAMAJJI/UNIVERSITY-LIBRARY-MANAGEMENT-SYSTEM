@@ -25,12 +25,14 @@ import {
   BarChart3,
   ChevronDown,
   Calendar,
+  CalendarDays,
   Zap,
   Camera,
 } from 'lucide-react';
 import { libraryStore, getLocalDateTimeStr, getLocalDateStr, formatOnlyTimeInBracket, getLibraryOperatingStatus } from '../../services/libraryStore.service';
 import { useAuth } from '../../context/AuthContext';
 import BarcodeScannerModal from '../../components/common/BarcodeScannerModal';
+import UniversityCalendarSection from '../../components/admin/UniversityCalendarSection';
 import {
   AttendanceRecord,
   AttendanceStatus,
@@ -44,7 +46,7 @@ export default function AttendanceManagement() {
   const { user } = useAuth();
   const isAdminOrStaff = user?.role === 'ADMIN' || user?.role === 'STAFF';
   const [state, setState] = useState(libraryStore.snapshot);
-  const [activeTab, setActiveTab] = useState<'DESK' | 'LIVE' | 'HISTORY' | 'ANALYTICS'>(
+  const [activeTab, setActiveTab] = useState<'DESK' | 'LIVE' | 'CALENDAR' | 'HISTORY' | 'ANALYTICS'>(
     isAdminOrStaff ? 'DESK' : 'HISTORY'
   );
 
@@ -128,7 +130,7 @@ export default function AttendanceManagement() {
   // Real Clock State (Updates every second)
   const [nowClock, setNowClock] = useState(new Date());
 
-  const operatingStatus = useMemo(() => getLibraryOperatingStatus(nowClock), [nowClock]);
+  const operatingStatus = useMemo(() => getLibraryOperatingStatus(nowClock, state.calendarEvents), [nowClock, state.calendarEvents]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -656,58 +658,148 @@ export default function AttendanceManagement() {
         </div>
       </div>
 
-      {/* Main Tab Navigation Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-1.5 flex flex-wrap gap-1 shadow-xs">
+      {/* Main Tab Navigation Header - Polished Uniform Layout */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-1.5 shadow-xs overflow-x-auto no-scrollbar">
         {isAdminOrStaff ? (
-          <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 min-w-[700px] lg:min-w-0">
+            {/* Tab 1: Check-In / Out Desk */}
             <button
+              type="button"
               onClick={() => setActiveTab('DESK')}
-              className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`h-11 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
                 activeTab === 'DESK'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20 font-extrabold'
                   : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
-              <ScanBarcode className="h-4 w-4" /> Check-In / Check-Out Desk
+              <ScanBarcode className="h-4 w-4 shrink-0" />
+              <span>Check-In / Out Desk</span>
             </button>
+
+            {/* Tab 2: Live Occupancy */}
             <button
+              type="button"
               onClick={() => setActiveTab('LIVE')}
-              className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`h-11 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
                 activeTab === 'LIVE'
-                  ? 'bg-emerald-600 text-white shadow-sm'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-500/20 font-extrabold'
                   : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
-              <Users className="h-4 w-4" /> Live Occupancy ({activeVisitors.length})
+              <Users className="h-4 w-4 shrink-0" />
+              <span>Live Occupancy</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  activeTab === 'LIVE'
+                    ? 'bg-white/25 text-white'
+                    : 'bg-emerald-100 text-emerald-800'
+                }`}
+              >
+                {activeVisitors.length}
+              </span>
             </button>
+
+            {/* Tab 3: University Calendar */}
             <button
+              type="button"
+              onClick={() => setActiveTab('CALENDAR')}
+              className={`h-11 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
+                activeTab === 'CALENDAR'
+                  ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20 font-extrabold'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <CalendarDays className="h-4 w-4 shrink-0" />
+              <span>University Calendar</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  activeTab === 'CALENDAR'
+                    ? 'bg-white/25 text-white'
+                    : 'bg-indigo-100 text-indigo-800'
+                }`}
+              >
+                {(state.calendarEvents || []).length}
+              </span>
+            </button>
+
+            {/* Tab 4: Attendance History */}
+            <button
+              type="button"
               onClick={() => setActiveTab('HISTORY')}
-              className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`h-11 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
                 activeTab === 'HISTORY'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-500/20 font-extrabold'
                   : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
-              <Calendar className="h-4 w-4" /> Attendance History ({filteredHistory.length})
+              <Calendar className="h-4 w-4 shrink-0" />
+              <span>Attendance History</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  activeTab === 'HISTORY'
+                    ? 'bg-white/25 text-white'
+                    : 'bg-slate-100 text-slate-700'
+                }`}
+              >
+                {filteredHistory.length}
+              </span>
+            </button>
+
+            {/* Tab 5: Attendance Analytics */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('ANALYTICS')}
+              className={`h-11 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
+                activeTab === 'ANALYTICS'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-500/20 font-extrabold'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <BarChart3 className="h-4 w-4 shrink-0" />
+              <span>Attendance Analytics</span>
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('HISTORY')}
+              className={`h-11 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
+                activeTab === 'HISTORY'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md font-extrabold'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Calendar className="h-4 w-4 shrink-0" />
+              <span>My Personal Attendance Visits</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  activeTab === 'HISTORY' ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700'
+                }`}
+              >
+                {filteredHistory.length}
+              </span>
             </button>
             <button
-              onClick={() => setActiveTab('ANALYTICS')}
-              className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                activeTab === 'ANALYTICS'
-                  ? 'bg-purple-600 text-white shadow-sm'
+              type="button"
+              onClick={() => setActiveTab('CALENDAR')}
+              className={`h-11 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
+                activeTab === 'CALENDAR'
+                  ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md font-extrabold'
                   : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
-              <BarChart3 className="h-4 w-4" /> Attendance Analytics
+              <CalendarDays className="h-4 w-4 shrink-0" />
+              <span>University Calendar & Holidays</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  activeTab === 'CALENDAR' ? 'bg-white/25 text-white' : 'bg-indigo-100 text-indigo-800'
+                }`}
+              >
+                {(state.calendarEvents || []).length}
+              </span>
             </button>
-          </>
-        ) : (
-          <button
-            onClick={() => setActiveTab('HISTORY')}
-            className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer bg-blue-600 text-white shadow-sm"
-          >
-            <Calendar className="h-4 w-4" /> My Personal Library Visits & Attendance History ({filteredHistory.length})
-          </button>
+          </div>
         )}
       </div>
 
@@ -1300,6 +1392,14 @@ export default function AttendanceManagement() {
             )}
           </div>
         </div>
+      )}
+
+      {/* TAB: UNIVERSITY CALENDAR & SCHEDULES */}
+      {activeTab === 'CALENDAR' && (
+        <UniversityCalendarSection
+          events={state.calendarEvents || []}
+          attendanceRecords={state.attendanceRecords || []}
+        />
       )}
 
       {/* TAB 3: ATTENDANCE HISTORY LOGS */}

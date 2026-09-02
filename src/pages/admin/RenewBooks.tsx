@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle, AlertCircle, Clock, ShieldCheck, XCircle, Search, X } from 'lucide-react';
+import { RefreshCw, CheckCircle, AlertCircle, Clock, ShieldCheck, XCircle, Search, X, RotateCcw, ArrowRight } from 'lucide-react';
 import { libraryStore } from '../../services/libraryStore.service';
 import { ExtensionRequest } from '../../types/library';
 
@@ -49,6 +49,17 @@ export default function RenewBooks() {
       triggerAlert('success', res.message);
     } else {
       triggerAlert('error', res.message);
+    }
+  };
+
+  const handleUnapprove = (requestId: string) => {
+    if (window.confirm('Are you sure you want to un-approve (revoke) this time extension? The book due date will revert back to its original return date.')) {
+      const res = libraryStore.unapproveExtensionRequest(requestId);
+      if (res.success) {
+        triggerAlert('success', res.message);
+      } else {
+        triggerAlert('error', res.message);
+      }
     }
   };
 
@@ -156,22 +167,22 @@ export default function RenewBooks() {
             <span className="text-xs font-semibold text-slate-500">Student & Faculty member requests requiring librarian approval</span>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="w-full">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-xs font-extrabold text-slate-600 uppercase tracking-wider">
-                  <th className="py-3.5 px-4 align-middle whitespace-nowrap">Member Details</th>
-                  <th className="py-3.5 px-4 align-middle">Book Title & Accession</th>
-                  <th className="py-3.5 px-4 align-middle whitespace-nowrap">Current Due Date</th>
-                  <th className="py-3.5 px-4 align-middle whitespace-nowrap">Requested Extension</th>
-                  <th className="py-3.5 px-4 align-middle">Valid Reason Provided</th>
-                  <th className="py-3.5 px-4 align-middle text-right whitespace-nowrap">Approval Actions</th>
+                  <th className="py-3 px-4 align-middle w-[18%]">Member Details</th>
+                  <th className="py-3 px-4 align-middle w-[22%]">Book Title & Accession</th>
+                  <th className="py-3 px-4 align-middle whitespace-nowrap w-[12%]">Current Due</th>
+                  <th className="py-3 px-4 align-middle whitespace-nowrap w-[12%]">Extension</th>
+                  <th className="py-3 px-4 align-middle w-[22%]">Reason Provided</th>
+                  <th className="py-3 px-4 align-middle text-center whitespace-nowrap w-[14%]">Approval Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
                 {filteredPending.map((req) => (
                   <tr key={req.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+                    <td className="py-3 px-4 align-middle">
                       <div className="space-y-1">
                         <p className="font-bold text-slate-900 leading-tight">{req.memberName}</p>
                         <p className="text-xs font-mono text-purple-700 font-bold">{req.memberCardNo}</p>
@@ -180,38 +191,38 @@ export default function RenewBooks() {
                         </span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 align-middle max-w-xs">
-                      <div className="space-y-1 min-w-0">
-                        <p className="font-bold text-slate-900 leading-tight break-words" title={req.bookTitle}>{req.bookTitle}</p>
+                    <td className="py-3 px-4 align-middle">
+                      <div className="space-y-1">
+                        <p className="font-bold text-slate-900 leading-tight break-words">{req.bookTitle}</p>
                         <p className="text-xs font-mono text-slate-500">{req.accessionNo} ({req.barcode})</p>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 align-middle font-bold text-slate-800 font-mono whitespace-nowrap text-xs">
+                    <td className="py-3 px-4 align-middle font-bold text-slate-800 font-mono whitespace-nowrap text-xs">
                       {req.currentDueDate}
                     </td>
-                    <td className="py-3.5 px-4 align-middle whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 bg-amber-100/80 text-amber-900 border border-amber-200/80 px-2.5 py-1 rounded-full text-xs font-extrabold shadow-2xs">
+                    <td className="py-3 px-4 align-middle whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full text-xs font-bold">
                         +{req.requestedExtensionDays} Days
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 align-middle max-w-xs">
-                      <div className="p-2.5 rounded-xl bg-amber-50/90 border border-amber-200/80 text-xs text-amber-950 font-medium italic shadow-2xs leading-relaxed break-words">
+                    <td className="py-3 px-4 align-middle">
+                      <div className="p-2 rounded-xl bg-amber-50/80 border border-amber-200/80 text-xs text-amber-950 font-medium italic leading-relaxed break-words">
                         "{req.reason}"
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 align-middle text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="py-3 px-4 align-middle text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => handleApprove(req.id)}
-                          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs hover:shadow transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs hover:shadow transition-all cursor-pointer flex items-center gap-1 active:scale-95"
                         >
-                          <CheckCircle className="w-4 h-4" /> Approve
+                          <CheckCircle className="w-3.5 h-3.5" /> Approve
                         </button>
                         <button
                           onClick={() => setRejectingRequest(req)}
-                          className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/90 font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                          className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition-all cursor-pointer flex items-center gap-1 active:scale-95"
                         >
-                          <XCircle className="w-4 h-4" /> Reject
+                          <XCircle className="w-3.5 h-3.5" /> Reject
                         </button>
                       </div>
                     </td>
@@ -242,37 +253,64 @@ export default function RenewBooks() {
             <span className="text-xs font-semibold text-slate-500">Official history log of librarian-approved extension requests</span>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="w-full">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
-                  <th className="py-3 px-4">Member Name</th>
-                  <th className="py-3 px-4">Book Title</th>
-                  <th className="py-3 px-4">Reason Provided</th>
-                  <th className="py-3 px-4">Decision & New Due Date</th>
-                  <th className="py-3 px-4">Approved Date</th>
+                <tr className="bg-slate-50 border-b border-slate-200 text-xs font-extrabold text-slate-600 uppercase tracking-wider">
+                  <th className="py-3 px-4 align-middle w-[18%]">Member Details</th>
+                  <th className="py-3 px-4 align-middle w-[22%]">Book Title & Accession</th>
+                  <th className="py-3 px-4 align-middle w-[23%]">Reason Provided</th>
+                  <th className="py-3 px-4 align-middle w-[15%]">Extended Due Date</th>
+                  <th className="py-3 px-4 align-middle whitespace-nowrap w-[9%]">Approved Date</th>
+                  <th className="py-3 px-4 align-middle text-center whitespace-nowrap w-[13%]">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
                 {filteredApproved.map((req) => (
                   <tr key={req.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4 align-middle font-semibold text-slate-900 whitespace-nowrap">
-                      {req.memberName} <span className="text-xs text-slate-400 font-normal">({req.memberRole})</span>
+                    <td className="py-3 px-4 align-middle">
+                      <div className="space-y-1">
+                        <p className="font-bold text-slate-900 leading-tight">{req.memberName}</p>
+                        <p className="text-xs font-mono text-purple-700 font-bold">{req.memberCardNo}</p>
+                        <span className="inline-block text-[10px] font-extrabold uppercase bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
+                          {req.memberRole}
+                        </span>
+                      </div>
                     </td>
-                    <td className="py-3.5 px-4 align-middle font-medium text-slate-800">{req.bookTitle}</td>
-                    <td className="py-3.5 px-4 align-middle text-xs text-slate-600 italic font-medium max-w-xs break-words">"{req.reason}"</td>
-                    <td className="py-3.5 px-4 align-middle">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                        Approved {req.newDueDate ? `(Extended to ${req.newDueDate})` : ''}
+                    <td className="py-3 px-4 align-middle">
+                      <div className="space-y-1">
+                        <p className="font-bold text-slate-900 leading-tight break-words">{req.bookTitle}</p>
+                        <p className="text-xs font-mono text-slate-500">{req.accessionNo} ({req.barcode})</p>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 align-middle">
+                      <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700 font-medium italic leading-relaxed break-words">
+                        "{req.reason}"
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 align-middle">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Extended to {req.newDueDate || req.currentDueDate} (+{req.requestedExtensionDays}d)</span>
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 align-middle text-xs font-mono text-slate-500">{req.reviewedDate || req.requestedDate}</td>
+                    <td className="py-3 px-4 align-middle text-xs font-mono text-slate-600 whitespace-nowrap font-medium">
+                      {req.reviewedDate || req.requestedDate}
+                    </td>
+                    <td className="py-3 px-4 align-middle text-center whitespace-nowrap">
+                      <button
+                        onClick={() => handleUnapprove(req.id)}
+                        className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs transition-all cursor-pointer inline-flex items-center justify-center gap-1 active:scale-95 mx-auto"
+                        title="Un-approve and revoke this extension"
+                      >
+                        <RotateCcw className="w-3 h-3 text-amber-700" /> Un-approve
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {filteredApproved.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center text-slate-400 text-sm">
+                    <td colSpan={6} className="py-12 text-center text-slate-400 text-sm">
                       {searchTerm
                         ? `No extension approval history matching "${searchTerm}".`
                         : 'No approved extension history records found.'}

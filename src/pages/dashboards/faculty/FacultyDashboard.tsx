@@ -271,50 +271,93 @@ export default function FacultyDashboard() {
       {/* Grid Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Stat 1: Research Papers */}
-        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/90 flex items-center gap-4 min-w-0">
-          <div className="p-3.5 rounded-2xl bg-blue-50 text-blue-600 shrink-0">
-            <FileText className="w-6 h-6" />
+        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/90 flex flex-col justify-between min-w-0 transition-all hover:shadow-md hover:border-blue-200 space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+              <FileText className="w-5 h-5" />
+            </div>
+            <span className="text-[11px] font-extrabold uppercase tracking-wide text-blue-800 bg-blue-50 border border-blue-200/70 px-2.5 py-1 rounded-full">
+              Digital Papers
+            </span>
           </div>
-          <div className="min-w-0 flex-1">
+
+          <div className="min-w-0">
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Research Papers</p>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-2xl font-extrabold text-slate-900 font-poppins">
+              <span className="text-2xl sm:text-3xl font-extrabold font-poppins text-slate-900">
                 {state.digitalResources.filter((r) => r.resourceType === 'RESEARCH_PAPER').length}
               </span>
               <span className="text-xs font-semibold text-slate-500">Available</span>
             </div>
           </div>
+
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span className="truncate">Campus Access Active</span>
+            <Link to="/digital-library" className="text-blue-600 font-bold hover:underline shrink-0 flex items-center gap-0.5">
+              Explore &rarr;
+            </Link>
+          </div>
         </div>
 
         {/* Stat 2: Active Faculty Borrowed Books */}
-        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/90 flex items-center gap-4 min-w-0">
-          <div className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0">
-            <Book className="w-6 h-6" />
+        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/90 flex flex-col justify-between min-w-0 transition-all hover:shadow-md hover:border-emerald-200 space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+              <Book className="w-5 h-5" />
+            </div>
+            <span className="text-[11px] font-extrabold uppercase tracking-wide text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-2.5 py-1 rounded-full">
+              Quota: {facultyMember?.maxAllowedBooks || 10} Books
+            </span>
           </div>
-          <div className="min-w-0 flex-1">
+
+          <div className="min-w-0">
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Borrowed Books</p>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-2xl font-extrabold text-slate-900 font-poppins">
+              <span className="text-2xl sm:text-3xl font-extrabold font-poppins text-slate-900">
                 {facultyTransactions.length}
               </span>
               <span className="text-xs font-semibold text-slate-500">/ {facultyMember?.maxAllowedBooks || 10} Allowed</span>
             </div>
           </div>
+
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span className="truncate">30 Days Borrow Quota</span>
+            <button
+              type="button"
+              onClick={() => handleTabChange('loans')}
+              className="text-emerald-700 font-bold hover:underline shrink-0 flex items-center gap-0.5 cursor-pointer"
+            >
+              Manage &rarr;
+            </button>
+          </div>
         </div>
 
         {/* Stat 3: E-Books & Journals */}
-        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/90 flex items-center gap-4 min-w-0">
-          <div className="p-3.5 rounded-2xl bg-purple-50 text-purple-600 shrink-0">
-            <Download className="w-6 h-6" />
+        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/90 flex flex-col justify-between min-w-0 transition-all hover:shadow-md hover:border-purple-200 space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="w-11 h-11 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100">
+              <Download className="w-5 h-5" />
+            </div>
+            <span className="text-[11px] font-extrabold uppercase tracking-wide text-purple-800 bg-purple-50 border border-purple-200/70 px-2.5 py-1 rounded-full">
+              Repository
+            </span>
           </div>
-          <div className="min-w-0 flex-1">
+
+          <div className="min-w-0">
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">E-Books & Journals</p>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-2xl font-extrabold text-slate-900 font-poppins">
+              <span className="text-2xl sm:text-3xl font-extrabold font-poppins text-slate-900">
                 {state.digitalResources.length}
               </span>
               <span className="text-xs font-semibold text-slate-500">Repositories</span>
             </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span className="truncate">IEEE / Scopus Indexed</span>
+            <Link to="/digital-library" className="text-purple-700 font-bold hover:underline shrink-0 flex items-center gap-0.5">
+              Browse &rarr;
+            </Link>
           </div>
         </div>
 
@@ -324,26 +367,45 @@ export default function FacultyDashboard() {
           return (
             <Link
               to="/fines"
-              className={`p-5 rounded-3xl shadow-xs border flex items-center gap-4 min-w-0 transition-all hover:scale-[1.02] cursor-pointer ${
-                facPending > 0 ? 'bg-rose-50/50 border-rose-200 hover:border-rose-300' : 'bg-white border-slate-200/90 hover:border-blue-200'
+              className={`p-5 rounded-3xl shadow-xs border flex flex-col justify-between min-w-0 transition-all hover:shadow-md hover:scale-[1.02] cursor-pointer space-y-3.5 ${
+                facPending > 0
+                  ? 'bg-rose-50/40 border-rose-200 hover:border-rose-300'
+                  : 'bg-white border-slate-200/90 hover:border-emerald-200'
               }`}
             >
-              <div className={`p-3.5 rounded-2xl shrink-0 ${facPending > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-50 text-emerald-600'}`}>
-                <IndianRupee className="w-6 h-6" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Fines & Dues</p>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${facPending > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                    {facPending > 0 ? 'Unpaid' : 'Clear'}
-                  </span>
+              <div className="flex items-center justify-between">
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border ${
+                  facPending > 0
+                    ? 'bg-rose-100 text-rose-700 border-rose-200'
+                    : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                }`}>
+                  <IndianRupee className="w-5 h-5" />
                 </div>
+                <span className={`text-[11px] font-extrabold uppercase tracking-wide px-2.5 py-1 rounded-full border ${
+                  facPending > 0
+                    ? 'bg-rose-100 text-rose-800 border-rose-300'
+                    : 'bg-emerald-50 text-emerald-800 border-emerald-200/70'
+                }`}>
+                  {facPending > 0 ? 'Unpaid Dues' : 'Clear Account'}
+                </span>
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Fines & Dues</p>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className={`text-2xl font-extrabold font-poppins ${facPending > 0 ? 'text-rose-700' : 'text-slate-900'}`}>
+                  <span className={`text-2xl sm:text-3xl font-extrabold font-poppins ${
+                    facPending > 0 ? 'text-rose-700' : 'text-slate-900'
+                  }`}>
                     ₹{facPending.toFixed(2)}
                   </span>
-                  <span className="text-xs text-blue-600 font-bold hover:underline">View &rarr;</span>
                 </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span>Overdue: ₹{(state.config?.fineRatePerDay || 5).toFixed(2)}/day</span>
+                <span className="text-blue-600 font-bold hover:underline flex items-center gap-0.5">
+                  View &rarr;
+                </span>
               </div>
             </Link>
           );
@@ -435,8 +497,9 @@ export default function FacultyDashboard() {
                               <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" /> Extension Pending Admin Approval
                             </span>
                           ) : existingReq?.status === 'APPROVED' ? (
-                            <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs inline-flex items-center gap-1">
-                              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Approved (+{existingReq.requestedExtensionDays}d)
+                            <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs inline-flex items-center gap-1.5">
+                              <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span>Approved (+{existingReq.requestedExtensionDays}d • Extended to <strong className="font-mono">{existingReq.newDueDate || formatOnlyTimeInBracket(tx.dueDate)}</strong>)</span>
                             </span>
                           ) : (
                             <button

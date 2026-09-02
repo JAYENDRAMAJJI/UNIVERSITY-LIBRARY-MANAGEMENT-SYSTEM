@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   RotateCcw,
   ScanBarcode,
@@ -18,12 +19,23 @@ import {
   Layers,
   ArrowLeft,
   Check,
+  IndianRupee,
+  CreditCard,
+  Wallet,
+  Banknote,
+  Smartphone,
+  QrCode,
+  Printer,
+  CheckCircle2,
 } from 'lucide-react';
-import { libraryStore, formatOnlyTimeInBracket, getTransactionFineAmount } from '../../services/libraryStore.service';
-import { CopyCondition, IssueTransaction, MemberProfile } from '../../types/library';
+import { libraryStore, formatOnlyTimeInBracket, getTransactionFineAmount, getLocalDateStr } from '../../services/libraryStore.service';
+import { CopyCondition, ExtensionRequest, IssueTransaction, MemberProfile } from '../../types/library';
 import BarcodeScannerModal from '../../components/common/BarcodeScannerModal';
+import { generateQrSvgString } from '../../utils/barcodeQrGenerator';
+import AuthorizedCirculationSeal, { generateAuthorizedSealHtml } from '../../components/common/AuthorizedCirculationSeal';
 
 export default function ReturnBooks() {
+  const navigate = useNavigate();
   const [state, setState] = useState(libraryStore.snapshot);
   const [returnQuery, setReturnQuery] = useState('');
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -49,6 +61,38 @@ export default function ReturnBooks() {
   const [returnModalTx, setReturnModalTx] = useState<IssueTransaction | null>(null);
   const [modalCondition, setModalCondition] = useState<CopyCondition>('GOOD');
   const [modalNotes, setModalNotes] = useState('');
+
+  // Overdue Fine Payment Modal State
+  const [finePaymentModalTx, setFinePaymentModalTx] = useState<{
+    tx: IssueTransaction;
+    fineAmount: number;
+    daysOverdue: number;
+    condition: CopyCondition;
+    notes?: string;
+    source: 'TERMINAL' | 'TABLE';
+  } | null>(null);
+
+  // Time Extension Pending Interception Warning Modal State
+  const [extensionWarningModal, setExtensionWarningModal] = useState<{
+    tx: IssueTransaction;
+    extension: ExtensionRequest;
+    condition: CopyCondition;
+    notes?: string;
+    source: 'TERMINAL' | 'TABLE';
+  } | null>(null);
+
+  const [paymentMethod, setPaymentMethod] = useState<'UPI_QR' | 'CASH'>('UPI_QR');
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+  const [lastPaymentReceipt, setLastPaymentReceipt] = useState<{
+    receiptNo: string;
+    bookTitle: string;
+    accessionNo: string;
+    memberName: string;
+    memberCardNo: string;
+    fineAmount: number;
+    paymentMethod: string;
+    date: string;
+  } | null>(null);
 
   const memberInputRef = useRef<HTMLInputElement>(null);
   const bookInputRef = useRef<HTMLInputElement>(null);
@@ -296,9 +340,50 @@ export default function ReturnBooks() {
     });
   };
 
+  // Calculate real-time overdue and fine info for a loan
+  const computeOverdueInfo = (tx: IssueTransaction) => {
+    const returnDate = new Date();
+    const dueDate = new Date(tx.dueDate);
+    if (returnDate <= dueDate && tx.status !== 'OVERDUE') {
+      return { isOverdue: false, fineAmount: 0, daysOverdue: 0 };
+    }
+    const diffDays = Math.max(1, Math.ceil((returnDate.getTime() - dueDate.getTime()) / (1000 * 3600 * 24)));
+    const fineAmount = diffDays * (state.config?.fineRatePerDay || 5);
+    return { isOverdue: true, fineAmount, daysOverdue: diffDays };
+  };
+
   // Step 3: Confirm Check-in in Terminal
   const handleConfirmTerminalReturn = () => {
     if (!terminalTx) return;
+
+    // Check if member has a pending time extension request for this book
+    const pendingExt = (state.extensionRequests || []).find(
+      (r) => (r.transactionId === terminalTx.id || r.accessionNo === terminalTx.accessionNo) && r.status === 'PENDING'
+    );
+    if (pendingExt) {
+      setExtensionWarningModal({
+        tx: terminalTx,
+        extension: pendingExt,
+        condition: terminalCondition,
+        notes: terminalNotes,
+        source: 'TERMINAL',
+      });
+      return;
+    }
+
+    const overdue = computeOverdueInfo(terminalTx);
+    if (overdue.isOverdue && overdue.fineAmount > 0) {
+      // Overdue: Intercept and require fine payment via scanner first!
+      setFinePaymentModalTx({
+        tx: terminalTx,
+        fineAmount: overdue.fineAmount,
+        daysOverdue: overdue.daysOverdue,
+        condition: terminalCondition,
+        notes: terminalNotes,
+        source: 'TERMINAL',
+      });
+      return;
+    }
 
     const bookTitle = terminalTx.bookTitle;
     const res = libraryStore.returnBook(terminalTx.id, terminalCondition, terminalNotes);
@@ -314,6 +399,39 @@ export default function ReturnBooks() {
 
   // Table row quick return action
   const handleTableReturn = (txId: string, condition: CopyCondition = 'GOOD', notes?: string) => {
+    const targetTx = activeTransactions.find((t) => t.id === txId);
+    if (!targetTx) return;
+
+    // Check if member has a pending time extension request for this book
+    const pendingExt = (state.extensionRequests || []).find(
+      (r) => (r.transactionId === targetTx.id || r.accessionNo === targetTx.accessionNo) && r.status === 'PENDING'
+    );
+    if (pendingExt) {
+      setReturnModalTx(null);
+      setExtensionWarningModal({
+        tx: targetTx,
+        extension: pendingExt,
+        condition,
+        notes,
+        source: 'TABLE',
+      });
+      return;
+    }
+
+    const overdue = computeOverdueInfo(targetTx);
+    if (overdue.isOverdue && overdue.fineAmount > 0) {
+      setReturnModalTx(null);
+      setFinePaymentModalTx({
+        tx: targetTx,
+        fineAmount: overdue.fineAmount,
+        daysOverdue: overdue.daysOverdue,
+        condition,
+        notes,
+        source: 'TABLE',
+      });
+      return;
+    }
+
     const res = libraryStore.returnBook(txId, condition, notes);
     if (res.success) {
       setAlert({ type: 'success', message: res.message });
@@ -321,6 +439,176 @@ export default function ReturnBooks() {
     } else {
       setAlert({ type: 'error', message: res.message });
     }
+  };
+
+  // Handler: Un-approve/Cancel Extension and Complete Return
+  const handleCancelExtensionAndReturn = () => {
+    if (!extensionWarningModal) return;
+    const { tx, extension, condition, notes, source } = extensionWarningModal;
+
+    // Un-approve / reject the pending extension request with reason
+    libraryStore.rejectExtensionRequest(
+      extension.id,
+      'Extension request un-approved/cancelled: book returned at circulation desk.'
+    );
+
+    setExtensionWarningModal(null);
+
+    const overdue = computeOverdueInfo(tx);
+    if (overdue.isOverdue && overdue.fineAmount > 0) {
+      setFinePaymentModalTx({
+        tx,
+        fineAmount: overdue.fineAmount,
+        daysOverdue: overdue.daysOverdue,
+        condition,
+        notes,
+        source,
+      });
+      return;
+    }
+
+    const res = libraryStore.returnBook(tx.id, condition, notes);
+    if (res.success) {
+      if (source === 'TERMINAL') {
+        setLastReturnedTitle(tx.bookTitle);
+        setTerminalStep(4);
+      }
+      setAlert({
+        type: 'success',
+        message: `Extension request for ${tx.memberName} un-approved. ${res.message}`,
+      });
+    } else {
+      setAlert({ type: 'error', message: res.message });
+    }
+  };
+
+  // Process Fine Payment & Complete Book Return
+  const handleProcessFineAndReturn = () => {
+    if (!finePaymentModalTx) return;
+    setIsVerifyingPayment(true);
+
+    setTimeout(() => {
+      const generatedReceiptNo = `RCP-${Date.now().toString().slice(-6)}`;
+      const res = libraryStore.returnBook(
+        finePaymentModalTx.tx.id,
+        finePaymentModalTx.condition,
+        finePaymentModalTx.notes,
+        {
+          paymentMethod,
+          paidAmount: finePaymentModalTx.fineAmount,
+          receiptNo: generatedReceiptNo,
+          collectedBy: 'Central Circulation Desk',
+        }
+      );
+
+      setIsVerifyingPayment(false);
+
+      if (res.success) {
+        const receiptData = {
+          receiptNo: generatedReceiptNo,
+          bookTitle: finePaymentModalTx.tx.bookTitle,
+          accessionNo: finePaymentModalTx.tx.accessionNo,
+          memberName: finePaymentModalTx.tx.memberName,
+          memberCardNo: finePaymentModalTx.tx.memberCardNo,
+          fineAmount: finePaymentModalTx.fineAmount,
+          paymentMethod:
+            paymentMethod === 'UPI_QR'
+              ? 'Instant UPI QR Scanner'
+              : 'Cash at Circulation Counter',
+          date: new Date().toLocaleString(),
+        };
+
+        setLastPaymentReceipt(receiptData);
+        setAlert({ type: 'success', message: res.message });
+
+        if (finePaymentModalTx.source === 'TERMINAL') {
+          setLastReturnedTitle(finePaymentModalTx.tx.bookTitle);
+          setTerminalStep(4);
+        }
+        setFinePaymentModalTx(null);
+      } else {
+        setAlert({ type: 'error', message: res.message });
+      }
+    }, 1000);
+  };
+
+  // Print Fine Payment & Return Receipt
+  const handlePrintReceipt = (receipt: NonNullable<typeof lastPaymentReceipt>) => {
+    const printWindow = window.open('', '_blank', 'width=650,height=750');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Overdue Fine Receipt - ${receipt.receiptNo}</title>
+          <style>
+            @page { size: portrait; margin: 15mm; }
+            body { font-family: 'Segoe UI', system-ui, sans-serif; color: #0f172a; margin: 0; padding: 25px; font-size: 13px; line-height: 1.5; }
+            .header { text-align: center; border-bottom: 2px dashed #94a3b8; padding-bottom: 15px; margin-bottom: 20px; }
+            .univ { font-size: 18px; font-weight: 900; letter-spacing: 0.5px; }
+            .sub { font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
+            .receipt-badge { display: inline-block; background: #ecfdf5; border: 1px solid #10b981; color: #065f46; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 9999px; margin-top: 8px; }
+            .grid { width: 100%; border-collapse: collapse; margin: 15px 0; }
+            .grid td { padding: 7px 4px; vertical-align: top; }
+            .grid td.label { font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; width: 40%; }
+            .grid td.val { font-weight: 700; color: #0f172a; }
+            .total-box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 16px; margin: 20px 0; display: flex; justify-content: space-between; align-items: center; }
+            .total-val { font-size: 20px; font-weight: 900; color: #059669; }
+            .footer { text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 15px; margin-top: 25px; }
+            .no-print { margin-bottom: 15px; }
+            .btn { background: #059669; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+            @media print { .no-print { display: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="no-print">
+            <button class="btn" onclick="window.print()">🖨️ Print Receipt Slip</button>
+            <button class="btn" style="background: #64748b; margin-left: 8px;" onclick="window.close()">Close</button>
+          </div>
+          <div class="header">
+            <div class="univ">UNIVERSITY CENTRAL LIBRARY</div>
+            <div class="sub">Circulation Desk & Overdue Settlement</div>
+            <div class="receipt-badge">✓ PAYMENT & RETURN ACKNOWLEDGED</div>
+          </div>
+          <table class="grid">
+            <tr><td class="label">Receipt Number</td><td class="val" style="font-family: monospace;">${receipt.receiptNo}</td></tr>
+            <tr><td class="label">Payment Date & Time</td><td class="val">${receipt.date}</td></tr>
+            <tr><td class="label">Borrower Name</td><td class="val">${receipt.memberName}</td></tr>
+            <tr><td class="label">Member Card / ID</td><td class="val" style="font-family: monospace;">${receipt.memberCardNo}</td></tr>
+            <tr><td class="label">Book Title</td><td class="val">${receipt.bookTitle}</td></tr>
+            <tr><td class="label">Accession No</td><td class="val" style="font-family: monospace;">${receipt.accessionNo}</td></tr>
+            <tr><td class="label">Payment Method</td><td class="val">${receipt.paymentMethod}</td></tr>
+            <tr><td class="label">Circulation Status</td><td class="val" style="color: #059669;">RETURNED & RESTORED TO SHELF</td></tr>
+          </table>
+          <div class="total-box">
+            <div>
+              <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Overdue Fine Paid</div>
+              <div style="font-size: 11px; color: #64748b;">Fully Settled • Zero Outstanding</div>
+            </div>
+            <div class="total-val">₹${receipt.fineAmount.toFixed(2)}</div>
+          </div>
+          <div class="footer" style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px dashed #cbd5e1; padding-top: 15px; margin-top: 25px;">
+            <div style="text-align: left; font-size: 11px; color: #64748b;">
+              <p>Thank you for returning the university library resource.</p>
+              <p style="font-size: 10px; margin-top: 4px;">Authorized Central Library System Generated Electronic Receipt</p>
+              <p style="font-size: 10px; color: #059669; font-weight: 800;">✓ CIRCULATION STATUS: RESTORED & DUES ZERO</p>
+            </div>
+            ${generateAuthorizedSealHtml('FINE_PAYMENT', receipt.date)}
+          </div>
+          <script>
+            window.onload = function() { setTimeout(function() { window.print(); }, 400); };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   const currentMemberRemainingLoans = useMemo(() => {
@@ -782,7 +1070,7 @@ export default function ReturnBooks() {
                               Late Return Overdue Fine: <span className="font-mono text-rose-700 font-extrabold">₹{fineAmt.toFixed(2)}</span> ({diffDays} Days Overdue)
                             </p>
                             <p className="text-[10px] text-rose-600 mt-0.5">
-                              This fine will be automatically assigned to {terminalTx.memberName}'s account upon confirming return (Circulation tariff: ₹{state.config?.fineRatePerDay || 5}/day).
+                              This fine will be automatically assigned to {terminalTx.memberName}'s account upon confirming return (Overdue fine rate: ₹{state.config?.fineRatePerDay || 5}/day).
                             </p>
                           </div>
                         </div>
@@ -1031,6 +1319,11 @@ export default function ReturnBooks() {
                     >
                       {tx.status}
                     </span>
+                    {state.extensionRequests?.some((r) => (r.transactionId === tx.id || r.accessionNo === tx.accessionNo) && r.status === 'PENDING') && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse mt-1 block w-max">
+                        <Clock className="w-3 h-3 text-amber-700" /> Extension Requested
+                      </span>
+                    )}
                   </td>
                   <td className="py-4 px-4 text-right">
                     <button
@@ -1113,7 +1406,7 @@ export default function ReturnBooks() {
                       <p className="font-bold text-xs">
                         Overdue Fine Assessed: <span className="font-mono text-rose-700 font-extrabold">₹{getTransactionFineAmount(returnModalTx, state).fineAmount.toFixed(2)}</span>
                       </p>
-                      <p className="text-[11px] text-rose-600">Calculated based on daily rate (₹{state.config.fineRatePerDay}/day).</p>
+                      <p className="text-[11px] text-rose-600">Calculated based on daily rate (₹{state.config?.fineRatePerDay || 5}/day). Payment required via Scanner.</p>
                     </div>
                   </div>
                 )}
@@ -1162,8 +1455,368 @@ export default function ReturnBooks() {
                 className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs shadow-md shadow-emerald-200 hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
               >
                 <CheckCircle className="w-4 h-4" />
-                <span>Confirm Check-in</span>
+                <span>{returnModalTx.status === 'OVERDUE' ? 'Pay Fine & Confirm Return →' : 'Confirm Check-in'}</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================= */}
+      {/* OVERDUE FINE PAYMENT SCANNER & SETTLEMENT MODAL              */}
+      {/* ============================================================= */}
+      {finePaymentModalTx && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden my-auto">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-rose-600 via-amber-600 to-amber-500 p-5 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-white/20 rounded-2xl">
+                  <AlertTriangle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold font-poppins text-lg text-white">Overdue Fine Payment Required</h3>
+                  <p className="text-xs text-amber-100">Pay overdue fine via Scanner or Counter to finalize return</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setFinePaymentModalTx(null)}
+                className="p-1.5 rounded-xl text-amber-100 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              {/* Overdue Telemetry Banner */}
+              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-xs space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md">
+                      ⚠️ {finePaymentModalTx.daysOverdue} Days Past Due Date
+                    </span>
+                    <h4 className="font-bold text-slate-900 text-sm mt-1">{finePaymentModalTx.tx.bookTitle}</h4>
+                    <p className="font-mono text-slate-600 text-[11px]">
+                      Accession: {finePaymentModalTx.tx.accessionNo} | Barcode: {finePaymentModalTx.tx.barcode}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Fine Amount</span>
+                    <span className="text-xl font-black text-rose-700 font-mono">
+                      ₹{finePaymentModalTx.fineAmount.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-rose-200/80 grid grid-cols-2 gap-2 text-[11px]">
+                  <div>
+                    <span className="text-slate-500">Borrower:</span>{' '}
+                    <strong className="text-slate-800">{finePaymentModalTx.tx.memberName}</strong>
+                    <span className="text-slate-500 block font-mono text-[10px]">{finePaymentModalTx.tx.memberCardNo}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Scheduled Due:</span>{' '}
+                    <strong className="text-rose-700 font-mono">{formatOnlyTimeInBracket(finePaymentModalTx.tx.dueDate)}</strong>
+                    <span className="text-slate-500 block text-[10px]">Overdue Fine Rate: ₹{state.config?.fineRatePerDay || 5}/day</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Mode Selector Tabs */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700">Select Settlement / Scanner Method</label>
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('UPI_QR')}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      paymentMethod === 'UPI_QR'
+                        ? 'bg-white text-purple-700 shadow-xs border border-purple-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Smartphone className="w-4 h-4" />
+                    <span>UPI QR Scanner</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('CASH')}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      paymentMethod === 'CASH'
+                        ? 'bg-white text-emerald-700 shadow-xs border border-emerald-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Banknote className="w-4 h-4" />
+                    <span>Cash at Desk</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Payment Mode Interactive Area */}
+              {paymentMethod === 'UPI_QR' && (
+                <div className="bg-purple-50/60 border border-purple-200 rounded-2xl p-4 text-center space-y-3 animate-fadeIn">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[11px] font-bold text-purple-900">Scan & Pay with Any UPI App</span>
+                    <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                      Instant Verification
+                    </span>
+                  </div>
+
+                  {/* QR Code Container */}
+                  <div className="relative w-40 h-40 mx-auto bg-white p-2.5 rounded-2xl border-2 border-purple-300 shadow-md flex items-center justify-center overflow-hidden">
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: generateQrSvgString(
+                          `upi://pay?pa=centralunivlibrary@bank&pn=University+Central+Library&am=${finePaymentModalTx.fineAmount.toFixed(
+                            2
+                          )}&tn=Overdue+Fine+${finePaymentModalTx.tx.accessionNo}&cu=INR`,
+                          140
+                        ),
+                      }}
+                    />
+                    <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-purple-500 to-transparent animate-pulse" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-bold text-slate-800">
+                      Amount: <span className="font-mono text-purple-700 font-extrabold text-sm">₹{finePaymentModalTx.fineAmount.toFixed(2)}</span>
+                    </p>
+                    <p className="text-[10px] text-slate-500">Google Pay • PhonePe • Paytm • BHIM • Cred • Any Banking UPI</p>
+                  </div>
+                </div>
+              )}
+
+              {paymentMethod === 'CASH' && (
+                <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-4 text-center space-y-2 animate-fadeIn">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
+                    <Banknote className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-slate-900 text-xs">Cash Collection at Circulation Counter</h4>
+                  <p className="text-[11px] text-slate-600">
+                    Collect exact cash <strong className="text-emerald-700 font-mono">₹{finePaymentModalTx.fineAmount.toFixed(2)}</strong> from borrower and hand over physical acknowledgment.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-50 p-4 px-6 border-t border-slate-200 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setFinePaymentModalTx(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isVerifyingPayment}
+                onClick={handleProcessFineAndReturn}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                {isVerifyingPayment ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Verifying & Processing Return...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Confirm Payment (₹{finePaymentModalTx.fineAmount.toFixed(2)}) & Process Return →</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================= */}
+      {/* OFFICIAL FINE PAYMENT RECEIPT & RETURN ACKNOWLEDGMENT MODAL   */}
+      {/* ============================================================= */}
+      {lastPaymentReceipt && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-200 shadow-2xl overflow-hidden my-auto">
+            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-5 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-2xl">
+                  <CheckCircle2 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold font-poppins text-base text-white">Payment & Return Completed</h3>
+                  <p className="text-xs text-emerald-100">Official Electronic Circulation Receipt</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setLastPaymentReceipt(null)}
+                className="p-1.5 rounded-xl text-emerald-100 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs">
+              <div className="text-center py-2">
+                <span className="font-mono text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                  Receipt #{lastPaymentReceipt.receiptNo}
+                </span>
+                <p className="text-slate-400 text-[10px] mt-1.5">{lastPaymentReceipt.date}</p>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Book Returned:</span>
+                  <strong className="text-slate-900 text-right max-w-[200px] truncate">{lastPaymentReceipt.bookTitle}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Accession No:</span>
+                  <span className="font-mono font-bold text-slate-800">{lastPaymentReceipt.accessionNo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Borrower:</span>
+                  <strong className="text-slate-900">{lastPaymentReceipt.memberName}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Member ID:</span>
+                  <span className="font-mono text-slate-700">{lastPaymentReceipt.memberCardNo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Payment Channel:</span>
+                  <span className="font-bold text-emerald-700">{lastPaymentReceipt.paymentMethod}</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
+                  <span className="font-extrabold text-slate-800">Settled Fine Amount:</span>
+                  <span className="text-base font-black text-emerald-700 font-mono">
+                    ₹{lastPaymentReceipt.fineAmount.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="pt-2 border-t border-dashed border-slate-200 flex items-center justify-between">
+                  <div className="text-left text-[10px] text-slate-500 font-mono">
+                    <p className="font-bold text-slate-700 uppercase">Status: Restored & Cleared</p>
+                    <p>Auth: Circulation Clearance</p>
+                  </div>
+                  <AuthorizedCirculationSeal type="FINE_PAYMENT" date={lastPaymentReceipt.date} size="sm" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-4 px-6 border-t border-slate-200 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setLastPaymentReceipt(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Done
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePrintReceipt(lastPaymentReceipt)}
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" /> Print Receipt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================= */}
+      {/* EXTENSION ACTIVE WARNING & UN-APPROVAL CONFIRMATION MODAL    */}
+      {/* ============================================================= */}
+      {extensionWarningModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden animate-scaleUp">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-white/20 rounded-2xl">
+                  <Clock className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold font-poppins text-lg text-white">Time Extension Pending Approval!</h3>
+                  <p className="text-xs text-amber-100">Member requested return date extension</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setExtensionWarningModal(null)}
+                className="p-1.5 rounded-xl text-amber-100 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs space-y-3">
+                <div className="flex items-start gap-2.5 text-amber-900">
+                  <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
+                  <p className="leading-relaxed">
+                    <strong>{extensionWarningModal.extension.memberName}</strong> ({extensionWarningModal.extension.memberCardNo}) has an active request to extend this book's due date by <span className="font-extrabold text-amber-950 font-mono">+{extensionWarningModal.extension.requestedExtensionDays} Days</span>.
+                  </p>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-xl border border-amber-200 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Book Title:</span>
+                    <strong className="text-slate-900 truncate max-w-[240px]">{extensionWarningModal.tx.bookTitle}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Current Due Date:</span>
+                    <span className="font-mono font-bold text-slate-800">{formatOnlyTimeInBracket(extensionWarningModal.tx.dueDate)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Requested Extension:</span>
+                    <span className="font-bold text-amber-800">+{extensionWarningModal.extension.requestedExtensionDays} Days ({extensionWarningModal.extension.requestedDate})</span>
+                  </div>
+                  <div className="pt-1.5 border-t border-slate-100">
+                    <span className="text-slate-500 block mb-1">Reason Provided by Member:</span>
+                    <p className="italic text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200 leading-relaxed">
+                      "{extensionWarningModal.extension.reason}"
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-amber-800">
+                  Directly accepting this book return will <strong>un-approve / cancel</strong> the extension request and check in the volume. Or, you can review and approve the extension at the Approvals Desk.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-50 p-4 px-6 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+              <button
+                type="button"
+                onClick={() => setExtensionWarningModal(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer text-center"
+              >
+                Keep Loan Active
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExtensionWarningModal(null);
+                    navigate('/admin/renew-books');
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <ShieldCheck className="w-4 h-4" /> Go to Approvals Desk
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCancelExtensionAndReturn}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-700 hover:to-rose-700 text-white font-bold text-xs shadow-md shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <RotateCcw className="w-4 h-4" /> Un-approve & Return Book
+                </button>
+              </div>
             </div>
           </div>
         </div>

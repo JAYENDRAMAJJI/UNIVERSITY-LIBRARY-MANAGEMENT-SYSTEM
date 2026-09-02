@@ -795,16 +795,40 @@ export default function BookBorrowHistoryModal({
                           </span>
                         </td>
 
-                        {/* Fine Amount */}
+                        {/* Fine Amount & Status */}
                         <td className="py-3.5 px-4 font-mono font-bold">
                           {(() => {
                             const fineInfo = getTransactionFineAmount(tx, storeState);
-                            return fineInfo.fineAmount > 0 ? (
-                              <span className="text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                                ₹{fineInfo.fineAmount.toFixed(2)} ({fineInfo.fineStatus})
-                              </span>
-                            ) : (
-                              <span className="text-slate-400">₹0.00</span>
+                            if (fineInfo.fineAmount <= 0) {
+                              return <span className="text-slate-400 font-medium">₹0.00</span>;
+                            }
+                            if (fineInfo.fineStatus === 'PAID') {
+                              return (
+                                <div className="inline-flex flex-col">
+                                  <span className="text-emerald-700 font-bold">₹{fineInfo.fineAmount.toFixed(2)}</span>
+                                  <span className="text-[9px] font-extrabold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/60 mt-0.5">
+                                    ✓ PAID
+                                  </span>
+                                </div>
+                              );
+                            }
+                            if (fineInfo.fineStatus === 'WAIVED') {
+                              return (
+                                <div className="inline-flex flex-col">
+                                  <span className="text-purple-700 font-bold line-through">₹{fineInfo.fineAmount.toFixed(2)}</span>
+                                  <span className="text-[9px] font-extrabold uppercase text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200/60 mt-0.5">
+                                    WAIVED
+                                  </span>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="inline-flex flex-col">
+                                <span className="text-rose-700 font-black">₹{fineInfo.fineAmount.toFixed(2)}</span>
+                                <span className="text-[9px] font-extrabold uppercase text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200/60 mt-0.5">
+                                  UNPAID
+                                </span>
+                              </div>
                             );
                           })()}
                         </td>

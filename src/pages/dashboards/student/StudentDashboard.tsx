@@ -346,43 +346,60 @@ export default function StudentDashboard() {
       {/* Metrics Summary Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Metric 1: Active Borrowed Loans */}
-        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200 space-y-3 flex flex-col justify-between min-w-0">
+        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/90 flex flex-col justify-between min-w-0 transition-all hover:shadow-md hover:border-blue-200 space-y-3.5">
           <div className="flex items-center justify-between">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
-              <BookOpen className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+              <BookOpen className="w-5 h-5" />
             </div>
-            <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full">
+            <span className="text-[11px] font-extrabold uppercase tracking-wide text-blue-800 bg-blue-50 border border-blue-200/70 px-2.5 py-1 rounded-full">
               Quota: {studentMember.maxAllowedBooks} Books
             </span>
           </div>
+
           <div className="min-w-0">
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Active Borrowed Books</p>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-2xl font-extrabold font-poppins text-slate-900">{studentActiveTransactions.length}</span>
+              <span className="text-2xl sm:text-3xl font-extrabold font-poppins text-slate-900">{studentActiveTransactions.length}</span>
               <span className="text-xs font-semibold text-slate-500">/ {studentMember.maxAllowedBooks} Allowed</span>
             </div>
           </div>
-          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-            <div className="bg-blue-600 h-full transition-all" style={{ width: `${loanQuotaPercentage}%` }} />
+
+          <div className="pt-2 border-t border-slate-100 space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+              <span>Quota Usage</span>
+              <span className="font-mono font-bold text-blue-700">{loanQuotaPercentage}%</span>
+            </div>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+              <div className="bg-blue-600 h-full rounded-full transition-all" style={{ width: `${loanQuotaPercentage}%` }} />
+            </div>
           </div>
         </div>
 
         {/* Metric 2: Active Reservations */}
-        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200 space-y-3 flex flex-col justify-between min-w-0">
+        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/90 flex flex-col justify-between min-w-0 transition-all hover:shadow-md hover:border-amber-200 space-y-3.5">
           <div className="flex items-center justify-between">
-            <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl">
-              <Bookmark className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
+              <Bookmark className="w-5 h-5" />
             </div>
-            <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">Hold Queue</span>
+            <span className="text-[11px] font-extrabold uppercase tracking-wide text-amber-800 bg-amber-50 border border-amber-200/70 px-2.5 py-1 rounded-full">
+              Hold Queue
+            </span>
           </div>
+
           <div className="min-w-0">
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Reservations On Hold</p>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-2xl font-extrabold font-poppins text-slate-900">{studentReservations.length}</span>
+              <span className="text-2xl sm:text-3xl font-extrabold font-poppins text-slate-900">{studentReservations.length}</span>
               <span className="text-xs font-semibold text-slate-500">Pending Holds</span>
             </div>
           </div>
-          <p className="text-xs text-slate-500 font-medium truncate">Priority queue status active</p>
+
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span className="truncate">Priority Queue Active</span>
+            <Link to="/reservations" className="text-amber-700 font-bold hover:underline shrink-0 flex items-center gap-0.5">
+              Queue &rarr;
+            </Link>
+          </div>
         </div>
 
         {/* Metric 3: Fine Ledger Balance */}
@@ -391,29 +408,41 @@ export default function StudentDashboard() {
           return (
             <Link
               to="/fines"
-              className={`p-5 rounded-3xl shadow-xs border space-y-3 flex flex-col justify-between min-w-0 transition-all hover:scale-[1.02] cursor-pointer ${
+              className={`p-5 rounded-3xl shadow-xs border flex flex-col justify-between min-w-0 transition-all hover:shadow-md hover:scale-[1.02] cursor-pointer space-y-3.5 ${
                 calculatedPendingFine > 0
-                  ? 'bg-rose-50/50 border-rose-200 hover:border-rose-300'
-                  : 'bg-white border-slate-200 hover:border-blue-200'
+                  ? 'bg-rose-50/40 border-rose-200 hover:border-rose-300'
+                  : 'bg-white border-slate-200/90 hover:border-emerald-200'
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className={`p-3 rounded-2xl ${calculatedPendingFine > 0 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                  <IndianRupee className="w-6 h-6" />
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border ${
+                  calculatedPendingFine > 0
+                    ? 'bg-rose-100 text-rose-700 border-rose-200'
+                    : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                }`}>
+                  <IndianRupee className="w-5 h-5" />
                 </div>
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${calculatedPendingFine > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                <span className={`text-[11px] font-extrabold uppercase tracking-wide px-2.5 py-1 rounded-full border ${
+                  calculatedPendingFine > 0
+                    ? 'bg-rose-100 text-rose-800 border-rose-300'
+                    : 'bg-emerald-50 text-emerald-800 border-emerald-200/70'
+                }`}>
                   {calculatedPendingFine > 0 ? 'Unpaid Dues' : 'Clear Account'}
                 </span>
               </div>
+
               <div className="min-w-0">
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Pending Fines Balance</p>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className={`text-2xl font-extrabold font-poppins ${calculatedPendingFine > 0 ? 'text-rose-700' : 'text-slate-900'}`}>
+                  <span className={`text-2xl sm:text-3xl font-extrabold font-poppins ${
+                    calculatedPendingFine > 0 ? 'text-rose-700' : 'text-slate-900'
+                  }`}>
                     ₹{calculatedPendingFine.toFixed(2)}
                   </span>
                 </div>
               </div>
-              <div className="flex items-center justify-between text-xs text-slate-500">
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
                 <span>Overdue: ₹{(state.config?.fineRatePerDay || 5).toFixed(2)}/day</span>
                 <span className="text-blue-600 font-bold hover:underline flex items-center gap-0.5">
                   View &rarr;
@@ -424,21 +453,34 @@ export default function StudentDashboard() {
         })()}
 
         {/* Metric 4: Acquisition Requests */}
-        <div className="bg-white p-5 rounded-3xl shadow-xs border border-emerald-200/80 bg-emerald-50/20 space-y-3 flex flex-col justify-between min-w-0">
+        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/90 flex flex-col justify-between min-w-0 transition-all hover:shadow-md hover:border-purple-200 space-y-3.5">
           <div className="flex items-center justify-between">
-            <div className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl">
-              <ShoppingBag className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100">
+              <ShoppingBag className="w-5 h-5" />
             </div>
-            <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full">Procurement</span>
+            <span className="text-[11px] font-extrabold uppercase tracking-wide text-purple-800 bg-purple-50 border border-purple-200/70 px-2.5 py-1 rounded-full">
+              Procurement
+            </span>
           </div>
+
           <div className="min-w-0">
-            <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider truncate">Book Requests</p>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Book Requests</p>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-2xl font-extrabold font-poppins text-emerald-950">{myProcurementRequests.length}</span>
-              <span className="text-xs font-semibold text-emerald-700">Submitted</span>
+              <span className="text-2xl sm:text-3xl font-extrabold font-poppins text-slate-900">{myProcurementRequests.length}</span>
+              <span className="text-xs font-semibold text-slate-500">Submitted</span>
             </div>
           </div>
-          <p className="text-xs text-slate-500 truncate">Librarian review status</p>
+
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span className="truncate">Librarian Review Active</span>
+            <button
+              type="button"
+              onClick={() => handleTabChange('procurement')}
+              className="text-purple-700 font-bold hover:underline shrink-0 flex items-center gap-0.5 cursor-pointer"
+            >
+              Track &rarr;
+            </button>
+          </div>
         </div>
       </div>
 
@@ -535,8 +577,9 @@ export default function StudentDashboard() {
                             <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" /> Extension Pending Approval
                           </span>
                         ) : existingReq?.status === 'APPROVED' ? (
-                          <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs inline-flex items-center gap-1">
-                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Approved (+{existingReq.requestedExtensionDays}d)
+                          <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs inline-flex items-center gap-1.5">
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>Approved (+{existingReq.requestedExtensionDays}d • Extended to <strong className="font-mono">{existingReq.newDueDate || formatOnlyTimeInBracket(tx.dueDate)}</strong>)</span>
                           </span>
                         ) : (
                           <button

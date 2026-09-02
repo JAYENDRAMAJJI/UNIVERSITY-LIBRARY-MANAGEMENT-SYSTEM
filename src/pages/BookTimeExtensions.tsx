@@ -342,38 +342,54 @@ export default function BookTimeExtensions() {
                   <th className="py-3.5 px-4">Requested Extension</th>
                   <th className="py-3.5 px-4">Academic Reason</th>
                   <th className="py-3.5 px-4 text-center">Librarian Decision</th>
-                  <th className="py-3.5 px-4 text-right">Requested Date</th>
+                  <th className="py-3.5 px-4 text-center">Requested Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredExtensionRequests.map((req) => (
-                  <tr key={req.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-slate-900">
-                      <p className="font-bold text-slate-900 text-sm">{req.bookTitle}</p>
-                      <p className="font-mono text-[11px] text-slate-400 mt-0.5">ACC: {req.accessionNo}</p>
-                    </td>
-                    <td className="py-4 px-4 font-mono font-bold text-slate-700">{req.currentDueDate}</td>
-                    <td className="py-4 px-4 font-bold text-purple-700 font-mono">+{req.requestedExtensionDays} Days</td>
-                    <td className="py-4 px-4 text-slate-700 italic max-w-xs font-medium">"{req.reason}"</td>
-                    <td className="py-4 px-4 font-bold text-center">
-                      <span
-                        className={`px-3 py-1 rounded-xl text-[10px] uppercase font-extrabold inline-flex flex-col items-center justify-center leading-tight shadow-2xs ${
-                          req.status === 'APPROVED'
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                            : req.status === 'REJECTED'
-                            ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                            : 'bg-amber-100 text-amber-800 border border-amber-300'
-                        }`}
-                      >
-                        <span className="whitespace-nowrap font-extrabold">{req.status}</span>
-                        {req.newDueDate && (
-                          <span className="text-[9px] font-mono font-bold opacity-80">(Extended to {req.newDueDate})</span>
-                        )}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-right font-mono text-slate-500">{req.requestedDate}</td>
-                  </tr>
-                ))}
+                {filteredExtensionRequests.map((req) => {
+                  const parts = (req.requestedDate || '').trim().split(' ');
+                  const datePart = parts[0] || req.requestedDate;
+                  const timePart = parts.slice(1).join(' ');
+                  return (
+                    <tr key={req.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-4 px-4 font-semibold text-slate-900">
+                        <p className="font-bold text-slate-900 text-sm">{req.bookTitle}</p>
+                        <p className="font-mono text-[11px] text-slate-400 mt-0.5">ACC: {req.accessionNo}</p>
+                      </td>
+                      <td className="py-4 px-4 font-mono font-bold text-slate-700">{req.currentDueDate}</td>
+                      <td className="py-4 px-4 font-bold text-purple-700 font-mono">+{req.requestedExtensionDays} Days</td>
+                      <td className="py-4 px-4 text-slate-700 italic max-w-xs font-medium">"{req.reason}"</td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="inline-flex flex-col items-center gap-1.5">
+                          <span
+                            className={`px-3 py-1 rounded-full text-[11px] uppercase font-extrabold shadow-2xs ${
+                              req.status === 'APPROVED'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                : req.status === 'REJECTED'
+                                ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                                : 'bg-amber-100 text-amber-800 border border-amber-300'
+                            }`}
+                          >
+                            {req.status}
+                          </span>
+                          {req.status === 'APPROVED' && (req.newDueDate || req.currentDueDate) && (
+                            <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/80 whitespace-nowrap inline-flex items-center gap-1">
+                              Extended to <strong className="font-mono font-bold text-emerald-950">{req.newDueDate || req.currentDueDate}</strong>
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-center font-mono">
+                        <div className="inline-flex flex-col items-center justify-center">
+                          <span className="font-bold text-slate-800 text-xs">{datePart}</span>
+                          {timePart && (
+                            <span className="text-[11px] font-semibold text-slate-400 mt-0.5">{timePart}</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

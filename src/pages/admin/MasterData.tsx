@@ -146,7 +146,7 @@ export default function MasterData() {
               <option value="ALL">All Formats</option>
               <option value="PHYSICAL">Physical</option>
               <option value="DIGITAL">Digital</option>
-              <option value="HYBRID">Hybrid</option>
+              <option value="HYBRID">Both (Physical & Digital)</option>
             </select>
 
             <select

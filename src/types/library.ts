@@ -149,6 +149,7 @@ export interface FineRecord {
   status: FineStatus;
   receiptNo?: string;
   paidDate?: string;
+  paymentMethod?: string;
   waivedBy?: string;
   waiveReason?: string;
   createdDate: string;
@@ -500,4 +501,35 @@ export interface NoDueCertificate {
   status: 'ISSUED' | 'REVOKED';
   verificationQrCode?: string;
   remarks?: string;
+}
+
+export type CalendarEventType = 'HOLIDAY' | 'WORKING_DAY' | 'SPECIAL_HOURS' | 'EXAM_PERIOD' | 'ACADEMIC_EVENT';
+
+export type CalendarEventCategory =
+  | 'GAZETTED_NATIONAL'
+  | 'UNIVERSITY_DECLARED'
+  | 'FESTIVAL'
+  | 'EXAMINATION'
+  | 'MAINTENANCE'
+  | 'SEMESTER_BREAK'
+  | 'SPECIAL_SCHEDULE';
+
+export interface UniversityCalendarEvent {
+  id: string;
+  date: string; // YYYY-MM-DD
+  endDate?: string; // Optional YYYY-MM-DD for multi-day events
+  title: string;
+  type: CalendarEventType;
+  category: CalendarEventCategory;
+  isLibraryOpen: boolean;
+  openTime?: string; // e.g. "08:00"
+  closeTime?: string; // e.g. "22:00"
+  customHoursText?: string; // e.g. "08:00 AM – 10:00 PM"
+  description?: string;
+  declaredBy?: string; // e.g. "Office of the Registrar", "Chief Librarian"
+  affectedBranches?: string[]; // e.g. ["Central Library", "Digital Center"]
+  isRecurringAnnually?: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
 }

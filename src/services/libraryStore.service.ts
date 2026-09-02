@@ -35,6 +35,9 @@ import {
   NoDuePurpose,
   NoDueApplicationHistory,
   OfficialDocument,
+  CalendarEventType,
+  CalendarEventCategory,
+  UniversityCalendarEvent,
 } from '../types/library';
 
 // Key for LocalStorage
@@ -74,26 +77,80 @@ export const getTodayOffsetStr = (offsetDays: number = 0): string => {
   return getLocalDateStr(d);
 };
 
+export const getAllUnifiedFines = (state: any): FineRecord[] => {
+  if (!state) return [];
+  const list: FineRecord[] = [...(state.fines || [])];
+  const today = new Date();
+
+  // Process transactions for fine amounts not explicitly stored in state.fines
+  (state.transactions || []).forEach((t: any) => {
+    const alreadyInFines = list.some((f) => f.transactionId === t.id);
+    if (!alreadyInFines) {
+      if (t.fineAmount && t.fineAmount > 0) {
+        list.push({
+          id: `fine-tx-${t.id}`,
+          transactionId: t.id,
+          memberId: t.memberId,
+          memberName: t.memberName,
+          memberCardNo: t.memberCardNo,
+          bookTitle: t.bookTitle,
+          amount: t.fineAmount,
+          paidAmount: t.fineStatus === 'PAID' ? t.fineAmount : 0,
+          reason: 'OVERDUE',
+          status: t.fineStatus === 'PAID' ? 'PAID' : t.fineStatus === 'WAIVED' ? 'WAIVED' : 'UNPAID',
+          createdDate: t.returnDate ? t.returnDate.split(' ')[0] : t.dueDate,
+          paidDate: t.fineStatus === 'PAID' ? (t.returnDate ? t.returnDate.split(' ')[0] : getLocalDateStr(new Date())) : undefined,
+          receiptNo: (t as any).receiptNo,
+          waiveReason: (t as any).waiveReason,
+        });
+      } else if (t.status === 'OVERDUE' || (t.status === 'ISSUED' && new Date(t.dueDate) < today)) {
+        const due = new Date(t.dueDate);
+        const diffDays = Math.max(1, Math.ceil((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)));
+        const fineAmount = diffDays * (state.config?.fineRatePerDay || 5);
+        list.unshift({
+          id: `fine-live-${t.id}`,
+          transactionId: t.id,
+          memberId: t.memberId,
+          memberName: t.memberName,
+          memberCardNo: t.memberCardNo,
+          bookTitle: t.bookTitle,
+          amount: fineAmount,
+          paidAmount: 0,
+          reason: 'OVERDUE',
+          status: 'UNPAID',
+          createdDate: t.dueDate,
+        });
+      }
+    }
+  });
+
+  return list;
+};
+
 export const getTransactionFineAmount = (
   tx: IssueTransaction,
   state: any
-): { fineAmount: number; fineStatus: 'UNPAID' | 'PAID' | 'WAIVED' | 'CLEARED' } => {
+): { fineAmount: number; fineStatus: 'UNPAID' | 'PAID' | 'WAIVED' | 'CLEARED'; receiptNo?: string; waiveReason?: string } => {
   if (!tx) return { fineAmount: 0, fineStatus: 'CLEARED' };
 
-  // 1. Check if there's an explicit FineRecord in state.fines for this transaction ID
-  const fineRecord = (state.fines || []).find((f: any) => f.transactionId === tx.id);
-  if (fineRecord) {
+  // 1. Check matching fine in unified fines
+  const allFines = getAllUnifiedFines(state);
+  const matchedFine = allFines.find((f) => f.transactionId === tx.id);
+  if (matchedFine) {
     return {
-      fineAmount: fineRecord.amount || 0,
-      fineStatus: fineRecord.status === 'PAID' ? 'PAID' : fineRecord.status === 'WAIVED' ? 'WAIVED' : 'UNPAID',
+      fineAmount: matchedFine.amount || 0,
+      fineStatus: (matchedFine.status as any) || 'UNPAID',
+      receiptNo: matchedFine.receiptNo,
+      waiveReason: matchedFine.waiveReason,
     };
   }
 
-  // 2. If transaction itself has returnDate/fineAmount or is OVERDUE
+  // 2. If transaction itself has fineAmount recorded
   if (tx.fineAmount && tx.fineAmount > 0) {
     return {
       fineAmount: tx.fineAmount,
       fineStatus: tx.fineStatus || (tx.status === 'RETURNED' || tx.status === 'OVERDUE' ? 'UNPAID' : 'CLEARED'),
+      receiptNo: (tx as any).receiptNo,
     };
   }
 
@@ -120,24 +177,13 @@ export const getMemberPendingFines = (
   const mId = member.id;
   const mCard = member.memberCardNo.toLowerCase();
 
+  const allFines = getAllUnifiedFines(state);
   let totalPending = 0;
 
-  // 1. Sum explicit UNPAID fine records in state.fines for this member
-  (state.fines || []).forEach((f: any) => {
+  allFines.forEach((f) => {
     const isMember = f.memberId === mId || (f.memberCardNo && f.memberCardNo.toLowerCase() === mCard);
     if (isMember && f.status === 'UNPAID') {
       totalPending += f.amount || 0;
-    }
-  });
-
-  // 2. Add UNPAID transaction fine amounts for OVERDUE/RETURNED transactions not in state.fines
-  (state.transactions || []).forEach((tx: any) => {
-    const isMember = tx.memberId === mId || (tx.memberCardNo && tx.memberCardNo.toLowerCase() === mCard);
-    if (isMember && tx.fineAmount && tx.fineAmount > 0 && tx.fineStatus === 'UNPAID') {
-      const alreadyInFines = (state.fines || []).some((f: any) => f.transactionId === tx.id);
-      if (!alreadyInFines) {
-        totalPending += tx.fineAmount;
-      }
     }
   });
 
@@ -150,34 +196,18 @@ export const getSystemFineSummary = (state: any): {
   totalPendingFines: number;
   totalWaivedFines: number;
 } => {
+  const allFines = getAllUnifiedFines(state);
   let totalPaid = 0;
   let totalPending = 0;
   let totalWaived = 0;
 
-  // 1. Sum explicit FineRecords in state.fines
-  (state.fines || []).forEach((f: any) => {
+  allFines.forEach((f) => {
     if (f.status === 'PAID') {
       totalPaid += (f.paidAmount || f.amount || 0);
     } else if (f.status === 'UNPAID') {
       totalPending += (f.amount || 0);
     } else if (f.status === 'WAIVED') {
       totalWaived += (f.amount || 0);
-    }
-  });
-
-  // 2. Process transactions for fine amounts not tracked in state.fines
-  (state.transactions || []).forEach((t: any) => {
-    if (t.fineAmount && t.fineAmount > 0) {
-      const recordedInFines = (state.fines || []).some((f: any) => f.transactionId === t.id);
-      if (!recordedInFines) {
-        if (t.fineStatus === 'PAID') {
-          totalPaid += t.fineAmount;
-        } else if (t.fineStatus === 'UNPAID') {
-          totalPending += t.fineAmount;
-        } else if (t.fineStatus === 'WAIVED') {
-          totalWaived += t.fineAmount;
-        }
-      }
     }
   });
 
@@ -220,6 +250,8 @@ export interface OperatingHoursStatus {
   nextOpenText?: string;
   isHoliday?: boolean;
   holidayName?: string;
+  isSpecialWorkingDay?: boolean;
+  calendarEvent?: UniversityCalendarEvent;
 }
 
 export const IS_NATIONAL_HOLIDAY = (d: Date = new Date()): { isHoliday: boolean; holidayName?: string } => {
@@ -248,16 +280,89 @@ export const IS_NATIONAL_HOLIDAY = (d: Date = new Date()): { isHoliday: boolean;
   return { isHoliday: false };
 };
 
-export const getLibraryOperatingStatus = (now: Date = new Date()): OperatingHoursStatus => {
+let _activeLibraryStore: any = null;
+
+export const getLibraryOperatingStatus = (
+  now: Date = new Date(),
+  customEvents?: UniversityCalendarEvent[]
+): OperatingHoursStatus => {
+  const events = customEvents || (_activeLibraryStore?.snapshot?.calendarEvents) || [];
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1; // 1-12
+  const date = now.getDate(); // 1-31
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const dateKey = `${year}-${pad(month)}-${pad(date)}`;
+  const monthDayKey = `${pad(month)}-${pad(date)}`;
+  const shortMonthDayKey = `${month}-${date}`;
+
+  // Find matching event for given date (exact date, multi-day span, or annual recurring)
+  const matchedEvent = (events || []).find((ev) => {
+    if (ev.date === dateKey) return true;
+    if (ev.isRecurringAnnually && (ev.date.endsWith(`-${monthDayKey}`) || ev.date.endsWith(`-${shortMonthDayKey}`))) return true;
+    if (ev.endDate && ev.date <= dateKey && ev.endDate >= dateKey) return true;
+    return false;
+  });
+
   const dayOfWeek = now.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
   const hours = now.getHours();
   const minutes = now.getMinutes();
   const currentMinutes = hours * 60 + minutes;
 
-  const openMinutes = 8 * 60;   // 8:00 AM = 480 mins
-  const closeMinutes = 22 * 60; // 10:00 PM = 1320 mins
+  // 1. If explicit calendar event override exists
+  if (matchedEvent) {
+    if (matchedEvent.type === 'HOLIDAY' || !matchedEvent.isLibraryOpen) {
+      return {
+        isOpen: false,
+        statusText: `CLOSED (${matchedEvent.title})`,
+        reason: matchedEvent.description || `Central Library is closed today for University Holiday: ${matchedEvent.title}.`,
+        nextOpenText: 'Reopens next scheduled working day at 8:00 AM',
+        isHoliday: true,
+        holidayName: matchedEvent.title,
+        calendarEvent: matchedEvent,
+      };
+    }
 
-  // 1. Sunday check
+    // Working Day or Special Hours override (even on Sundays)
+    const openTimeStr = matchedEvent.openTime || '08:00';
+    const closeTimeStr = matchedEvent.closeTime || '22:00';
+    const [oH, oM] = openTimeStr.split(':').map((n) => parseInt(n, 10) || 0);
+    const [cH, cM] = closeTimeStr.split(':').map((n) => parseInt(n, 10) || 0);
+    const eventOpenMins = oH * 60 + oM;
+    const eventCloseMins = cH * 60 + cM;
+
+    if (currentMinutes < eventOpenMins) {
+      return {
+        isOpen: false,
+        statusText: `CLOSED (Opens ${openTimeStr})`,
+        reason: `${matchedEvent.title}: Library opens today at ${matchedEvent.customHoursText || openTimeStr}.`,
+        nextOpenText: `Opens today at ${openTimeStr}`,
+        isSpecialWorkingDay: true,
+        calendarEvent: matchedEvent,
+      };
+    }
+
+    if (currentMinutes >= eventCloseMins) {
+      return {
+        isOpen: false,
+        statusText: `CLOSED (Closed at ${closeTimeStr})`,
+        reason: `${matchedEvent.title}: Library closed for today at ${matchedEvent.customHoursText || closeTimeStr}.`,
+        nextOpenText: 'Opens tomorrow at 8:00 AM',
+        isSpecialWorkingDay: true,
+        calendarEvent: matchedEvent,
+      };
+    }
+
+    return {
+      isOpen: true,
+      statusText: `OPEN (${matchedEvent.title})`,
+      reason: `${matchedEvent.title} — Active Schedule: ${matchedEvent.customHoursText || `${openTimeStr} – ${closeTimeStr}`}`,
+      nextOpenText: `Closes today at ${closeTimeStr}`,
+      isSpecialWorkingDay: true,
+      calendarEvent: matchedEvent,
+    };
+  }
+
+  // 2. Default Sunday check (if no override)
   if (dayOfWeek === 0) {
     return {
       isOpen: false,
@@ -267,7 +372,7 @@ export const getLibraryOperatingStatus = (now: Date = new Date()): OperatingHour
     };
   }
 
-  // 2. National Holiday check
+  // 3. Fallback National Gazetted Holiday check
   const holidayCheck = IS_NATIONAL_HOLIDAY(now);
   if (holidayCheck.isHoliday) {
     return {
@@ -280,7 +385,10 @@ export const getLibraryOperatingStatus = (now: Date = new Date()): OperatingHour
     };
   }
 
-  // 3. Operating hours check (8:00 AM - 10:00 PM)
+  // 4. Standard Working Day Operating Hours (8:00 AM - 10:00 PM)
+  const openMinutes = 8 * 60;   // 8:00 AM = 480 mins
+  const closeMinutes = 22 * 60; // 10:00 PM = 1320 mins
+
   if (currentMinutes < openMinutes) {
     return {
       isOpen: false,
@@ -1558,143 +1666,7 @@ const DEFAULT_TRANSACTIONS: IssueTransaction[] = [
 
 const DEFAULT_RESERVATIONS: Reservation[] = [];
 
-const DEFAULT_FINES: FineRecord[] = [
-  {
-    id: 'fine-101',
-    transactionId: 'tx-2026-01-4',
-    memberId: 'mem-2',
-    memberName: 'Dr. Sarah Connor',
-    memberCardNo: 'FAC-2023-1102',
-    bookTitle: 'Introduction to Algorithms (4th Edition)',
-    amount: 150.00,
-    paidAmount: 150.00,
-    reason: 'OVERDUE',
-    status: 'PAID',
-    createdDate: '2026-01-16',
-    paidDate: '2026-01-18',
-    receiptNo: 'REC-2026-0101',
-  },
-  {
-    id: 'fine-102',
-    transactionId: 'tx-2026-01-8',
-    memberId: 'mem-2',
-    memberName: 'Dr. Sarah Connor',
-    memberCardNo: 'FAC-2023-1102',
-    bookTitle: 'Solid State Electronic Devices',
-    amount: 120.00,
-    paidAmount: 120.00,
-    reason: 'OVERDUE',
-    status: 'PAID',
-    createdDate: '2026-01-20',
-    paidDate: '2026-01-22',
-    receiptNo: 'REC-2026-0102',
-  },
-  {
-    id: 'fine-201',
-    transactionId: 'tx-2026-02-5',
-    memberId: 'mem-2',
-    memberName: 'Dr. Sarah Connor',
-    memberCardNo: 'FAC-2023-1102',
-    bookTitle: 'Modern Operating Systems (5th Edition)',
-    amount: 280.00,
-    paidAmount: 280.00,
-    reason: 'OVERDUE',
-    status: 'PAID',
-    createdDate: '2026-02-12',
-    paidDate: '2026-02-15',
-    receiptNo: 'REC-2026-0201',
-  },
-  {
-    id: 'fine-301',
-    transactionId: 'tx-2026-03-6',
-    memberId: 'mem-2',
-    memberName: 'Dr. Sarah Connor',
-    memberCardNo: 'FAC-2023-1102',
-    bookTitle: 'Linear Algebra and Its Applications',
-    amount: 390.00,
-    paidAmount: 390.00,
-    reason: 'OVERDUE',
-    status: 'PAID',
-    createdDate: '2026-03-14',
-    paidDate: '2026-03-18',
-    receiptNo: 'REC-2026-0301',
-  },
-  {
-    id: 'fine-401',
-    transactionId: 'tx-2026-04-5',
-    memberId: 'mem-2',
-    memberName: 'Dr. Sarah Connor',
-    memberCardNo: 'FAC-2023-1102',
-    bookTitle: 'Introduction to Algorithms (4th Edition)',
-    amount: 520.00,
-    paidAmount: 520.00,
-    reason: 'OVERDUE',
-    status: 'PAID',
-    createdDate: '2026-04-10',
-    paidDate: '2026-04-14',
-    receiptNo: 'REC-2026-0401',
-  },
-  {
-    id: 'fine-501',
-    transactionId: 'tx-2026-05-6',
-    memberId: 'mem-2',
-    memberName: 'Dr. Sarah Connor',
-    memberCardNo: 'FAC-2023-1102',
-    bookTitle: 'Modern Operating Systems',
-    amount: 680.00,
-    paidAmount: 680.00,
-    reason: 'OVERDUE',
-    status: 'PAID',
-    createdDate: '2026-05-12',
-    paidDate: '2026-05-15',
-    receiptNo: 'REC-2026-0501',
-  },
-  {
-    id: 'fine-601',
-    transactionId: 'tx-2026-06-5',
-    memberId: 'mem-2',
-    memberName: 'Dr. Sarah Connor',
-    memberCardNo: 'FAC-2023-1102',
-    bookTitle: 'Introduction to Algorithms (4th Edition)',
-    amount: 890.00,
-    paidAmount: 890.00,
-    reason: 'OVERDUE',
-    status: 'PAID',
-    createdDate: '2026-06-11',
-    paidDate: '2026-06-15',
-    receiptNo: 'REC-2026-0601',
-  },
-  {
-    id: 'fine-701',
-    transactionId: 'tx-2026-07-6',
-    memberId: 'mem-2',
-    memberName: 'Dr. Sarah Connor',
-    memberCardNo: 'FAC-2023-1102',
-    bookTitle: 'Clean Code',
-    amount: 620.00,
-    paidAmount: 620.00,
-    reason: 'OVERDUE',
-    status: 'PAID',
-    createdDate: '2026-07-10',
-    paidDate: '2026-07-14',
-    receiptNo: 'REC-2026-0701',
-  },
-  {
-    id: 'fine-801',
-    transactionId: 'tx-2026-08-3',
-    memberId: 'mem-2',
-    memberName: 'Dr. Sarah Connor',
-    memberCardNo: 'FAC-2023-1102',
-    bookTitle: 'Linear Algebra and Its Applications',
-    amount: 398.50,
-    paidAmount: 398.50,
-    reason: 'OVERDUE',
-    status: 'PAID',
-    createdDate: '2026-08-04',
-    paidDate: '2026-08-08',
-    receiptNo: 'REC-2026-0801',
-  },
-];
+const DEFAULT_FINES: FineRecord[] = [];
 
 const DEFAULT_DIGITAL: DigitalResource[] = [
   // 1. RESEARCH PAPERS (RESEARCH_PAPER)
@@ -2425,14 +2397,14 @@ const DEFAULT_AUDIT_LOGS: AuditLog[] = [
     userRole: 'ADMIN',
     action: 'SYSTEM_SETTINGS_UPDATED',
     module: 'ADMINISTRATION',
-    details: 'Updated overdue fine rate to ₹10.00 / day.',
+    details: 'Updated overdue fine rate to ₹5.00 / day.',
     timestamp: '2026-07-15 14:30:00',
   },
 ];
 
 const DEFAULT_CONFIG: SystemConfig = {
   libraryName: 'University Central Library Enterprise Portal',
-  fineRatePerDay: 10.00,
+  fineRatePerDay: 5.00,
   studentMaxLoanDays: 7,
   studentMaxBooks: 5,
   facultyMaxLoanDays: 30,
@@ -2477,8 +2449,8 @@ const DEFAULT_ATTENDANCE_RECORDS: AttendanceRecord[] = [
     role: 'STUDENT',
     department: 'Computer Science & Engineering',
     email: 'jayendramajji22@gmail.com',
-    checkInTime: `${todayDefaultStr} 09:15:00`,
-    checkOutTime: `${todayDefaultStr} 11:45:00`,
+    checkInTime: `2026-09-01 09:15:00`,
+    checkOutTime: `2026-09-01 11:45:00`,
     durationMinutes: 150,
     status: 'COMPLETED',
     entryGate: 'Main Gate - Central Library',
@@ -2486,7 +2458,7 @@ const DEFAULT_ATTENDANCE_RECORDS: AttendanceRecord[] = [
     verificationMethod: 'BARCODE',
     checkedInBy: 'Self Barcode Kiosk',
     checkedOutBy: 'Self Barcode Kiosk',
-    date: todayDefaultStr,
+    date: '2026-09-01',
   },
   {
     id: 'att-102',
@@ -2496,13 +2468,16 @@ const DEFAULT_ATTENDANCE_RECORDS: AttendanceRecord[] = [
     role: 'FACULTY',
     department: 'Computer Science & Engineering',
     email: 'faculty@college.edu',
-    checkInTime: `${todayDefaultStr} 10:00:00`,
-    status: 'IN_LIBRARY',
+    checkInTime: `2026-09-01 10:00:00`,
+    checkOutTime: `2026-09-01 12:30:00`,
+    durationMinutes: 150,
+    status: 'COMPLETED',
     entryGate: 'Faculty Research Wing',
     purposeOfVisit: 'RESEARCH_STUDY',
     verificationMethod: 'QR_CODE',
     checkedInBy: 'Faculty QR Scanner',
-    date: todayDefaultStr,
+    checkedOutBy: 'Faculty QR Scanner',
+    date: '2026-09-01',
   },
   {
     id: 'att-103',
@@ -2512,13 +2487,16 @@ const DEFAULT_ATTENDANCE_RECORDS: AttendanceRecord[] = [
     role: 'ADMIN',
     department: 'Library Information Science',
     email: 'admin@college.edu',
-    checkInTime: `${todayDefaultStr} 08:30:00`,
-    status: 'IN_LIBRARY',
+    checkInTime: `2026-09-01 08:30:00`,
+    checkOutTime: `2026-09-01 17:00:00`,
+    durationMinutes: 510,
+    status: 'COMPLETED',
     entryGate: 'Main Gate - Central Library',
     purposeOfVisit: 'BOOK_ISSUE_RETURN',
     verificationMethod: 'CARD_SCAN',
     checkedInBy: 'Admin Desk',
-    date: todayDefaultStr,
+    checkedOutBy: 'Admin Desk',
+    date: '2026-09-01',
   },
 ];
 
@@ -2637,6 +2615,254 @@ const DEFAULT_OFFICIAL_DOCUMENTS: OfficialDocument[] = [
   },
 ];
 
+export const DEFAULT_CALENDAR_EVENTS: UniversityCalendarEvent[] = [
+  {
+    id: 'cal-2026-001',
+    date: '2026-01-01',
+    title: "New Year's Day",
+    type: 'HOLIDAY',
+    category: 'GAZETTED_NATIONAL',
+    isLibraryOpen: false,
+    description: 'National and University Holiday on occasion of New Year 2026.',
+    declaredBy: 'Office of the Registrar',
+    affectedBranches: ['All Library Branches'],
+    isRecurringAnnually: true,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-002',
+    date: '2026-01-14',
+    title: 'Makar Sankranti / Pongal Festival',
+    type: 'HOLIDAY',
+    category: 'FESTIVAL',
+    isLibraryOpen: false,
+    description: 'Harvest festival holiday declared for all faculty and students.',
+    declaredBy: 'Office of the Registrar',
+    affectedBranches: ['All Library Branches'],
+    isRecurringAnnually: true,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-003',
+    date: '2026-01-26',
+    title: 'Republic Day of India',
+    type: 'HOLIDAY',
+    category: 'GAZETTED_NATIONAL',
+    isLibraryOpen: false,
+    description: 'Gazetted National Holiday. Flag hoisting ceremony at University Main Quadrangle at 8:30 AM.',
+    declaredBy: 'Government of India / University Administration',
+    affectedBranches: ['All Library Branches'],
+    isRecurringAnnually: true,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-004',
+    date: '2026-03-08',
+    title: "International Women's Day & Special Literary Showcase",
+    type: 'HOLIDAY',
+    category: 'UNIVERSITY_DECLARED',
+    isLibraryOpen: false,
+    description: 'University Holiday celebrating Women in Higher Education and Research.',
+    declaredBy: 'Office of the Vice Chancellor',
+    affectedBranches: ['All Library Branches'],
+    isRecurringAnnually: true,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-005',
+    date: '2026-03-25',
+    title: 'Holi Festival of Colors',
+    type: 'HOLIDAY',
+    category: 'FESTIVAL',
+    isLibraryOpen: false,
+    description: 'Official University Holiday for Holi celebration. All reading halls closed.',
+    declaredBy: 'Office of the Registrar',
+    affectedBranches: ['All Library Branches'],
+    isRecurringAnnually: false,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-006',
+    date: '2026-04-14',
+    title: 'Dr. B.R. Ambedkar Jayanti',
+    type: 'HOLIDAY',
+    category: 'GAZETTED_NATIONAL',
+    isLibraryOpen: false,
+    description: 'Gazetted National Holiday commemorating Bharat Ratna Dr. B.R. Ambedkar.',
+    declaredBy: 'Government of India',
+    affectedBranches: ['All Library Branches'],
+    isRecurringAnnually: true,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-007',
+    date: '2026-05-01',
+    title: "International Workers' Day / May Day",
+    type: 'HOLIDAY',
+    category: 'GAZETTED_NATIONAL',
+    isLibraryOpen: false,
+    description: 'Gazetted Holiday honoring workforce and university staff.',
+    declaredBy: 'Office of the Registrar',
+    affectedBranches: ['All Library Branches'],
+    isRecurringAnnually: true,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-008',
+    date: '2026-06-21',
+    title: 'International Yoga Day & Digital Library Orientation',
+    type: 'WORKING_DAY',
+    category: 'SPECIAL_SCHEDULE',
+    isLibraryOpen: true,
+    openTime: '08:00',
+    closeTime: '22:00',
+    customHoursText: '08:00 AM – 10:00 PM',
+    description: 'Special active academic session with morning yoga and digital e-resource training workshops.',
+    declaredBy: 'Chief Librarian & Director of Physical Education',
+    affectedBranches: ['Central Library', 'Digital Resource Lab'],
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-009',
+    date: '2026-08-15',
+    title: 'Independence Day of India (80th)',
+    type: 'HOLIDAY',
+    category: 'GAZETTED_NATIONAL',
+    isLibraryOpen: false,
+    description: 'Gazetted National Holiday. Independence Day parade and address by the Vice Chancellor.',
+    declaredBy: 'Government of India / University Administration',
+    affectedBranches: ['All Library Branches'],
+    isRecurringAnnually: true,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-010',
+    date: '2026-09-05',
+    title: "Teachers' Day & Special Academic Reading Hours",
+    type: 'SPECIAL_HOURS',
+    category: 'SPECIAL_SCHEDULE',
+    isLibraryOpen: true,
+    openTime: '08:00',
+    closeTime: '22:00',
+    customHoursText: '08:00 AM – 10:00 PM',
+    description: "Honoring Dr. Sarvepalli Radhakrishnan with special faculty research access and open reading desks.",
+    declaredBy: 'Chief Librarian',
+    affectedBranches: ['Central Library', 'Faculty Research Wing'],
+    isRecurringAnnually: true,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-011',
+    date: '2026-09-06',
+    title: 'Sunday Mid-Term Exam Special Study Session (Declared Working Day)',
+    type: 'WORKING_DAY',
+    category: 'EXAMINATION',
+    isLibraryOpen: true,
+    openTime: '09:00',
+    closeTime: '21:00',
+    customHoursText: '09:00 AM – 09:00 PM',
+    description: 'Declared working Sunday by Academic Senate to support students preparing for upcoming mid-term exams.',
+    declaredBy: 'Controller of Examinations & Chief Librarian',
+    affectedBranches: ['Central Library', 'Reading Hall A & B'],
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-012',
+    date: '2026-10-02',
+    title: 'Mahatma Gandhi Jayanti & Shastri Jayanti',
+    type: 'HOLIDAY',
+    category: 'GAZETTED_NATIONAL',
+    isLibraryOpen: false,
+    description: 'Gazetted National Holiday. National Cleanliness Drive (Swachhata Pakhwada) observed.',
+    declaredBy: 'Government of India',
+    affectedBranches: ['All Library Branches'],
+    isRecurringAnnually: true,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-013',
+    date: '2026-10-12',
+    title: 'Dussehra / Vijayadashami',
+    type: 'HOLIDAY',
+    category: 'FESTIVAL',
+    isLibraryOpen: false,
+    description: 'University Holiday for Vijayadashami celebration and Ayudha Puja.',
+    declaredBy: 'Office of the Registrar',
+    affectedBranches: ['All Library Branches'],
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-014',
+    date: '2026-11-01',
+    title: 'Statehood Day / Kannada Rajyotsava',
+    type: 'HOLIDAY',
+    category: 'GAZETTED_NATIONAL',
+    isLibraryOpen: false,
+    description: 'State Gazette Holiday celebrated across the university campus.',
+    declaredBy: 'State Higher Education Board',
+    affectedBranches: ['All Library Branches'],
+    isRecurringAnnually: true,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-015',
+    date: '2026-11-08',
+    endDate: '2026-11-09',
+    title: 'Diwali / Deepavali & Govardhan Puja Break',
+    type: 'HOLIDAY',
+    category: 'FESTIVAL',
+    isLibraryOpen: false,
+    description: 'University Festival Holiday for Deepavali. Library desk and physical study halls remain closed.',
+    declaredBy: 'Office of the Registrar',
+    affectedBranches: ['All Library Branches'],
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-016',
+    date: '2026-11-15',
+    title: 'University Foundation Day & Heritage Exhibition',
+    type: 'SPECIAL_HOURS',
+    category: 'UNIVERSITY_DECLARED',
+    isLibraryOpen: true,
+    openTime: '09:00',
+    closeTime: '18:00',
+    customHoursText: '09:00 AM – 06:00 PM',
+    description: 'Special commemorative schedule for University Foundation Day. Rare manuscripts archive open for viewing.',
+    declaredBy: 'Office of the Vice Chancellor',
+    affectedBranches: ['Central Library', 'Archives & Special Collections'],
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-017',
+    date: '2026-12-25',
+    title: 'Christmas Day',
+    type: 'HOLIDAY',
+    category: 'GAZETTED_NATIONAL',
+    isLibraryOpen: false,
+    description: 'Gazetted National Holiday. Central Library and departmental branches closed.',
+    declaredBy: 'Government of India',
+    affectedBranches: ['All Library Branches'],
+    isRecurringAnnually: true,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'cal-2026-018',
+    date: '2026-12-28',
+    endDate: '2026-12-31',
+    title: 'End-Semester Final Examination Study Week (Extended Night Hours)',
+    type: 'EXAM_PERIOD',
+    category: 'EXAMINATION',
+    isLibraryOpen: true,
+    openTime: '07:00',
+    closeTime: '23:59',
+    customHoursText: '07:00 AM – 11:59 PM (Extended Study Desk)',
+    description: 'Special extended reading hall hours to support students during end-semester comprehensive examinations.',
+    declaredBy: 'Academic Council & Chief Librarian',
+    affectedBranches: ['Central Library Reading Halls', 'Digital Center'],
+    createdAt: '2026-01-01',
+  },
+];
+
 // State Interface
 interface StateSchema {
   categories: Category[];
@@ -2660,6 +2886,7 @@ interface StateSchema {
   noDueCertificates?: NoDueCertificate[];
   noDueApplications?: NoDueApplication[];
   officialDocuments?: OfficialDocument[];
+  calendarEvents?: UniversityCalendarEvent[];
 }
 
 // Lightweight Observable State Manager
@@ -2695,12 +2922,19 @@ class LibraryStoreService {
   private state$: SimpleBehaviorSubject<StateSchema>;
 
   constructor() {
+    _activeLibraryStore = this;
     const saved = localStorage.getItem(STORAGE_KEY);
     let initialState: StateSchema;
 
     if (saved) {
       try {
         initialState = JSON.parse(saved);
+        if (!initialState.config) {
+          initialState.config = DEFAULT_CONFIG;
+        } else {
+          // Normalize fineRatePerDay to 5.00 across all persistent stores
+          initialState.config.fineRatePerDay = 5.00;
+        }
         if (!initialState.procurementRequests) {
           initialState.procurementRequests = INITIAL_PROCUREMENT_REQUESTS;
         }
@@ -2715,15 +2949,47 @@ class LibraryStoreService {
         }
         if (!initialState.attendanceRecords || initialState.attendanceRecords.length === 0) {
           initialState.attendanceRecords = DEFAULT_ATTENDANCE_RECORDS;
+        } else {
+          // Clean up any stale mock active sessions so nobody is automatically checked in without a scan
+          initialState.attendanceRecords = initialState.attendanceRecords.map((r) => {
+            if (r.status === 'IN_LIBRARY' && (r.id === 'att-102' || r.id === 'att-103')) {
+              return {
+                ...r,
+                status: 'COMPLETED',
+                checkOutTime: r.checkOutTime || `${r.date || '2026-09-01'} 12:30:00`,
+                durationMinutes: r.durationMinutes || 150,
+              };
+            }
+            return r;
+          });
         }
         if (!initialState.noDueApplications || initialState.noDueApplications.length === 0) {
           initialState.noDueApplications = DEFAULT_NO_DUE_APPLICATIONS;
+        }
+        if (initialState.fines && initialState.fines.length > 0) {
+          // Remove old mock fines that reference outdated mock transactions or names
+          initialState.fines = initialState.fines.filter(
+            (f: any) =>
+              !f.id.startsWith('fine-101') &&
+              !f.id.startsWith('fine-102') &&
+              !f.id.startsWith('fine-201') &&
+              !f.id.startsWith('fine-301') &&
+              !f.id.startsWith('fine-401') &&
+              !f.id.startsWith('fine-501') &&
+              !f.id.startsWith('fine-601') &&
+              !f.id.startsWith('fine-701') &&
+              !f.id.startsWith('fine-801') &&
+              f.memberName !== 'Dr. Sarah Connor'
+          );
         }
         if (!initialState.noDueCertificates || initialState.noDueCertificates.length === 0) {
           initialState.noDueCertificates = DEFAULT_NO_DUE_CERTIFICATES;
         }
         if (!initialState.officialDocuments || initialState.officialDocuments.length === 0) {
           initialState.officialDocuments = DEFAULT_OFFICIAL_DOCUMENTS;
+        }
+        if (!initialState.calendarEvents || initialState.calendarEvents.length === 0) {
+          initialState.calendarEvents = DEFAULT_CALENDAR_EVENTS;
         }
 
         // Sanitize: ensure no member with active loans has an active certificate or application
@@ -3101,6 +3367,7 @@ class LibraryStoreService {
       noDueApplications: DEFAULT_NO_DUE_APPLICATIONS,
       noDueCertificates: DEFAULT_NO_DUE_CERTIFICATES,
       officialDocuments: DEFAULT_OFFICIAL_DOCUMENTS,
+      calendarEvents: DEFAULT_CALENDAR_EVENTS,
     };
   }
 
@@ -3808,7 +4075,17 @@ class LibraryStoreService {
     return { success: true, message: `Book issued successfully. Due Date: ${transaction.dueDate}`, transaction };
   }
 
-  public returnBook(transactionId: string, condition: CopyCondition = 'GOOD', notes?: string): { success: boolean; message: string; fineAssessed?: number } {
+  public returnBook(
+    transactionId: string,
+    condition: CopyCondition = 'GOOD',
+    notes?: string,
+    paidFineDetails?: {
+      paymentMethod: 'UPI_QR' | 'CASH' | 'CARD' | 'WALLET' | string;
+      paidAmount: number;
+      receiptNo?: string;
+      collectedBy?: string;
+    }
+  ): { success: boolean; message: string; fineAssessed?: number; receiptNo?: string } {
     const current = this.snapshot;
     const cleanQ = (transactionId || '').trim().toLowerCase();
     const tx = current.transactions.find(
@@ -3833,6 +4110,9 @@ class LibraryStoreService {
       fineAmount = diffDays * current.config.fineRatePerDay;
     }
 
+    const isFinePaid = Boolean(paidFineDetails && paidFineDetails.paidAmount >= fineAmount);
+    const generatedReceiptNo = paidFineDetails?.receiptNo || (fineAmount > 0 ? `RCP-${Date.now().toString().slice(-6)}` : undefined);
+
     let newFines = [...current.fines];
     if (fineAmount > 0) {
       const fineRecord: FineRecord = {
@@ -3843,9 +4123,12 @@ class LibraryStoreService {
         memberCardNo: tx.memberCardNo,
         bookTitle: tx.bookTitle,
         amount: fineAmount,
-        paidAmount: 0,
+        paidAmount: isFinePaid ? fineAmount : 0,
         reason: 'OVERDUE',
-        status: 'UNPAID',
+        status: isFinePaid ? 'PAID' : 'UNPAID',
+        paymentMethod: isFinePaid ? (paidFineDetails?.paymentMethod as any) : undefined,
+        paidDate: isFinePaid ? getLocalDateStr(returnDate) : undefined,
+        receiptNo: isFinePaid ? generatedReceiptNo : undefined,
         createdDate: getLocalDateStr(returnDate),
       };
       newFines.unshift(fineRecord);
@@ -3858,7 +4141,8 @@ class LibraryStoreService {
             returnDate: returnDateStr,
             status: 'RETURNED' as const,
             fineAmount,
-            fineStatus: fineAmount > 0 ? ('UNPAID' as const) : undefined,
+            fineStatus: fineAmount > 0 ? (isFinePaid ? ('PAID' as const) : ('UNPAID' as const)) : undefined,
+            fineReceiptNo: generatedReceiptNo,
             notes,
           }
         : t
@@ -3881,10 +4165,24 @@ class LibraryStoreService {
         return {
           ...m,
           currentActiveLoans: Math.max(0, m.currentActiveLoans - 1),
-          pendingFines: m.pendingFines + fineAmount,
+          pendingFines: isFinePaid ? m.pendingFines : m.pendingFines + fineAmount,
         };
       }
       return m;
+    });
+
+    // Close any pending extension requests for this returned book
+    const updatedExtensionRequests = (current.extensionRequests || []).map((r) => {
+      if ((r.transactionId === tx.id || r.accessionNo === tx.accessionNo) && r.status === 'PENDING') {
+        return {
+          ...r,
+          status: 'REJECTED' as const,
+          reviewedByName: 'System / Circulation Desk',
+          reviewedDate: getLocalDateStr(new Date()),
+          adminNotes: 'Resolved: Book physically returned at the circulation desk.',
+        };
+      }
+      return r;
     });
 
     this.state$.next({
@@ -3893,14 +4191,27 @@ class LibraryStoreService {
       transactions: updatedTransactions,
       members: updatedMembers,
       fines: newFines,
+      extensionRequests: updatedExtensionRequests,
     });
 
-    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'RETURN_BOOK', 'CIRCULATION', `Returned ${tx.bookTitle} (${tx.accessionNo}). Fine: ₹${fineAmount.toFixed(2)}`);
+    this.addAuditLog(
+      '1',
+      paidFineDetails?.collectedBy || 'Admin Librarian',
+      'ADMIN',
+      'RETURN_BOOK',
+      'CIRCULATION',
+      `Returned ${tx.bookTitle} (${tx.accessionNo}). Fine: ₹${fineAmount.toFixed(2)}${isFinePaid ? ` (Paid via ${paidFineDetails?.paymentMethod} - Receipt: ${generatedReceiptNo})` : ''}`
+    );
 
     return {
       success: true,
-      message: fineAmount > 0 ? `Book returned. Overdue fine assessed: ₹${fineAmount.toFixed(2)}` : 'Book returned on time cleanly.',
+      message: fineAmount > 0
+        ? isFinePaid
+          ? `Overdue fine of ₹${fineAmount.toFixed(2)} paid successfully via ${paidFineDetails?.paymentMethod}. Book returned cleanly (Receipt: ${generatedReceiptNo}).`
+          : `Book returned. Overdue fine assessed: ₹${fineAmount.toFixed(2)}`
+        : 'Book returned on time cleanly.',
       fineAssessed: fineAmount,
+      receiptNo: generatedReceiptNo,
     };
   }
 
@@ -4091,29 +4402,178 @@ class LibraryStoreService {
     return { success: true, message: `Extension request for "${ext.bookTitle}" has been rejected.` };
   }
 
+  public unapproveExtensionRequest(requestId: string, adminNotes?: string): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const ext = (current.extensionRequests || []).find((r) => r.id === requestId);
+    if (!ext) {
+      return { success: false, message: 'Extension request record not found.' };
+    }
+
+    const tx = current.transactions.find(
+      (t) => t.id === ext.transactionId || t.accessionNo === ext.accessionNo || t.barcode === ext.barcode
+    );
+
+    // Revert due date back to original date before extension approval
+    const originalDueDate = ext.currentDueDate;
+    let updatedTransactions = current.transactions;
+    if (tx && tx.status !== 'RETURNED') {
+      const isNowOverdue = new Date() > new Date(originalDueDate.includes('T') ? originalDueDate : `${originalDueDate}T00:00:00`);
+      updatedTransactions = current.transactions.map((t) => {
+        if (t.id === tx.id || t.accessionNo === ext.accessionNo) {
+          return {
+            ...t,
+            dueDate: originalDueDate,
+            status: isNowOverdue ? ('OVERDUE' as const) : ('ISSUED' as const),
+            renewalCount: Math.max(0, (t.renewalCount || 1) - 1),
+            notes: `Extension approval revoked by Admin on ${getLocalDateStr(new Date())}`,
+          };
+        }
+        return t;
+      });
+    }
+
+    // Update Extension Request status to REJECTED (Unapproved)
+    const updatedRequests = (current.extensionRequests || []).map((r) => {
+      if (r.id === requestId) {
+        return {
+          ...r,
+          status: 'REJECTED' as const,
+          reviewedByName: 'Head Librarian (Admin)',
+          reviewedDate: getLocalDateStr(new Date()),
+          adminNotes: adminNotes || 'Extension approval was un-approved / revoked by Admin Librarian.',
+        };
+      }
+      return r;
+    });
+
+    this.state$.next({
+      ...current,
+      transactions: updatedTransactions,
+      extensionRequests: updatedRequests,
+    });
+
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'REJECT_EXTENSION', 'CIRCULATION', `Un-approved extension for "${ext.bookTitle}" (Member: ${ext.memberName}). Due date reverted to ${originalDueDate}.`);
+
+    return { success: true, message: `Extension for "${ext.bookTitle}" has been un-approved! Due date reverted back to ${originalDueDate}.` };
+  }
+
   public processFinePayment(fineId: string, action: 'PAY' | 'WAIVE', waiveReason?: string) {
     const current = this.snapshot;
-    const fine = current.fines.find((f) => f.id === fineId);
+    let fine = current.fines.find((f) => f.id === fineId);
+    let targetFines = [...current.fines];
+
+    // If fine is a live active overdue record (fine-live-${tx.id}) or not yet in current.fines
+    if (!fine && fineId.startsWith('fine-live-')) {
+      const txId = fineId.replace('fine-live-', '');
+      const tx = (current.transactions || []).find((t) => t.id === txId);
+      if (tx) {
+        const today = new Date();
+        const due = new Date(tx.dueDate);
+        const diffDays = Math.max(1, Math.ceil((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)));
+        const fineAmount = diffDays * (current.config?.fineRatePerDay || 5);
+        fine = {
+          id: `fine-${Date.now()}`,
+          transactionId: tx.id,
+          memberId: tx.memberId,
+          memberName: tx.memberName,
+          memberCardNo: tx.memberCardNo,
+          bookTitle: tx.bookTitle,
+          amount: fineAmount,
+          paidAmount: 0,
+          reason: 'OVERDUE',
+          status: 'UNPAID',
+          createdDate: tx.dueDate,
+        };
+        targetFines = [fine, ...targetFines];
+        fineId = fine.id;
+      }
+    }
+
     if (!fine) return;
 
     const receiptNo = action === 'PAY' ? `REC-${Date.now()}` : undefined;
 
-    const updatedFines = current.fines.map((f) => {
-      if (f.id === fineId) {
+    const updatedFines = targetFines.map((f) => {
+      if (f.id === fineId || f.id === fine?.id) {
         return {
           ...f,
           status: action === 'PAY' ? ('PAID' as const) : ('WAIVED' as const),
           paidAmount: action === 'PAY' ? f.amount : 0,
           receiptNo,
           paidDate: getLocalDateStr(new Date()),
-          waiveReason,
+          waiveReason: waiveReason || (action === 'WAIVE' ? 'Waived by Librarian approval.' : undefined),
+          waivedBy: action === 'WAIVE' ? 'Chief Librarian (Admin)' : undefined,
         };
       }
       return f;
     });
 
     const updatedMembers = current.members.map((m) => {
-      if (m.id === fine.memberId) {
+      if (m.id === fine!.memberId) {
+        return {
+          ...m,
+          pendingFines: Math.max(0, m.pendingFines - fine!.amount),
+        };
+      }
+      return m;
+    });
+
+    // Also update transaction fineStatus if tied to a transaction
+    let updatedTransactions = current.transactions;
+    if (fine.transactionId) {
+      updatedTransactions = current.transactions.map((t) => {
+        if (t.id === fine!.transactionId) {
+          return {
+            ...t,
+            fineStatus: action === 'PAY' ? ('PAID' as const) : ('WAIVED' as const),
+          };
+        }
+        return t;
+      });
+    }
+
+    this.state$.next({
+      ...current,
+      fines: updatedFines,
+      members: updatedMembers,
+      transactions: updatedTransactions,
+    });
+
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', `FINE_${action}`, 'FINANCE', `Processed fine ${fine.id} (₹${fine.amount}) - Status: ${action}. Reason: ${waiveReason || 'Standard'}`);
+  }
+
+  public updateFineWaiveReason(fineId: string, newWaiveReason: string): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const fine = current.fines.find((f) => f.id === fineId);
+    if (!fine) return { success: false, message: 'Fine record not found.' };
+
+    const updatedFines = current.fines.map((f) => {
+      if (f.id === fineId) {
+        return {
+          ...f,
+          waiveReason: newWaiveReason.trim(),
+        };
+      }
+      return f;
+    });
+
+    this.state$.next({
+      ...current,
+      fines: updatedFines,
+    });
+
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'UPDATE_WAIVE_REASON', 'FINANCE', `Updated waive reason for fine ${fine.id} (${fine.memberName}): "${newWaiveReason}"`);
+    return { success: true, message: 'Waive reason updated successfully.' };
+  }
+
+  public deleteFine(fineId: string): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const fine = current.fines.find((f) => f.id === fineId);
+    if (!fine) return { success: false, message: 'Fine record not found.' };
+
+    const updatedFines = current.fines.filter((f) => f.id !== fineId);
+    const updatedMembers = current.members.map((m) => {
+      if (m.id === fine.memberId && fine.status === 'UNPAID') {
         return {
           ...m,
           pendingFines: Math.max(0, m.pendingFines - fine.amount),
@@ -4128,7 +4588,8 @@ class LibraryStoreService {
       members: updatedMembers,
     });
 
-    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', `FINE_${action}`, 'FINANCE', `Processed fine ${fine.id} (₹${fine.amount}) - Status: ${action}`);
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'DELETE_FINE', 'FINANCE', `Deleted fine record ${fine.id} (₹${fine.amount}) for ${fine.memberName}`);
+    return { success: true, message: 'Fine record deleted successfully.' };
   }
 
   public reserveBook(bookId: string, memberIdentifier: string): { success: boolean; message: string } {
@@ -5575,8 +6036,9 @@ class LibraryStoreService {
     checkedInBy: string = 'Desk Kiosk',
     allowClosedCheckIn: boolean = false
   ): { success: boolean; message: string; record?: AttendanceRecord; member?: MemberProfile } {
+    const current = this.snapshot;
     // 0. Operating Hours & Holiday Check
-    const opStatus = getLibraryOperatingStatus();
+    const opStatus = getLibraryOperatingStatus(new Date(), current.calendarEvents);
     if (!opStatus.isOpen && !allowClosedCheckIn) {
       return {
         success: false,
@@ -5584,7 +6046,6 @@ class LibraryStoreService {
       };
     }
 
-    const current = this.snapshot;
     let term = (cardNoOrEmail || '').trim().toLowerCase();
     if (term.startsWith('qr-') || term.startsWith('card-')) {
       term = term.replace(/^(qr-|card-|id-)/i, '').trim();
@@ -5817,7 +6278,7 @@ class LibraryStoreService {
     const attendanceRecords = current.attendanceRecords || [];
     const now = new Date();
     const todayStr = getLocalDateStr(now);
-    const opStatus = getLibraryOperatingStatus(now);
+    const opStatus = getLibraryOperatingStatus(now, current.calendarEvents);
 
     let count = 0;
     let modified = false;
@@ -6045,6 +6506,292 @@ class LibraryStoreService {
       'EXPORT_ATTENDANCE_REPORT',
       'REPORTS_MODULE',
       `Exported ${list.length} attendance logs to formatted Excel file`
+    );
+
+    return { success: true, filename: finalFilename };
+  }
+
+  // --- UNIVERSITY CALENDAR & HOLIDAYS MANAGEMENT ---
+
+  public addCalendarEvent(
+    eventData: Partial<UniversityCalendarEvent>,
+    adminName: string = 'Chief Admin Librarian'
+  ): { success: boolean; message: string; event?: UniversityCalendarEvent } {
+    const current = this.snapshot;
+    const events = current.calendarEvents || [];
+
+    if (!eventData.date || !eventData.title) {
+      return { success: false, message: 'Date and occasion title are required.' };
+    }
+
+    const type = eventData.type || 'HOLIDAY';
+    const isLibraryOpen = eventData.isLibraryOpen !== undefined ? eventData.isLibraryOpen : (type === 'WORKING_DAY' || type === 'SPECIAL_HOURS' || type === 'EXAM_PERIOD');
+
+    const newEvent: UniversityCalendarEvent = {
+      id: eventData.id || `cal-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      date: eventData.date,
+      endDate: eventData.endDate || undefined,
+      title: eventData.title.trim(),
+      type,
+      category: eventData.category || 'UNIVERSITY_DECLARED',
+      isLibraryOpen,
+      openTime: eventData.openTime || (isLibraryOpen ? '08:00' : undefined),
+      closeTime: eventData.closeTime || (isLibraryOpen ? '22:00' : undefined),
+      customHoursText: eventData.customHoursText || (isLibraryOpen ? `${eventData.openTime || '08:00'} – ${eventData.closeTime || '22:00'}` : 'Closed (Full Day)'),
+      description: eventData.description || (isLibraryOpen ? 'Declared Working Day / Special Schedule' : 'University Declared Holiday'),
+      declaredBy: eventData.declaredBy || adminName,
+      affectedBranches: eventData.affectedBranches && eventData.affectedBranches.length > 0 ? eventData.affectedBranches : ['Central Library & All Branches'],
+      isRecurringAnnually: Boolean(eventData.isRecurringAnnually),
+      notes: eventData.notes || '',
+      createdAt: getLocalDateTimeStr(new Date()),
+      updatedAt: getLocalDateTimeStr(new Date()),
+    };
+
+    const existingIdx = events.findIndex((e) => e.id === newEvent.id || (e.date === newEvent.date && e.title.toLowerCase() === newEvent.title.toLowerCase()));
+    let updatedEvents: UniversityCalendarEvent[];
+    if (existingIdx >= 0) {
+      updatedEvents = events.map((e, idx) => (idx === existingIdx ? newEvent : e));
+    } else {
+      updatedEvents = [...events, newEvent].sort((a, b) => a.date.localeCompare(b.date));
+    }
+
+    this.state$.next({
+      ...current,
+      calendarEvents: updatedEvents,
+    });
+
+    this.addAuditLog(
+      '1',
+      adminName,
+      'ADMIN',
+      'ADD_CALENDAR_EVENT',
+      'ATTENDANCE_CALENDAR',
+      `Added university calendar schedule '${newEvent.title}' for date ${newEvent.date} (${newEvent.type})`
+    );
+
+    return {
+      success: true,
+      message: `Schedule '${newEvent.title}' successfully recorded for ${newEvent.date}.`,
+      event: newEvent,
+    };
+  }
+
+  public updateCalendarEvent(
+    id: string,
+    eventData: Partial<UniversityCalendarEvent>,
+    adminName: string = 'Chief Admin Librarian'
+  ): { success: boolean; message: string; event?: UniversityCalendarEvent } {
+    const current = this.snapshot;
+    const events = current.calendarEvents || [];
+    const targetIdx = events.findIndex((e) => e.id === id);
+
+    if (targetIdx < 0) {
+      return { success: false, message: 'Calendar event not found.' };
+    }
+
+    const prev = events[targetIdx];
+    const type = eventData.type || prev.type;
+    const isLibraryOpen = eventData.isLibraryOpen !== undefined ? eventData.isLibraryOpen : (type === 'WORKING_DAY' || type === 'SPECIAL_HOURS' || type === 'EXAM_PERIOD');
+
+    const updatedEvent: UniversityCalendarEvent = {
+      ...prev,
+      ...eventData,
+      type,
+      isLibraryOpen,
+      openTime: eventData.openTime !== undefined ? eventData.openTime : prev.openTime,
+      closeTime: eventData.closeTime !== undefined ? eventData.closeTime : prev.closeTime,
+      customHoursText: eventData.customHoursText !== undefined ? eventData.customHoursText : prev.customHoursText,
+      updatedAt: getLocalDateTimeStr(new Date()),
+    };
+
+    const updatedEvents = events.map((e, idx) => (idx === targetIdx ? updatedEvent : e)).sort((a, b) => a.date.localeCompare(b.date));
+
+    this.state$.next({
+      ...current,
+      calendarEvents: updatedEvents,
+    });
+
+    this.addAuditLog(
+      '1',
+      adminName,
+      'ADMIN',
+      'UPDATE_CALENDAR_EVENT',
+      'ATTENDANCE_CALENDAR',
+      `Updated university calendar schedule '${updatedEvent.title}' on ${updatedEvent.date}`
+    );
+
+    return {
+      success: true,
+      message: `Calendar event '${updatedEvent.title}' updated successfully.`,
+      event: updatedEvent,
+    };
+  }
+
+  public deleteCalendarEvent(
+    id: string,
+    adminName: string = 'Chief Admin Librarian'
+  ): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const events = current.calendarEvents || [];
+    const target = events.find((e) => e.id === id);
+
+    if (!target) {
+      return { success: false, message: 'Calendar event not found.' };
+    }
+
+    const updatedEvents = events.filter((e) => e.id !== id);
+
+    this.state$.next({
+      ...current,
+      calendarEvents: updatedEvents,
+    });
+
+    this.addAuditLog(
+      '1',
+      adminName,
+      'ADMIN',
+      'DELETE_CALENDAR_EVENT',
+      'ATTENDANCE_CALENDAR',
+      `Deleted calendar schedule '${target.title}' on ${target.date}`
+    );
+
+    return {
+      success: true,
+      message: `Removed calendar event '${target.title}' (${target.date}).`,
+    };
+  }
+
+  public quickToggleDayHoliday(
+    dateStr: string,
+    isHoliday: boolean,
+    title?: string,
+    adminName: string = 'Chief Admin Librarian'
+  ): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const events = current.calendarEvents || [];
+    const existing = events.find((e) => e.date === dateStr);
+
+    if (existing) {
+      return this.updateCalendarEvent(
+        existing.id,
+        {
+          type: isHoliday ? 'HOLIDAY' : 'WORKING_DAY',
+          isLibraryOpen: !isHoliday,
+          title: title || (isHoliday ? 'University Holiday (Closed)' : 'Declared Working Day (Open)'),
+        },
+        adminName
+      );
+    }
+
+    return this.addCalendarEvent(
+      {
+        date: dateStr,
+        title: title || (isHoliday ? 'Declared University Holiday' : 'Declared Working Day'),
+        type: isHoliday ? 'HOLIDAY' : 'WORKING_DAY',
+        category: 'UNIVERSITY_DECLARED',
+        isLibraryOpen: !isHoliday,
+        openTime: isHoliday ? undefined : '08:00',
+        closeTime: isHoliday ? undefined : '22:00',
+        customHoursText: isHoliday ? 'Closed (Full Day)' : '08:00 AM – 10:00 PM',
+        description: isHoliday ? 'Manually declared university holiday.' : 'Special declared working day.',
+        declaredBy: adminName,
+      },
+      adminName
+    );
+  }
+
+  public quickDeclareWorkingDay(
+    dateStr: string,
+    title: string = 'Declared University Working Day',
+    openTime: string = '08:00',
+    closeTime: string = '22:00',
+    adminName: string = 'Chief Admin Librarian'
+  ): { success: boolean; message: string } {
+    return this.addCalendarEvent(
+      {
+        date: dateStr,
+        title,
+        type: 'WORKING_DAY',
+        category: 'SPECIAL_SCHEDULE',
+        isLibraryOpen: true,
+        openTime,
+        closeTime,
+        customHoursText: `${openTime} – ${closeTime}`,
+        description: 'Special active working day declared by administration.',
+        declaredBy: adminName,
+      },
+      adminName
+    );
+  }
+
+  public resetCalendarToDefault(adminName: string = 'Chief Admin Librarian'): { success: boolean; message: string } {
+    const current = this.snapshot;
+    this.state$.next({
+      ...current,
+      calendarEvents: DEFAULT_CALENDAR_EVENTS,
+    });
+
+    this.addAuditLog(
+      '1',
+      adminName,
+      'ADMIN',
+      'RESET_CALENDAR_DEFAULTS',
+      'ATTENDANCE_CALENDAR',
+      'Reset university library academic calendar to standard default gazetted holidays and working schedule'
+    );
+
+    return { success: true, message: 'University Calendar reset to factory defaults with 2026/2027 schedules.' };
+  }
+
+  public exportCalendarReportCSV(events?: UniversityCalendarEvent[], customFilename?: string): { success: boolean; filename: string } {
+    const list = events || this.snapshot.calendarEvents || [];
+    const dateStr = getLocalDateStr(new Date());
+    const rawFilename = customFilename || `University_Library_Academic_Calendar_${dateStr}.xlsx`;
+    const finalFilename = rawFilename.endsWith('.xlsx') ? rawFilename : `${rawFilename.replace(/\.csv$/, '')}.xlsx`;
+
+    const headers = [
+      'Schedule ID',
+      'Date',
+      'End Date',
+      'Occasion / Title',
+      'Schedule Type',
+      'Category',
+      'Library Status',
+      'Operating Hours',
+      'Affected Branches',
+      'Declared By',
+      'Description / Notes',
+    ];
+
+    const rows = list.map((e) => [
+      e.id,
+      e.date,
+      e.endDate || '—',
+      e.title,
+      e.type,
+      e.category,
+      e.isLibraryOpen ? 'OPEN (Working Day)' : 'CLOSED (Holiday)',
+      e.customHoursText || (e.isLibraryOpen ? '08:00 AM – 10:00 PM' : 'Closed (Full Day)'),
+      (e.affectedBranches || ['Central Library']).join(', '),
+      e.declaredBy || 'Administration',
+      e.description || e.notes || '',
+    ]);
+
+    exportStyledExcelFile({
+      filename: finalFilename,
+      sheetName: 'University Calendar',
+      headers,
+      data: rows,
+      themeColor: '4338CA', // Indigo Header
+    });
+
+    this.addAuditLog(
+      '1',
+      'Chief Admin Librarian',
+      'ADMIN',
+      'EXPORT_CALENDAR_REPORT',
+      'ATTENDANCE_CALENDAR',
+      `Exported ${list.length} academic calendar events to formatted Excel/CSV file`
     );
 
     return { success: true, filename: finalFilename };

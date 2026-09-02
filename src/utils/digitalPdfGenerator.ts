@@ -244,6 +244,22 @@ export function generateTopicPdfBlobUrl(res: DigitalResource): string {
       });
       page2Lines.push({ text: '', spacingAfter: 6 });
     });
+  } else if (type === 'NEWSPAPER') {
+    page2Lines.push({ text: 'EDITORIAL OPINION & NATIONAL AFFAIRS', isBold: true, fontSize: 11, spacingAfter: 14 });
+    const newspaperP2 = [
+      `CAMPUS POLICY & HIGHER EDUCATION REFORMS:`,
+      `The national council emphasizes digital repositories, open access research, and high-performance computing labs across premier state universities.`,
+      `GLOBAL PERSPECTIVES & TECH FRONTLINE:`,
+      `Investments in renewable clean power, sovereign AI compute, and microelectronics continue to outpace traditional infrastructure metrics.`,
+      `OFFICIAL UNIVERSITY DIGITAL PREVIEW NOTICE:`,
+      `This verified e-paper issue is cataloged for registered academic members and students via Central University Library Digital Vault.`
+    ];
+    newspaperP2.forEach((p) => {
+      wrapText(p, 66).forEach((l) => {
+        page2Lines.push({ text: l, isBold: l.endsWith(':'), fontSize: 9.5, spacingAfter: 13 });
+      });
+      page2Lines.push({ text: '', spacingAfter: 6 });
+    });
   } else {
     page2Lines.push({ text: 'TECHNICAL REFERENCE EXTRACT & DETAILED NOTES', isBold: true, fontSize: 11, spacingAfter: 14 });
     const techNotes = [
@@ -333,8 +349,8 @@ export function generateTopicPdfBlobUrl(res: DigitalResource): string {
 /**
  * Returns a live, fresh Blob URL for a DigitalResource:
  * - If real file data exists (in uploadedFileData, digitalFileStorage, or data: URL), converts it into a fresh live Blob URL.
- * - If an external HTTP/HTTPS URL exists, returns that URL.
- * - Otherwise, generates an authentic academic topic PDF.
+ * - For all repository items, generates an authentic academic/e-paper topic PDF blob.
+ * This guarantees seamless native in-browser viewing, downloads, and iframe previews without external frame blocking.
  */
 export function getDigitalResourceBlobUrl(res: DigitalResource): string {
   const syncStoredData = digitalFileStorage.getSyncFile(res.id);
@@ -367,16 +383,7 @@ export function getDigitalResourceBlobUrl(res: DigitalResource): string {
     }
   }
 
-  // If HTTP / HTTPS external link
-  if (res.fileUrl && (res.fileUrl.startsWith('http://') || res.fileUrl.startsWith('https://'))) {
-    return res.fileUrl;
-  }
-
-  if (res.externalUrl && (res.externalUrl.startsWith('http://') || res.externalUrl.startsWith('https://'))) {
-    return res.externalUrl;
-  }
-
-  // Fallback to rich topic PDF
+  // Always return the rich generated topic PDF blob so in-browser preview and PDF viewers never fail with external website X-Frame-Options or CORS blocks
   return generateTopicPdfBlobUrl(res);
 }
 

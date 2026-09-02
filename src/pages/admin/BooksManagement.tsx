@@ -1189,10 +1189,10 @@ export default function BooksManagement() {
                   {selectedFormat === 'ALL'
                     ? 'All Formats'
                     : selectedFormat === 'PHYSICAL'
-                      ? 'Physical Hardcopy'
+                      ? 'Physical'
                       : selectedFormat === 'DIGITAL'
-                        ? 'Digital E-Resource'
-                        : 'Hybrid (Both)'}
+                        ? 'Digital'
+                        : 'Both (Physical & Digital)'}
                 </span>
               </div>
               <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${isFormatOpen ? 'rotate-180 text-purple-600' : ''}`} />
@@ -1202,9 +1202,9 @@ export default function BooksManagement() {
               <div className="absolute left-0 right-0 top-full mt-1.5 z-40 bg-white rounded-2xl border border-slate-200 shadow-xl py-1.5 animate-fadeIn space-y-0.5 min-w-[180px]">
                 {[
                   { id: 'ALL', label: 'All Formats' },
-                  { id: 'PHYSICAL', label: 'Physical Hardcopy' },
-                  { id: 'DIGITAL', label: 'Digital E-Resource' },
-                  { id: 'HYBRID', label: 'Hybrid (Both)' },
+                  { id: 'PHYSICAL', label: 'Physical' },
+                  { id: 'DIGITAL', label: 'Digital' },
+                  { id: 'HYBRID', label: 'Both (Physical & Digital)' },
                 ].map((item) => (
                   <button
                     key={item.id}
@@ -2177,9 +2177,9 @@ export default function BooksManagement() {
                     onChange={(e) => setAddFormData({ ...addFormData, format: e.target.value as any })}
                     className="w-full px-3 py-2 border rounded-xl font-semibold"
                   >
-                    <option value="PHYSICAL">Physical Hardcopy</option>
-                    <option value="DIGITAL">Digital E-Resource</option>
-                    <option value="HYBRID">Hybrid (Both)</option>
+                    <option value="PHYSICAL">Physical</option>
+                    <option value="DIGITAL">Digital</option>
+                    <option value="HYBRID">Both (Physical & Digital)</option>
                   </select>
                 </div>
 
@@ -2289,9 +2289,9 @@ export default function BooksManagement() {
                     onChange={(e) => setEditFormData({ ...editFormData, format: e.target.value as any })}
                     className="w-full px-3 py-2 border rounded-xl font-semibold text-slate-800"
                   >
-                    <option value="PHYSICAL">Physical Hardcopy</option>
-                    <option value="DIGITAL">Digital E-Resource</option>
-                    <option value="HYBRID">Hybrid (Both Physical & Digital)</option>
+                    <option value="PHYSICAL">Physical</option>
+                    <option value="DIGITAL">Digital</option>
+                    <option value="HYBRID">Both (Physical & Digital)</option>
                   </select>
                 </div>
               </div>

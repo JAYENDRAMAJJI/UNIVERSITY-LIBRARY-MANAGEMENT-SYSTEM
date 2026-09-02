@@ -191,7 +191,7 @@ export default function SettingsManagement() {
             <span>Active Policy Rule</span>
             <Sliders className="h-4 w-4 text-indigo-500" />
           </div>
-          <p className="text-xl font-extrabold text-slate-900">₹{config.fineRatePerDay}/Day Fine</p>
+          <p className="text-xl font-extrabold text-slate-900">₹{config.fineRatePerDay}/Day Overdue Fine</p>
           <p className="text-[11px] text-slate-500">Max Renewal: {config.maxRenewalLimit} Times</p>
         </div>
       </div>

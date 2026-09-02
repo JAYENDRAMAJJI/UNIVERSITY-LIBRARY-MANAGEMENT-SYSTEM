@@ -91,7 +91,7 @@ export default function Notifications() {
         id: `notif-overdue-${tx.id}`,
         type: 'OVERDUE',
         title: `Overdue Book Notice: "${tx.bookTitle}"`,
-        description: `This volume was due for return on ${formatOnlyTimeInBracket(tx.dueDate)}. Accruing late return fine: ₹2.00/day. Please return it to the circulation counter or request an extension.`,
+        description: `This volume was due for return on ${formatOnlyTimeInBracket(tx.dueDate)}. Accruing late return fine: ₹${(state.config?.fineRatePerDay || 5).toFixed(2)}/day. Please return it to the circulation counter or request an extension.`,
         timestamp: `Due: ${tx.dueDate}`,
         urgency: 'HIGH',
         actionUrl: userRole === 'FACULTY' ? '/faculty/dashboard' : '/student/dashboard',

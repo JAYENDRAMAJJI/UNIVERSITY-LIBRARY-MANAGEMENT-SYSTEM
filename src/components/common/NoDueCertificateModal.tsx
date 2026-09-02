@@ -27,6 +27,7 @@ import {
 import { libraryStore, getLocalDateStr, formatOnlyTimeInBracket } from '../../services/libraryStore.service';
 import { MemberProfile, NoDueCertificate, NoDueApplication } from '../../types/library';
 import { generateQrSvgString, svgToDataUrl } from '../../utils/barcodeQrGenerator';
+import AuthorizedCirculationSeal, { generateAuthorizedSealHtml } from './AuthorizedCirculationSeal';
 
 interface NoDueCertificateModalProps {
   isOpen: boolean;
@@ -428,12 +429,8 @@ export default function NoDueCertificateModal({
                 </div>
 
                 <div class="seal-box">
-                  <div class="seal-circle">
-                    <span>★ VERIFIED ★</span>
-                    <span style="font-size: 7px; margin-top: 2px;">LIBRARY SEAL</span>
-                    <span>CENTRAL</span>
-                  </div>
-                  <div style="font-size: 8.5px; color: #b45309; font-weight: 700;">Official University Stamp</div>
+                  ${generateAuthorizedSealHtml('NO_DUE', certificate.issuedDate)}
+                  <div style="font-size: 8.5px; color: #4338ca; font-weight: 800; margin-top: 4px;">Official University Seal</div>
                 </div>
 
                 <div class="sign-box">
@@ -633,11 +630,16 @@ export default function NoDueCertificateModal({
                     </div>
                   </div>
 
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200/70 text-xs space-y-1.5 text-slate-700">
-                    <p className="font-semibold text-slate-900">
-                      Signer Authority: <span className="text-indigo-800 font-bold">{certificate.issuedBy}</span>
-                    </p>
-                    <p className="text-slate-600 italic">"{certificate.remarks || 'Cleared all library borrowings and financial dues.'}"</p>
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200/70 text-xs flex items-center justify-between gap-3 text-slate-700">
+                    <div className="space-y-1.5 flex-1">
+                      <p className="font-semibold text-slate-900">
+                        Signer Authority: <span className="text-indigo-800 font-bold">{certificate.issuedBy}</span>
+                      </p>
+                      <p className="text-slate-600 italic">"{certificate.remarks || 'Cleared all library borrowings and financial dues.'}"</p>
+                    </div>
+                    <div className="shrink-0">
+                      <AuthorizedCirculationSeal type="NO_DUE" date={certificate.issuedDate} size="sm" />
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2">

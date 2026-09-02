@@ -12,7 +12,7 @@ const FAQ_DATA = [
   },
   {
     question: 'What are the overdue fine rates and penalty policies?',
-    answer: 'An overdue fine of ₹10.00 per day is automatically calculated upon book return. If an accession copy is damaged or lost, the member is responsible for replacing the edition or settling the replacement cost.',
+    answer: 'An overdue fine of ₹5.00 per day is automatically calculated upon book return. If an accession copy is damaged or lost, the member is responsible for replacing the edition or settling the replacement cost.',
   },
   {
     question: 'How do I access digital e-books, journals, and exam question banks remotely?',

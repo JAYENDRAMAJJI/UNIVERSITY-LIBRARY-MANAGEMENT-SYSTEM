@@ -72,21 +72,21 @@ export default function SendNotificationModal({
       setIsUrgent(false);
       setTitle(`Book Return Due Date Reminder: "${bookTitle}"`);
       setContent(
-        `Dear ${memberName},\n\nThis is a friendly reminder from the University Central Library that your borrowed book "${bookTitle}" is scheduled for return on ${dueDate}.\n\nPlease return the book to the circulation desk or request a renewal/extension from your student/faculty dashboard before the deadline to avoid late fines (₹2.00/day).\n\nThank you,\nCentral Library Circulation Desk`
+        `Dear ${memberName},\n\nThis is a friendly reminder from the University Central Library that your borrowed book "${bookTitle}" is scheduled for return on ${dueDate}.\n\nPlease return the book to the circulation desk or request a renewal/extension from your student/faculty dashboard before the deadline to avoid late fines (₹5.00/day).\n\nThank you,\nCentral Library Circulation Desk`
       );
     } else if (type === 'LAST_DAY') {
       setCategory('DUE_REMINDER');
       setIsUrgent(true);
       setTitle(`FINAL REMINDER: Last Day to Return "${bookTitle}" (Due: ${dueDate})`);
       setContent(
-        `Dear ${memberName},\n\nThis is an urgent notice that ${dueDate} is the FINAL DUE DATE for returning your borrowed volume "${bookTitle}".\n\nPlease return the book to the circulation counter today by 05:00 PM or submit an extension request immediately. After today, an overdue fine of ₹2.00 per day will be applied automatically.\n\nCirculation Desk,\nUniversity Central Library`
+        `Dear ${memberName},\n\nThis is an urgent notice that ${dueDate} is the FINAL DUE DATE for returning your borrowed volume "${bookTitle}".\n\nPlease return the book to the circulation counter today by 05:00 PM or submit an extension request immediately. After today, an overdue fine of ₹5.00 per day will be applied automatically.\n\nCirculation Desk,\nUniversity Central Library`
       );
     } else if (type === 'OVERDUE') {
       setCategory('OVERDUE_WARNING');
       setIsUrgent(true);
       setTitle(`URGENT: Overdue Book Return Notice - "${bookTitle}"`);
       setContent(
-        `Dear ${memberName},\n\nAccording to our circulation records, the book "${bookTitle}" issued to you was due on ${dueDate} and is now OVERDUE.\n\nA late return penalty of ₹2.00 per day is actively accruing on your account. Please return the book to the circulation counter immediately to prevent suspension of borrowing privileges and clearance holds.\n\nCirculation Desk,\nUniversity Central Library`
+        `Dear ${memberName},\n\nAccording to our circulation records, the book "${bookTitle}" issued to you was due on ${dueDate} and is now OVERDUE.\n\nA late return penalty of ₹5.00 per day is actively accruing on your account. Please return the book to the circulation counter immediately to prevent suspension of borrowing privileges and clearance holds.\n\nCirculation Desk,\nUniversity Central Library`
       );
     } else if (type === 'RENEW_RETURN') {
       setCategory('DUE_REMINDER');

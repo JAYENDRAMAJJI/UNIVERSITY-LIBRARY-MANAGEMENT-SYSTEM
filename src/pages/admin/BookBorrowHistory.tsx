@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   History,
@@ -30,6 +30,7 @@ import {
   ShieldCheck,
   Bell,
   Send,
+  IndianRupee,
 } from 'lucide-react';
 import { libraryStore, getLocalDateStr, getTransactionFineAmount } from '../../services/libraryStore.service';
 import { exportStyledExcelFile } from '../../utils/excelExport';
@@ -81,7 +82,6 @@ export default function BookBorrowHistory() {
   const [storeState, setStoreState] = useState(libraryStore.snapshot);
   const [selectedBookId, setSelectedBookId] = useState<string>(initialBookId);
   const [searchTerm, setSearchTerm] = useState('');
-  const [nameSearchTerm, setNameSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'CURRENT' | 'RETURNED' | 'OVERDUE' | 'LOST'>('ALL');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'STUDENT' | 'FACULTY'>('ALL');
   const [startDate, setStartDate] = useState('');
@@ -496,7 +496,7 @@ export default function BookBorrowHistory() {
               title="Dispatch book return reminder or circular notice to members"
             >
               <Bell className="h-4 w-4 text-amber-300" />
-              <span>Send Return / Due Notice</span>
+              <span>Send Due Notice</span>
             </button>
           )}
 
@@ -513,26 +513,30 @@ export default function BookBorrowHistory() {
       </div>
 
       {/* Search & Filtering Bar */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Member Name or Card Search */}
-          <div className="relative">
+      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+          {/* Member Name, Book Title, Card No, Accession Search */}
+          <div className="relative lg:col-span-5">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search member, ID, or book..."
-              value={nameSearchTerm}
+              placeholder="Search member name, ID, book title, accession..."
+              value={searchTerm}
               onChange={(e) => {
-                setNameSearchTerm(e.target.value);
+                setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-10 pr-8 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 placeholder:text-slate-400 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+              className="w-full pl-10 pr-9 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 placeholder:text-slate-400 bg-slate-50/70 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-300 transition-all"
             />
-            {nameSearchTerm && (
+            {searchTerm && (
               <button
                 type="button"
-                onClick={() => setNameSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                onClick={() => {
+                  setSearchTerm('');
+                  setCurrentPage(1);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                title="Clear search"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -540,11 +544,11 @@ export default function BookBorrowHistory() {
           </div>
 
           {/* Book Dropdown Selector */}
-          <div className="relative" ref={bookSelectRef}>
+          <div className="relative lg:col-span-3" ref={bookSelectRef}>
             <button
               type="button"
               onClick={() => setIsBookSelectOpen(!isBookSelectOpen)}
-              className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/50 flex items-center justify-between gap-2 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/70 flex items-center justify-between gap-2 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <span className="truncate">
                 {selectedBookId
@@ -555,7 +559,7 @@ export default function BookBorrowHistory() {
             </button>
 
             {isBookSelectOpen && (
-              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-xl z-30 p-2 space-y-1.5 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
+              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-xl z-30 p-2 space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar animate-fade-in">
                 <input
                   type="text"
                   placeholder="Filter books..."
@@ -606,14 +610,14 @@ export default function BookBorrowHistory() {
           </div>
 
           {/* Status Filter */}
-          <div className="relative">
+          <div className="relative lg:col-span-2">
             <select
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value as any);
                 setCurrentPage(1);
               }}
-              className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/50 appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer"
+              className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/70 appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer pr-8"
             >
               <option value="ALL">All Statuses</option>
               <option value="CURRENT">Currently Borrowed</option>
@@ -626,14 +630,14 @@ export default function BookBorrowHistory() {
 
           {/* Role Filter */}
           {isAdminOrStaff && (
-            <div className="relative">
+            <div className="relative lg:col-span-2">
               <select
                 value={roleFilter}
                 onChange={(e) => {
                   setRoleFilter(e.target.value as any);
                   setCurrentPage(1);
                 }}
-                className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/50 appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer"
+                className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/70 appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer pr-8"
               >
                 <option value="ALL">All Roles</option>
                 <option value="STUDENT">Student Only</option>
@@ -643,6 +647,42 @@ export default function BookBorrowHistory() {
             </div>
           )}
         </div>
+
+        {/* Active Filter Indicator & Reset */}
+        {hasActiveFilters && (
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+            <div className="flex items-center gap-1.5 text-slate-500 flex-wrap">
+              <span className="font-semibold text-slate-700">Active Filters:</span>
+              {searchTerm && (
+                <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-full font-mono text-[11px]">
+                  Keyword: "{searchTerm}"
+                </span>
+              )}
+              {selectedBookId && (
+                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full font-mono text-[11px]">
+                  Book: {storeState.books.find((b) => b.id === selectedBookId)?.title || selectedBookId}
+                </span>
+              )}
+              {statusFilter !== 'ALL' && (
+                <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full font-mono text-[11px]">
+                  Status: {statusFilter}
+                </span>
+              )}
+              {roleFilter !== 'ALL' && (
+                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-mono text-[11px]">
+                  Role: {roleFilter}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleResetAllFilters}
+              className="text-purple-700 hover:text-purple-900 font-bold hover:underline cursor-pointer shrink-0 ml-auto"
+            >
+              Reset Filters
+            </button>
+          </div>
+        )}
       </div>
 
       {/* History Data Table */}
@@ -753,14 +793,40 @@ export default function BookBorrowHistory() {
                         )}
                       </td>
 
-                      {/* Fine Amount */}
+                      {/* Fine Amount & Status */}
                       <td className="py-3 px-2 align-middle text-center text-xs font-bold whitespace-nowrap">
                         {(() => {
                           const fineInfo = getTransactionFineAmount(record, storeState);
-                          return fineInfo.fineAmount > 0 ? (
-                            <span className="text-rose-700 font-mono">₹{fineInfo.fineAmount.toFixed(2)}</span>
-                          ) : (
-                            <span className="text-slate-500 font-mono font-medium">₹0.00</span>
+                          if (fineInfo.fineAmount <= 0) {
+                            return <span className="text-slate-400 font-mono font-medium text-[11px]">₹0.00</span>;
+                          }
+                          if (fineInfo.fineStatus === 'PAID') {
+                            return (
+                              <div className="inline-flex flex-col items-center">
+                                <span className="text-emerald-700 font-mono font-bold">₹{fineInfo.fineAmount.toFixed(2)}</span>
+                                <span className="text-[9px] font-extrabold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 mt-0.5">
+                                  ✓ PAID
+                                </span>
+                              </div>
+                            );
+                          }
+                          if (fineInfo.fineStatus === 'WAIVED') {
+                            return (
+                              <div className="inline-flex flex-col items-center">
+                                <span className="text-purple-700 font-mono font-bold line-through">₹{fineInfo.fineAmount.toFixed(2)}</span>
+                                <span className="text-[9px] font-extrabold uppercase text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200/60 mt-0.5">
+                                  WAIVED
+                                </span>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="inline-flex flex-col items-center">
+                              <span className="text-rose-700 font-mono font-black">₹{fineInfo.fineAmount.toFixed(2)}</span>
+                              <span className="text-[9px] font-extrabold uppercase text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200/60 mt-0.5">
+                                UNPAID
+                              </span>
+                            </div>
                           );
                         })()}
                       </td>

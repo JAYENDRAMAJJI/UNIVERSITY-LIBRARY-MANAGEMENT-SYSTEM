@@ -578,6 +578,11 @@ export default function Profile() {
                 </div>
 
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-slate-600 font-bold">Overdue Fine Rate</span>
+                  <span className="font-bold text-rose-700 font-mono text-xs">₹{(state.config?.fineRatePerDay || 5).toFixed(2)} / Day</span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                   <div className="flex flex-col">
                     <span className="text-slate-600 font-bold">Institutional Clearance (NDC)</span>
                     <Link to="/no-due" className="text-[10px] text-blue-600 hover:underline font-semibold flex items-center gap-0.5 mt-0.5">
@@ -625,9 +630,21 @@ export default function Profile() {
                   <span className="font-bold text-emerald-700 text-[11px]">Unlimited Online</span>
                 </div>
 
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-rose-50/50 border border-rose-100">
+                  <div className="flex flex-col">
+                    <span className="text-rose-700 font-bold">Pending Fine Balance</span>
+                    <Link to="/fines" className="text-[10px] text-rose-600 hover:underline font-semibold flex items-center gap-0.5 mt-0.5">
+                      View Receipts & Settle &rarr;
+                    </Link>
+                  </div>
+                  <span className="font-bold text-rose-900 font-mono text-sm">
+                    ₹{getMemberPendingFines(currentMember?.id || user?.email || '', state).toFixed(2)}
+                  </span>
+                </div>
+
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-slate-600 font-bold">Overdue Fine Policy</span>
-                  <span className="font-bold text-emerald-700 text-[11px]">Faculty Exemption</span>
+                  <span className="text-slate-600 font-bold">Overdue Fine Rate</span>
+                  <span className="font-bold text-slate-800 font-mono text-xs">₹{(state.config?.fineRatePerDay || 5).toFixed(2)} / Day</span>
                 </div>
 
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">

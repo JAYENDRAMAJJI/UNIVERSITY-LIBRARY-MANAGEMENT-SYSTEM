@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { libraryStore, getLocalDateStr, formatOnlyTimeInBracket } from '../../services/libraryStore.service';
 import { exportStyledExcelFile } from '../../utils/excelExport';
+import { useAuth } from '../../context/AuthContext';
 import { ProcurementRequest, ProcurementStatus, Vendor, Role } from '../../types/library';
 import {
   generateBarcodeSvgString,
@@ -113,6 +114,7 @@ const PRESET_BOOK_TEMPLATES = [
 ];
 
 export default function ProcurementManagement() {
+  const { user } = useAuth();
   const [state, setState] = useState(libraryStore.snapshot);
   const [activeTab, setActiveTab] = useState<'LIFECYCLE' | 'PIPELINE' | 'VENDORS' | 'DUPLICATES' | 'PO_ARCHIVE'>('LIFECYCLE');
   
@@ -151,10 +153,40 @@ export default function ProcurementManagement() {
   const [newEstPrice, setNewEstPrice] = useState(2500);
   const [newQuantity, setNewQuantity] = useState(1);
   const [newCategoryName, setNewCategoryName] = useState('Computer Science & Software Engineering');
+  const [newMemberCardNo, setNewMemberCardNo] = useState('');
   const [newRequesterRole, setNewRequesterRole] = useState<Role>('FACULTY');
   const [newRequesterName, setNewRequesterName] = useState('Dr. Sarah Connor');
   const [newUrgency, setNewUrgency] = useState<'NORMAL' | 'HIGH' | 'CRITICAL_SYLLABUS'>('HIGH');
   const [newReason, setNewReason] = useState('');
+
+  // Handle Member lookup by Card No / Student ID / Roll No / Email
+  const handleMemberLookup = (val: string) => {
+    setNewMemberCardNo(val);
+    const query = val.trim().toLowerCase();
+    if (!query) return;
+
+    const found = (state.members || []).find(
+      (m) =>
+        m.memberCardNo?.toLowerCase() === query ||
+        m.id?.toLowerCase() === query ||
+        m.email?.toLowerCase() === query ||
+        m.name?.toLowerCase() === query ||
+        (m.memberCardNo && m.memberCardNo.toLowerCase().includes(query))
+    );
+
+    if (found) {
+      setNewRequesterName(found.name);
+      setNewRequesterRole(found.role);
+      if (found.department) {
+        const matchedCat = categories.find(
+          (c) =>
+            c.name.toLowerCase().includes(found.department!.toLowerCase()) ||
+            found.department!.toLowerCase().includes(c.name.toLowerCase())
+        );
+        if (matchedCat) setNewCategoryName(matchedCat.name);
+      }
+    }
+  };
 
   // Vendor Form State (Add / Edit)
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
@@ -495,7 +527,136 @@ export default function ProcurementManagement() {
   };
 
   const handlePrint = () => {
-    window.print();
+    const printWindow = window.open('', '_blank', 'width=1100,height=800');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    const rowsHtml = filteredRequests
+      .map(
+        (r, idx) => `
+        <tr>
+          <td style="text-align: center; font-weight: 700;">${idx + 1}</td>
+          <td>
+            <div style="font-weight: 700; color: #0f172a;">${r.bookTitle}</div>
+            <div style="font-size: 11px; color: #64748b;">Author: ${r.authorName} ${r.isbn ? `• ISBN: ${r.isbn}` : ''}</div>
+          </td>
+          <td>${r.assignedCategoryName || 'General'}</td>
+          <td>
+            <div style="font-weight: 600;">${r.requestedByName}</div>
+            <div style="font-size: 10px; color: #64748b;">${r.requestedByRole}</div>
+          </td>
+          <td style="text-align: center; font-weight: 700;">${r.quantityRequested || 1}</td>
+          <td style="text-align: right; font-weight: 700;">₹${((r.approvedPrice || r.estimatedPrice || 0) * (r.quantityRequested || 1)).toLocaleString()}</td>
+          <td style="text-align: center;">
+            <span style="display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; background: #f1f5f9; color: #334155;">
+              ${r.status.replace(/_/g, ' ')}
+            </span>
+          </td>
+          <td style="font-family: monospace; font-size: 11px;">${r.poNumber || '—'}</td>
+        </tr>
+      `
+      )
+      .join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Procurement & Acquisition Register - Central University Library</title>
+          <style>
+            @page { size: landscape; margin: 15mm; }
+            body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #1e293b; margin: 0; padding: 20px; font-size: 12px; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #7c3aed; padding-bottom: 15px; margin-bottom: 20px; }
+            .univ-title { font-size: 20px; font-weight: 800; color: #0f172a; margin: 0; }
+            .doc-title { font-size: 13px; font-weight: 700; color: #6d28d9; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+            .meta { font-size: 11px; color: #64748b; text-align: right; }
+            .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+            .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; }
+            .card-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; }
+            .card-value { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 2px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+            th { background: #f1f5f9; color: #475569; font-weight: 800; font-size: 11px; text-transform: uppercase; text-align: left; padding: 8px 10px; border: 1px solid #cbd5e1; }
+            td { padding: 8px 10px; border: 1px solid #e2e8f0; vertical-align: middle; }
+            tr:nth-child(even) { background: #f8fafc; }
+            .footer { display: flex; justify-content: space-between; margin-top: 30px; padding-top: 15px; border-top: 1px solid #cbd5e1; font-size: 11px; color: #64748b; }
+            .no-print { margin-bottom: 15px; }
+            .btn { background: #7c3aed; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+            @media print { .no-print { display: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="no-print">
+            <button class="btn" onclick="window.print()">🖨️ Print Document</button>
+            <button class="btn" style="background: #64748b; margin-left: 8px;" onclick="window.close()">Close</button>
+          </div>
+          <div class="header">
+            <div>
+              <h1 class="univ-title">UNIVERSITY CENTRAL LIBRARY</h1>
+              <div class="doc-title">Book Acquisition & Procurement Register Report</div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Main Administrative Campus • Acquisition & Technical Services Division</div>
+            </div>
+            <div class="meta">
+              <div><strong>Generated Date:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+              <div><strong>Filter:</strong> Status: ${filterStatus} | Role: ${filterRole}</div>
+              <div><strong>Total Records:</strong> ${filteredRequests.length}</div>
+            </div>
+          </div>
+
+          <div class="summary-cards">
+            <div class="card">
+              <div class="card-label">Total Requisitions</div>
+              <div class="card-value">${totalRequestsCount}</div>
+            </div>
+            <div class="card">
+              <div class="card-label">Active POs Issued</div>
+              <div class="card-value">${activePOCount}</div>
+            </div>
+            <div class="card">
+              <div class="card-label">Total Budget Committed</div>
+              <div class="card-value">₹${totalBudgetCommitted.toLocaleString()}</div>
+            </div>
+            <div class="card">
+              <div class="card-label">Cataloged & On Shelf</div>
+              <div class="card-value">${totalCatalogedCount}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;">#</th>
+                <th>Book Details</th>
+                <th>Department</th>
+                <th>Requester</th>
+                <th style="width: 60px; text-align: center;">Qty</th>
+                <th style="width: 100px; text-align: right;">Total Est. (₹)</th>
+                <th style="width: 120px; text-align: center;">Lifecycle Status</th>
+                <th style="width: 120px;">PO Reference</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <div>Official Report from University Library Management System</div>
+            <div>Authorized Signatory: <strong>${user?.name || 'Chief University Librarian'}</strong></div>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() { window.print(); }, 400);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   // Dedicated High-Fidelity Formal Purchase Order Print Window
@@ -836,7 +997,7 @@ export default function ProcurementManagement() {
               </div>
               <div>
                 <div style="height: 40px; display: flex; align-items: flex-end; justify-content: center;">
-                  <span style="font-family: serif; font-style: italic; font-weight: bold; color: #6d28d9;">Dr. Sarah Connor</span>
+                  <span style="font-family: serif; font-style: italic; font-weight: bold; color: #6d28d9;">${user?.name || 'Chief University Librarian'}</span>
                 </div>
                 <div class="sign-line">Chief University Librarian</div>
                 <div class="sign-role">Authorized Signatory & Seal</div>
@@ -1950,7 +2111,7 @@ export default function ProcurementManagement() {
         actionModalType !== 'NEW_VENDOR' && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
             <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4 my-auto">
-              <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center justify-between pb-1">
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
                     <Layers className="h-4 w-4" />
@@ -2258,7 +2419,7 @@ export default function ProcurementManagement() {
               <div className="text-right space-y-2">
                 <div className="h-12 flex items-end justify-end">
                   <span className="font-serif italic font-bold text-purple-900 border-b border-slate-400 pb-1">
-                    Dr. Sarah Connor / Chief Librarian
+                    {user?.name || 'Chief University Librarian'}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 uppercase font-extrabold">Authorized University Signatory</p>
@@ -2290,7 +2451,7 @@ export default function ProcurementManagement() {
       {actionModalType === 'TIMELINE' && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-3">
+            <div className="flex items-center justify-between pb-1">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
                   <History className="h-4 w-4" />
@@ -2357,7 +2518,7 @@ export default function ProcurementManagement() {
       {actionModalType === 'PRINT_BARCODES' && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 space-y-4 my-auto">
-            <div className="flex items-center justify-between border-b pb-3">
+            <div className="flex items-center justify-between pb-1">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center font-bold">
                   <Barcode className="h-4 w-4" />
@@ -2430,7 +2591,7 @@ export default function ProcurementManagement() {
             onSubmit={handleCreateRequest}
             className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 space-y-4 my-auto"
           >
-            <div className="flex items-center justify-between border-b pb-3">
+            <div className="flex items-center justify-between pb-1">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
                   <ShoppingBag className="h-4 w-4" />
@@ -2565,27 +2726,54 @@ export default function ProcurementManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              {/* Student / Faculty ID / Card Number Search (Auto-Fill) */}
+              <div className="bg-purple-50/50 p-3.5 rounded-2xl border border-purple-100 space-y-2">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Requester Role</label>
-                  <select
-                    value={newRequesterRole}
-                    onChange={(e) => setNewRequesterRole(e.target.value as any)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 font-bold text-slate-800 bg-slate-50"
-                  >
-                    <option value="FACULTY">Faculty Member / Professor</option>
-                    <option value="STUDENT">Student Requisition</option>
-                    <option value="ADMIN">Library Staff / Admin</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Requester Name</label>
+                  <label className="block font-extrabold text-purple-900 mb-1 flex items-center justify-between">
+                    <span>Student ID / Faculty Card Number / Member Search</span>
+                    <span className="text-[10px] text-purple-600 font-bold">Auto-fills Name & Role</span>
+                  </label>
                   <input
                     type="text"
-                    value={newRequesterName}
-                    onChange={(e) => setNewRequesterName(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 font-medium"
+                    list="procurement-members-list"
+                    placeholder="Type or select Student ID (e.g. STU-2026-7326, FAC-2023-1102, or Name)..."
+                    value={newMemberCardNo}
+                    onChange={(e) => handleMemberLookup(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-purple-200 bg-white font-mono text-xs font-bold text-slate-900 focus:ring-2 focus:ring-purple-500/30 focus:outline-none"
                   />
+                  <datalist id="procurement-members-list">
+                    {(state.members || []).map((m) => (
+                      <option key={m.id} value={m.memberCardNo || m.id}>
+                        {m.name} ({m.role} • {m.department || 'General'})
+                      </option>
+                    ))}
+                  </datalist>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Requester Role (Auto-Selected)</label>
+                    <select
+                      value={newRequesterRole}
+                      onChange={(e) => setNewRequesterRole(e.target.value as any)}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 font-bold text-slate-800 bg-white"
+                    >
+                      <option value="STUDENT">Student Requisition</option>
+                      <option value="FACULTY">Faculty Member / Professor</option>
+                      <option value="ADMIN">Library Staff / Admin</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Requester Name (Auto-Filled)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Student / Faculty Full Name"
+                      value={newRequesterName}
+                      onChange={(e) => setNewRequesterName(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 font-bold text-slate-900 bg-white"
+                    />
+                  </div>
                 </div>
               </div>
 

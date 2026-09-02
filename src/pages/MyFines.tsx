@@ -23,9 +23,11 @@ import {
   getMemberPendingFines,
   getTransactionFineAmount,
   getLocalDateStr,
+  getAllUnifiedFines,
 } from '../services/libraryStore.service';
 import { FineRecord, IssueTransaction, MemberProfile } from '../types/library';
 import { Link } from 'react-router-dom';
+import AuthorizedCirculationSeal from '../components/common/AuthorizedCirculationSeal';
 
 export default function MyFines() {
   const { user } = useAuth();
@@ -64,16 +66,17 @@ export default function MyFines() {
   const memberId = currentMember?.id || '';
   const memberCardNo = currentMember?.memberCardNo?.toLowerCase() || '';
 
-  // Get all explicit fine records for this member
+  // Get all explicit and active overdue fine records for this member
   const memberFines: FineRecord[] = useMemo(() => {
     if (!currentMember) return [];
-    return (state.fines || []).filter(
+    const allUnified = getAllUnifiedFines(state);
+    return allUnified.filter(
       (f) =>
         f.memberId === memberId ||
         (f.memberCardNo && f.memberCardNo.toLowerCase() === memberCardNo) ||
         (user?.name && f.memberName.toLowerCase() === user.name.toLowerCase())
     );
-  }, [state.fines, currentMember, memberId, memberCardNo, user]);
+  }, [state, currentMember, memberId, memberCardNo, user]);
 
   // Calculate live pending fines
   const totalPendingFines = useMemo(() => {
@@ -139,8 +142,23 @@ export default function MyFines() {
 
   const handleConfirmPayment = () => {
     if (!payingFine) return;
-    libraryStore.processFinePayment(payingFine.id, 'PAY');
-    triggerToast(`Payment of ₹${payingFine.amount.toFixed(2)} received successfully! Fine status updated to PAID.`);
+    const targetTxId = payingFine.transactionId || (payingFine.id.startsWith('fine-live-') ? payingFine.id.replace('fine-live-', '') : undefined);
+    const activeTx = targetTxId
+      ? (state.transactions || []).find((t) => t.id === targetTxId && (t.status === 'ISSUED' || t.status === 'OVERDUE'))
+      : undefined;
+
+    if (activeTx) {
+      libraryStore.returnBook(activeTx.id, 'GOOD', `Overdue fine settled online via ${payMethod}`, {
+        paymentMethod: payMethod === 'UPI' ? 'UPI_QR' : 'CASH',
+        paidAmount: payingFine.amount,
+        receiptNo: `RCP-${Date.now().toString().slice(-6)}`,
+      });
+      triggerToast(`Payment of ₹${payingFine.amount.toFixed(2)} received! "${activeTx.bookTitle}" returned & restored to library.`);
+    } else {
+      libraryStore.processFinePayment(payingFine.id, 'PAY');
+      triggerToast(`Payment of ₹${payingFine.amount.toFixed(2)} received successfully! Fine status updated to PAID.`);
+    }
+
     setIsPayModalOpen(false);
     setPayingFine(null);
   };
@@ -311,11 +329,11 @@ export default function MyFines() {
               <ShieldCheck className="w-6 h-6" />
             </div>
             <span className="text-xs font-bold text-indigo-800 bg-indigo-100 px-2.5 py-1 rounded-full">
-              Standard Tariff
+              Overdue Fine Policy
             </span>
           </div>
           <div className="mt-4">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Overdue Tariff Rate</p>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Overdue Fine Rate</p>
             <h3 className="text-3xl font-extrabold font-poppins text-indigo-950 mt-1">
               ₹{(state.config?.fineRatePerDay || 5).toFixed(2)} <span className="text-sm font-semibold text-slate-400">/ day</span>
             </h3>
@@ -541,7 +559,11 @@ export default function MyFines() {
                                   : 'bg-slate-100 text-slate-800'
                               }`}
                             >
-                              {fine.reason === 'OVERDUE' ? 'Late Return Penalty' : fine.reason}
+                              {fine.reason === 'OVERDUE'
+                                ? 'Overdue Fine (Late Return)'
+                                : fine.reason === 'DAMAGED'
+                                ? 'Book Damage Penalty'
+                                : 'Book Replacement Cost'}
                             </span>
                           </td>
                           <td className="p-3.5 font-extrabold text-sm">
@@ -669,7 +691,13 @@ export default function MyFines() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Reason:</span>
-                <span className="font-bold text-amber-700">{payingFine.reason === 'OVERDUE' ? 'Late Return' : payingFine.reason}</span>
+                <span className="font-bold text-amber-700">
+                  {payingFine.reason === 'OVERDUE'
+                    ? 'Overdue Fine (Late Return)'
+                    : payingFine.reason === 'DAMAGED'
+                    ? 'Book Damage Penalty'
+                    : 'Book Replacement Cost'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Assessment Date:</span>
@@ -796,7 +824,13 @@ export default function MyFines() {
                 <div className="font-bold text-slate-900 text-sm">{selectedFineForReceipt.bookTitle}</div>
                 <div className="flex justify-between text-slate-600 text-[11px]">
                   <span>Reason for Charge:</span>
-                  <span className="font-bold text-slate-800">{selectedFineForReceipt.reason === 'OVERDUE' ? 'Late Return Overdue Fine' : selectedFineForReceipt.reason}</span>
+                  <span className="font-bold text-slate-800">
+                    {selectedFineForReceipt.reason === 'OVERDUE'
+                      ? 'Overdue Fine (Late Return)'
+                      : selectedFineForReceipt.reason === 'DAMAGED'
+                      ? 'Book Damage Penalty'
+                      : 'Book Replacement Cost'}
+                  </span>
                 </div>
                 <div className="flex justify-between text-slate-600 text-[11px]">
                   <span>Circulation Rate:</span>
@@ -811,14 +845,15 @@ export default function MyFines() {
               </div>
 
               {selectedFineForReceipt.status === 'PAID' && (
-                <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-800 flex items-center justify-between text-xs font-semibold">
+                <div className="p-3 bg-emerald-50/80 rounded-2xl border border-emerald-200 text-emerald-800 flex items-center justify-between text-xs font-semibold">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Settled on {selectedFineForReceipt.paidDate || selectedFineForReceipt.createdDate}</span>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="font-bold leading-tight">Settled on {selectedFineForReceipt.paidDate || selectedFineForReceipt.createdDate}</p>
+                      <p className="text-[10px] text-emerald-700 font-mono">Dues Zero • Cleared at Circulation</p>
+                    </div>
                   </div>
-                  <span className="text-[10px] uppercase tracking-wider bg-emerald-100 px-2 py-0.5 rounded-full font-bold">
-                    Official Stamp
-                  </span>
+                  <AuthorizedCirculationSeal type="FINE_PAYMENT" date={selectedFineForReceipt.paidDate || selectedFineForReceipt.createdDate} size="sm" />
                 </div>
               )}
             </div>

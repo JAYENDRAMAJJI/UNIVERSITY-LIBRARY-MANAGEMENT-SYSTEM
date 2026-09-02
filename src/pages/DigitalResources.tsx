@@ -39,6 +39,81 @@ import { useAuth } from '../context/AuthContext';
 import { DigitalResource, DigitalResourceType } from '../types/library';
 import { getDigitalResourceBlobUrl, downloadDigitalResource } from '../utils/digitalPdfGenerator';
 
+const DEPARTMENT_SUBJECT_OPTIONS: Record<string, string[]> = {
+  'Computer Science & Engineering': [
+    'Artificial Intelligence & Machine Learning',
+    'Distributed Cloud Computing & DevOps',
+    'Data Structures & Advanced Algorithms',
+    'Cyber Security & Cryptography',
+    'Computer Architecture & HPC',
+    'Full Stack Software Engineering',
+    'Database Systems & Big Data Analytics',
+    'Natural Language Processing & LLMs',
+    'Internet of Things (IoT) & Embedded Systems',
+    'Computer Networks & Protocols',
+  ],
+  'Electronics & Communication': [
+    'VLSI System Design & FPGA',
+    'Digital Signal Processing (DSP)',
+    'Wireless & 5G Communications',
+    'Microcontrollers & Embedded C',
+    'RF & Microwave Engineering',
+    'Optical Fiber Communication',
+    'Sensors & Instrumentation',
+    'Analog & Digital Circuit Design',
+  ],
+  'Electrical & Electronics': [
+    'Power Systems & Smart Grids',
+    'Renewable Energy Integration & Solar PV',
+    'Electric Vehicles & Battery Management',
+    'Power Electronics & Drives',
+    'Control Systems & Automation',
+    'High Voltage Engineering',
+    'Industrial Electrical Drives',
+  ],
+  'Mechanical Engineering': [
+    'Thermodynamics & Heat Transfer',
+    'Robotics & Industrial Automation',
+    'Fluid Mechanics & CFD Simulation',
+    'Finite Element Analysis (FEA) & Solid Mechanics',
+    'CAD/CAM & Rapid Prototyping',
+    'Automotive Engineering & Hybrid Powertrains',
+    'Manufacturing Technology & Metallurgy',
+  ],
+  'Management Studies': [
+    'Financial Accounting & Investment Strategy',
+    'Marketing Management & Digital Analytics',
+    'Organizational Behavior & Human Resources',
+    'Operations & Supply Chain Logistics',
+    'Strategic Business Management',
+    'Corporate Finance & Valuation',
+    'Entrepreneurship & Innovation',
+  ],
+  'Mathematics & Basic Sciences': [
+    'Applied Calculus & Linear Algebra',
+    'Engineering Physics & Quantum Optics',
+    'Probability, Statistics & Stochastic Processes',
+    'Numerical Methods & Optimization',
+    'Engineering Chemistry & Materials',
+    'Discrete Mathematics & Graph Theory',
+  ],
+  'Humanities & Social Sciences': [
+    'Economics & Public Policy',
+    'Professional Ethics, Human Values & Law',
+    'Technical English & Communication Skills',
+    'Sociology, Gender & Digital Society',
+    'Environmental Science & Sustainability',
+    'Public Administration & Governance',
+  ],
+  'All Departments': [
+    'Current Affairs, National Policy & Daily Editorials',
+    'General Engineering Aptitude & Logic',
+    'Research Methodology, IPR & Patents',
+    'National Digital Library Index & Open Repositories',
+    'Interdisciplinary Technology & Innovation',
+  ],
+};
+
 export default function DigitalResources() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -137,6 +212,83 @@ export default function DigitalResources() {
     setIsRssRefreshing(false);
     setDownloadToast(`Auto-refreshed today's digital newspapers edition (${res.todayStr}) across RSS feeds.`);
     setTimeout(() => setDownloadToast(null), 4000);
+  };
+
+  const handleUploadTypeChange = (newType: DigitalResourceType) => {
+    setUploadType(newType);
+    if (newType === 'NEWSPAPER' || newType === 'MAGAZINE' || newType === 'NDLI') {
+      setUploadDept('All Departments');
+      setUploadSemester('All Semesters');
+      setUploadSubject(newType === 'NEWSPAPER' ? 'Current Affairs, National Policy & Daily Editorials' : newType === 'MAGAZINE' ? 'Science, Technology & Modern Perspectives' : 'Open Repository Index');
+    } else if (newType === 'IEEE_XPLORE' || newType === 'ACM_DIGITAL_LIBRARY' || newType === 'NPTEL') {
+      setUploadDept('Computer Science & Engineering');
+      setUploadSubject(newType === 'IEEE_XPLORE' ? 'IEEE Transactions & Computing Systems' : newType === 'ACM_DIGITAL_LIBRARY' ? 'Distributed Computing & Algorithms' : 'Computer Architecture & HPC');
+    } else if (newType === 'SWAYAM') {
+      setUploadDept('Electrical & Electronics');
+      setUploadSubject('Power Electronics & Smart Grid Systems');
+    } else if (newType === 'SPRINGER_LINK' || newType === 'JOURNAL') {
+      setUploadDept('Electronics & Communication');
+      setUploadSubject('VLSI Systems & Digital Communications');
+    } else if (newType === 'SCIENCE_DIRECT') {
+      setUploadDept('Mechanical Engineering');
+      setUploadSubject('Thermodynamics & Robotics Automation');
+    } else if (newType === 'JSTOR') {
+      setUploadDept('Humanities & Social Sciences');
+      setUploadSemester('All Semesters');
+      setUploadSubject('Social Sciences, Economics & Policy');
+    } else if (newType === 'QUESTION_PAPER') {
+      setUploadSubject('End-Semester Examination Question Bank');
+    } else if (newType === 'SYLLABUS') {
+      setUploadSemester('All Semesters');
+      setUploadSubject('Curriculum & Academic Regulation Syllabus');
+    } else if (newType === 'EBOOK') {
+      setUploadSemester('All Semesters');
+      setUploadSubject('Core Academic Reference Textbook');
+    } else if (newType === 'LECTURE_NOTES') {
+      setUploadSubject('Faculty Course Lecture Notes & Lab Manuals');
+    } else if (newType === 'THESIS_DISSERTATION') {
+      setUploadSemester('Doctoral / Ph.D.');
+      setUploadSubject('Doctoral Ph.D. & Masters Dissertation Thesis');
+    }
+  };
+
+  const handleUploadDeptChange = (newDept: string) => {
+    setUploadDept(newDept);
+    if (newDept === 'All Departments') {
+      setUploadSemester('All Semesters');
+    }
+    if (!uploadSubject || uploadSubject === 'General Studies') {
+      if (newDept === 'Computer Science & Engineering') setUploadSubject('Artificial Intelligence & Systems');
+      else if (newDept === 'Electronics & Communication') setUploadSubject('VLSI Design & Embedded Systems');
+      else if (newDept === 'Electrical & Electronics') setUploadSubject('Power Systems & Renewable Energy');
+      else if (newDept === 'Mechanical Engineering') setUploadSubject('Robotics & Thermal Systems');
+      else if (newDept === 'Management Studies') setUploadSubject('Financial Strategy & Operations');
+      else if (newDept === 'Mathematics & Basic Sciences') setUploadSubject('Applied Calculus & Optimization');
+      else if (newDept === 'Humanities & Social Sciences') setUploadSubject('Economics, Ethics & Policy');
+      else if (newDept === 'All Departments') setUploadSubject('Universal Studies & Current Affairs');
+    }
+  };
+
+  const handleUploadSubjectChange = (newSubject: string) => {
+    setUploadSubject(newSubject);
+    const lower = newSubject.toLowerCase();
+    if (lower.includes('question paper') || lower.includes('exam')) setUploadType('QUESTION_PAPER');
+    else if (lower.includes('syllabus') || lower.includes('curriculum')) setUploadType('SYLLABUS');
+    else if (lower.includes('thesis') || lower.includes('dissertation')) setUploadType('THESIS_DISSERTATION');
+    else if (lower.includes('newspaper') || lower.includes('daily') || lower.includes('editorial')) {
+      setUploadType('NEWSPAPER');
+      setUploadDept('All Departments');
+    } else if (lower.includes('magazine')) {
+      setUploadType('MAGAZINE');
+      setUploadDept('All Departments');
+    } else if (lower.includes('lecture note') || lower.includes('class note')) setUploadType('LECTURE_NOTES');
+    else if (lower.includes('ieee')) setUploadType('IEEE_XPLORE');
+    else if (lower.includes('acm')) setUploadType('ACM_DIGITAL_LIBRARY');
+    else if (lower.includes('nptel')) setUploadType('NPTEL');
+    else if (lower.includes('swayam')) setUploadType('SWAYAM');
+    else if (lower.includes('springer')) setUploadType('SPRINGER_LINK');
+    else if (lower.includes('sciencedirect')) setUploadType('SCIENCE_DIRECT');
+    else if (lower.includes('jstor')) setUploadType('JSTOR');
   };
 
   const handleUploadSubmit = (e: React.FormEvent) => {
@@ -571,6 +723,17 @@ export default function DigitalResources() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {(res.externalUrl?.startsWith('http') || (res.fileUrl && res.fileUrl.startsWith('http'))) && (
+                    <a
+                      href={res.externalUrl || res.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all flex items-center justify-center cursor-pointer border border-slate-200"
+                      title="Open Official Website in New Tab"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 text-purple-600" />
+                    </a>
+                  )}
                   <button
                     onClick={() => handleViewPdf(res)}
                     className="px-3 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-purple-200"
@@ -687,11 +850,14 @@ export default function DigitalResources() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Resource Category</label>
+                    <label className="block font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Resource Category</span>
+                      <span className="text-[9px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">Auto-syncs Dept</span>
+                    </label>
                     <select
                       value={uploadType}
-                      onChange={(e) => setUploadType(e.target.value as DigitalResourceType)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50"
+                      onChange={(e) => handleUploadTypeChange(e.target.value as DigitalResourceType)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-purple-200 text-xs font-bold text-slate-800 bg-purple-50/30 focus:bg-white"
                     >
                       {resourceCategories.map((rc) => (
                         <option key={rc.type} value={rc.type}>
@@ -705,7 +871,7 @@ export default function DigitalResources() {
                     <label className="block font-bold text-slate-700 mb-1">Department</label>
                     <select
                       value={uploadDept}
-                      onChange={(e) => setUploadDept(e.target.value)}
+                      onChange={(e) => handleUploadDeptChange(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50"
                     >
                       <option value="Computer Science & Engineering">Computer Science & Engineering</option>
@@ -714,6 +880,7 @@ export default function DigitalResources() {
                       <option value="Mechanical Engineering">Mechanical Engineering</option>
                       <option value="Management Studies">Management Studies</option>
                       <option value="Mathematics & Basic Sciences">Mathematics & Basic Sciences</option>
+                      <option value="Humanities & Social Sciences">Humanities & Social Sciences</option>
                       <option value="All Departments">All Departments</option>
                     </select>
                   </div>
@@ -732,13 +899,21 @@ export default function DigitalResources() {
                   </div>
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">Subject / Domain</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. VLSI Circuit Design"
+                    <select
                       value={uploadSubject}
-                      onChange={(e) => setUploadSubject(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold"
-                    />
+                      onChange={(e) => handleUploadSubjectChange(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50 focus:bg-white cursor-pointer"
+                    >
+                      <option value="">-- Select Subject / Discipline --</option>
+                      {uploadSubject && !(DEPARTMENT_SUBJECT_OPTIONS[uploadDept] || []).includes(uploadSubject) && (
+                        <option value={uploadSubject}>{uploadSubject} (Current)</option>
+                      )}
+                      {(DEPARTMENT_SUBJECT_OPTIONS[uploadDept] || DEPARTMENT_SUBJECT_OPTIONS['All Departments']).map((subjOption) => (
+                        <option key={subjOption} value={subjOption}>
+                          {subjOption}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -773,8 +948,9 @@ export default function DigitalResources() {
                     <select
                       value={uploadSemester}
                       onChange={(e) => setUploadSemester(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50 cursor-pointer"
                     >
+                      <option value="All Semesters">All (For All)</option>
                       <option value="Sem 1">Semester 1</option>
                       <option value="Sem 2">Semester 2</option>
                       <option value="Sem 3">Semester 3</option>
@@ -783,7 +959,6 @@ export default function DigitalResources() {
                       <option value="Sem 6">Semester 6</option>
                       <option value="Sem 7">Semester 7</option>
                       <option value="Sem 8">Semester 8</option>
-                      <option value="All Semesters">All Semesters</option>
                       <option value="Faculty Research">Faculty Research</option>
                       <option value="Doctoral / Ph.D.">Doctoral / Ph.D.</option>
                     </select>

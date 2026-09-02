@@ -20,6 +20,8 @@ import {
 import { libraryStore, formatOnlyTimeInBracket } from '../../services/libraryStore.service';
 import { MemberProfile, IssueTransaction } from '../../types/library';
 import BarcodeScannerModal from '../../components/common/BarcodeScannerModal';
+import { generateBarcodeSvgString } from '../../utils/barcodeQrGenerator';
+import AuthorizedCirculationSeal, { generateAuthorizedSealHtml } from '../../components/common/AuthorizedCirculationSeal';
 
 export default function IssueBooks() {
   const [searchParams] = useSearchParams();
@@ -35,6 +37,156 @@ export default function IssueBooks() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [refModalBook, setRefModalBook] = useState<{ title: string; barcode: string; accessionNo: string; rack: string } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Dedicated High-Quality Circulation Issue Slip Print
+  const handlePrintIssueReceipt = (tx: IssueTransaction) => {
+    const printWindow = window.open('', '_blank', 'width=750,height=850');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    const member = state.members.find((m) => m.id === tx.memberId || m.memberCardNo === tx.memberCardNo);
+    const barcodeSvg = generateBarcodeSvgString(tx.barcode || tx.accessionNo, { height: 42 });
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Circulation Loan Receipt - ${tx.accessionNo}</title>
+          <style>
+            @page { size: portrait; margin: 15mm; }
+            body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #0f172a; margin: 0; padding: 30px; font-size: 13px; line-height: 1.5; }
+            .no-print { margin-bottom: 20px; }
+            .print-btn { background: #2563eb; color: #fff; border: none; padding: 9px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+            .close-btn { background: #64748b; color: #fff; border: none; padding: 9px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; margin-left: 8px; }
+            .receipt-card { border: 2px solid #e2e8f0; border-radius: 16px; padding: 28px; max-width: 620px; margin: 0 auto; background: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+            .header { text-align: center; border-bottom: 2px dashed #cbd5e1; padding-bottom: 18px; margin-bottom: 20px; }
+            .univ-title { font-size: 20px; font-weight: 900; color: #1e3a8a; letter-spacing: 0.5px; margin: 0; }
+            .doc-sub { font-size: 12px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+            .tx-badge { display: inline-block; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-family: monospace; font-size: 11px; font-weight: 800; padding: 3px 12px; border-radius: 9999px; margin-top: 10px; }
+            .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; }
+            table.info-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+            table.info-table td { padding: 6px 4px; vertical-align: top; }
+            table.info-table td.label { width: 35%; color: #64748b; font-weight: 700; font-size: 11px; text-transform: uppercase; }
+            table.info-table td.value { font-weight: 700; color: #0f172a; }
+            .dates-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0; }
+            .date-box { border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; text-align: center; background: #f8fafc; }
+            .date-box.due { border-color: #fde68a; background: #fffbeb; }
+            .date-box .lbl { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; }
+            .date-box.due .lbl { color: #b45309; }
+            .date-box .val { font-size: 14px; font-weight: 800; font-family: monospace; margin-top: 4px; color: #0f172a; }
+            .date-box.due .val { color: #92400e; }
+            .barcode-area { text-align: center; padding: 15px 0; border-top: 1px dashed #cbd5e1; border-bottom: 1px dashed #cbd5e1; margin: 20px 0; }
+            .terms-box { font-size: 11px; color: #64748b; background: #f8fafc; border-radius: 8px; padding: 10px 14px; margin: 18px 0; }
+            .terms-box ol { margin: 4px 0 0 16px; padding: 0; }
+            .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 25px; padding-top: 12px; }
+            .sign-block { text-align: center; }
+            .sign-line { border-top: 1px solid #94a3b8; width: 160px; padding-top: 4px; font-size: 10px; font-weight: 700; color: #475569; }
+            @media print { .no-print { display: none; } body { padding: 0; } .receipt-card { box-shadow: none; border: 1px solid #cbd5e1; } }
+          </style>
+        </head>
+        <body>
+          <div class="no-print">
+            <button class="print-btn" onclick="window.print()">🖨️ Print Official Loan Slip</button>
+            <button class="close-btn" onclick="window.close()">Close</button>
+          </div>
+          <div class="receipt-card">
+            <div class="header">
+              <h1 class="univ-title">UNIVERSITY CENTRAL LIBRARY</h1>
+              <div class="doc-sub">Circulation Issue Slip</div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Main Administrative Campus • Automated Circulation Desk</div>
+              <div class="tx-badge">TRANSACTION ID: ${tx.id}</div>
+            </div>
+
+            <div class="section-title">Borrower Details</div>
+            <table class="info-table">
+              <tr>
+                <td class="label">Member Name</td>
+                <td class="value">${tx.memberName}</td>
+              </tr>
+              <tr>
+                <td class="label">Library Card No / ID</td>
+                <td class="value" style="font-family: monospace;">${tx.memberCardNo}</td>
+              </tr>
+              <tr>
+                <td class="label">Member Category</td>
+                <td class="value">${member?.role || tx.memberType || 'STUDENT'} • ${member?.department || 'General'}</td>
+              </tr>
+            </table>
+
+            <div class="section-title">Borrowed Resource Details</div>
+            <table class="info-table">
+              <tr>
+                <td class="label">Book Title</td>
+                <td class="value" style="font-size: 14px;">${tx.bookTitle}</td>
+              </tr>
+              <tr>
+                <td class="label">Accession Number</td>
+                <td class="value" style="font-family: monospace; color: #1d4ed8;">${tx.accessionNo}</td>
+              </tr>
+              <tr>
+                <td class="label">Barcode Number</td>
+                <td class="value" style="font-family: monospace;">${tx.barcode}</td>
+              </tr>
+            </table>
+
+            <div class="dates-grid">
+              <div class="date-box">
+                <div class="lbl">Date of Issue</div>
+                <div class="val">${tx.issueDate}</div>
+              </div>
+              <div class="date-box due">
+                <div class="lbl">Mandatory Due Return Date</div>
+                <div class="val">${tx.dueDate}</div>
+              </div>
+            </div>
+
+            <div class="barcode-area">
+              <div style="display: flex; justify-content: center;">
+                ${barcodeSvg}
+              </div>
+              <div style="font-family: monospace; font-size: 11px; font-weight: 700; color: #334155; margin-top: 4px;">
+                ${tx.barcode || tx.accessionNo}
+              </div>
+            </div>
+
+            <div class="terms-box">
+              <strong>Circulation Rules & Advisory:</strong>
+              <ol>
+                <li>Please return or renew on or before the due date (${tx.dueDate}) to avoid overdue fines (₹5/day).</li>
+                <li>Keep this loan receipt for your records until the book copy is officially returned and cleared.</li>
+                <li>Marking, underlining, or tearing pages in library books is strictly prohibited.</li>
+              </ol>
+            </div>
+
+            <div class="footer">
+              <div style="font-size: 10px; color: #64748b;">
+                <div>Issued By: <strong>${tx.issuedByName || 'Central Circulation Desk'}</strong></div>
+                <div>System Timestamp: ${new Date().toLocaleDateString()}</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 20px;">
+                ${generateAuthorizedSealHtml('CIRCULATION', tx.issueDate)}
+                <div class="sign-block">
+                  <div style="height: 32px;"></div>
+                  <div class="sign-line">Librarian / Officer Signature</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() { window.print(); }, 400);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
 
   useEffect(() => {
     const sub = libraryStore.getObservable().subscribe(setState);
@@ -538,8 +690,16 @@ export default function IssueBooks() {
 
                     checkAndTriggerReferenceModal(val);
                   }}
+                  list="available-book-copies-list"
                   className="w-full pl-11 pr-24 py-2.5 rounded-xl border border-slate-200 text-sm font-mono focus:ring-2 focus:ring-blue-500/20"
                 />
+                <datalist id="available-book-copies-list">
+                  {availableCopiesList.map((item) => (
+                    <option key={item.barcode} value={item.barcode}>
+                      {item.accessionNo} — {item.bookTitle} ({item.rack || 'General'})
+                    </option>
+                  ))}
+                </datalist>
                 <button
                   type="button"
                   onClick={() => setIsScannerOpen(true)}
@@ -553,28 +713,6 @@ export default function IssueBooks() {
                   <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                     {availableCopiesList.length} Copies Available On Shelf
                   </span>
-                </div>
-              )}
-
-              {/* Available Catalog Copies Dropdown Selector */}
-              {availableCopiesList.length > 0 && (
-                <div className="pt-1">
-                  <select
-                    onChange={(e) => {
-                      if (e.target.value) handleSelectCode(e.target.value);
-                    }}
-                    value=""
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono text-slate-700 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
-                  >
-                    <option value="" disabled>
-                      -- Or Pick Directly From Available Book Copies ({availableCopiesList.length}) --
-                    </option>
-                    {availableCopiesList.slice(0, 30).map((item) => (
-                      <option key={item.barcode} value={item.barcode}>
-                        {item.barcode} | {item.accessionNo} — {item.bookTitle.substring(0, 40)}... ({item.rack})
-                      </option>
-                    ))}
-                  </select>
                 </div>
               )}
             </div>
@@ -665,7 +803,7 @@ export default function IssueBooks() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-slate-100">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between pb-1">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 font-poppins">
                 <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" /> Book Issue Receipt
               </h2>
@@ -689,7 +827,7 @@ export default function IssueBooks() {
                   <BookOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                   UNIVERSITY CENTRAL LIBRARY
                 </div>
-                <p className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">Official Circulation Loan Receipt</p>
+                <p className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">Circulation Issue Slip</p>
                 <div className="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-mono font-bold">
                   ID: {lastIssuedReceipt.id}
                 </div>
@@ -731,14 +869,17 @@ export default function IssueBooks() {
                 </div>
               </div>
 
-              {/* Decorative Barcode / Stamp */}
-              <div className="pt-2 text-center border-t border-dashed border-slate-200">
-                <p className="font-mono text-[9px] tracking-widest text-slate-400 uppercase select-none">
-                  ||| | |||| | ||||| ||| |||| | ||| ||||
-                </p>
-                <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">
-                  SYSTEM VERIFIED & ISSUED
-                </p>
+              {/* Decorative Barcode & Authorized Circulation Seal */}
+              <div className="pt-2 text-center border-t border-dashed border-slate-200 flex items-center justify-between gap-2">
+                <div className="text-left">
+                  <p className="font-mono text-[9px] tracking-widest text-slate-400 uppercase select-none">
+                    ||| | |||| | ||||| ||| |||| | ||| ||||
+                  </p>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">
+                    SYSTEM VERIFIED & ISSUED
+                  </p>
+                </div>
+                <AuthorizedCirculationSeal type="CIRCULATION" date={lastIssuedReceipt.issueDate} size="sm" />
               </div>
             </div>
 
@@ -753,9 +894,7 @@ export default function IssueBooks() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  window.print();
-                }}
+                onClick={() => handlePrintIssueReceipt(lastIssuedReceipt)}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white font-semibold text-xs hover:bg-slate-800 shadow-md transition-all cursor-pointer"
               >
                 <Printer className="h-4 w-4" /> Print Receipt
