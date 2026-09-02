@@ -1,4 +1,4 @@
-# 📚 University Library Management System (Microsite)
+# 📚 University Library Management System (Enterprise Portal)
 
 [![React](https://img.shields.io/badge/React-19.0-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -16,9 +16,9 @@ Try out the application with built-in test accounts across different user roles:
 
 | Role | Email | Password | Access Level & Capabilities |
 | :--- | :--- | :--- | :--- |
-| 👨‍💼 **Head Admin / Librarian** | `admin@university.edu` | `admin123` | Full Circulation, Inventory, No Due Clearance Desk, Official Forms Admin, Digital Hub |
-| 🧑‍🏫 **Faculty Member** | `faculty@university.edu` | `faculty123` | High Loan Quota (10 Books / 30 Days), Extended Renewals, Digital Library, No Due Desk |
-| 🎓 **Student** | `student@university.edu` | `student123` | Catalog Search, Book Reservations, Borrow History, No Due Clearance Application, Downloads |
+| 👨‍💼 **Head Admin / Librarian** | `admin@university.edu` | `admin123` | Full Circulation, Inventory, No Due Clearance Desk, Official Forms Admin, Digital Hub, Calendar Management |
+| 🧑‍🏫 **Faculty Member** | `faculty@university.edu` | `faculty123` | High Loan Quota (10 Books / 30 Days), Online Time Extensions & Renewals, Digital Library, No Due Desk |
+| 🎓 **Student** | `student@university.edu` | `student123` | Catalog Search, Book Reservations, Time Extensions, Borrow History, No Due Clearance Application, Downloads |
 
 ---
 
@@ -27,7 +27,7 @@ Try out the application with built-in test accounts across different user roles:
 ### 🔐 1. Role-Based Access Control (RBAC) & Authentication
 - Protected routes and customized dashboards for **Admin**, **Faculty**, and **Student** roles.
 - Interactive Account Registration and Login with role selector.
-- Member RFID Smart Card generation and digital barcode IDs.
+- Member RFID Smart Card generation and digital barcode IDs with instant profile management.
 
 ### 📚 2. Book Search & Catalog Management
 - **Multi-criteria Filtering**: Search by Title, Author, ISBN, Category, Department, Availability, and physical Rack/Shelf location.
@@ -37,20 +37,34 @@ Try out the application with built-in test accounts across different user roles:
 ### 🔄 3. Circulation Management Engine
 - **Book Issue Desk**: Issue books by Accession Number / Barcode to verified students or faculty with automated eligibility verification.
 - **Book Return Desk**: Process book returns with real-time overdue fine calculation, damage/loss flags, and automated copy status updates (`AVAILABLE`, `ISSUED`, `RESERVED`, `LOST`).
-- **Book Renewals & Due Date Extension**: Extend due dates easily with admin approval workflows.
+- **Book Time Extensions Desk**: Self-service student/faculty time extension applications with academic reasons. Librarians review, approve, or un-approve/revoke extensions.
+- **Return Protection Safeguard**: Blocks premature book return if a member has a pending time extension request awaiting librarian review.
 - **Reservation Queue**: Priority-based booking list for high-demand titles.
-- **Complete Borrowing History Log**: Full historical audit trail with Excel/CSV export capabilities.
+- **Unified Borrowing History Desk**: Search instantly by borrower name, library card ID, book title, accession number, barcode, or librarian with CSV/Excel export.
 
-### 📜 4. Institutional No Due Clearance Desk (NDC)
+### 🎖️ 4. Official Authorized Circulation Seals
+- **Vector Security Seal Engine**: Circular rubber-stamp style security seals with concentric rings, circular curvature typography (`CENTRAL UNIVERSITY LIBRARY • AUTHORIZED CIRCULATION DESK`), verification badges, dynamic dates, and authentication codes.
+- **Embedded Across All Circulation Slips**:
+  - *Printable Book Loan Circulation Slips*
+  - *Official Fine Payment & Assessment Receipts*
+  - *Book Return & Overdue Slips*
+  - *Official A4 Institutional No-Due Clearance Certificates*
+
+### 📜 5. Institutional No Due Clearance Desk (NDC)
 - **Student Clearance Workflow**: Students and faculty can apply online for their official University No Due Certificate.
 - **Strict Compliance Verification**: System validates **0 active book loans** and **₹0.00 outstanding fines** before permitting application submission or certificate issuance.
 - **Admin Clearance Desk (`/admin/no-due`)**: Chief Librarian verifies returns, clears fine liabilities, and approves clearance applications.
 - **Official Signed Certificate Generator**: Generates and prints authorized institutional No Due Certificates with university seals, verification QR codes, and registrar signatures.
 
-### 📥 5. Official Forms & University Downloads Center
+### 📅 6. University Academic & Operating Hours Calendar
+- **Interactive University Calendar**: Real-time monthly calendar with gazetted national holidays, examination sessions, declared working days, and special library reading hours.
+- **Telemetry Metric Cards**: Clean telemetry overview showing total academic events, upcoming gazetted holidays, declared working days, and special research schedules.
+- **Direct Month/Year Navigation**: Jump directly to any month and year with standalone Today reset.
+
+### 📥 7. Official Forms & University Downloads Center
 - **Librarian Management Portal (`/admin/downloads`)**: Upload, edit, categorize, and archive official university library forms, policies, and academic schedules.
 - **Real-Time Dynamic Synchronization**: Public Download Center (`/downloads`) dynamically displays all active forms managed by the librarian.
-- **Authentic Multi-Page PDF Engine**: Built-in generator for standardized official documents:
+- **Authentic Multi-Page PDF Engine**: Standardized official university document generation:
   - *Library Membership Registration Form*
   - *Book Procurement Suggestion Form*
   - *No Dues Clearance Certificate Form*
@@ -60,22 +74,21 @@ Try out the application with built-in test accounts across different user roles:
   - *University Academic Calendar 2026-2027*
   - *End Semester Exam Timetable & Guidelines*
   - *Library Catalog & Circulation User Manual*
-- **Native PDF Preview & Direct Download**: Inspect documents in high definition before downloading.
 
-### 💻 6. Digital Resource Hub & Learning Repositories
+### 💻 8. Digital Resource Hub & Learning Repositories
 - Access 20+ digital resource categories: IEEE Xplore, ACM, SpringerLink, ScienceDirect, NPTEL, SWAYAM, NDLI, daily e-newspapers, question banks, and faculty research thesis.
 - **Custom File Storage**: IndexedDB + synchronous memory cache store for heavy PDF documents and files.
-- **Daily Newspaper RSS Feeds**: Automatic live synchronization of daily e-paper feeds.
-- **Interactive PDF Viewer**: Embedded iframe viewer with cross-browser download support.
+- **Daily Newspaper Feeds**: Automatic live synchronization of daily e-paper editions with semester targeting.
+- **Interactive PDF Viewer**: Embedded viewer with high-definition rendering and cross-browser download support.
 
-### 💰 7. Fine & Fee Accounting
-- Automatic overdue fine calculation based on university policies (e.g., ₹5/day after due date).
-- **Fine Ledger**: Collect payments, issue printable receipts (`receipt_no`), or record waiver reasons with librarian approval.
-- Detailed fine transaction history and automated audit logs.
+### 💰 9. Standardized Fine & Fee Accounting
+- **Standard Overdue Rate**: Automated calculation at **₹5.00 / day** per volume past the official due date across all accounts and transactions.
+- **Unified Terminology**: Standardized as **`Overdue Fine (Late Return)`**, **`Book Damage Penalty`**, and **`Book Replacement Cost`**.
+- **Fine Ledger & Settlement**: Settle dues via UPI QR Scanner or Cash, generate printable signed receipts (`receipt_no`), or record waiver justifications with admin authorization.
 
-### 🕒 8. Attendance & Visitor Traffic Tracker
+### 🕒 10. Attendance & Visitor Traffic Tracker
 - Real-time digital check-in / check-out tracker for library visitors, study rooms, and digital multimedia labs.
-- Auto-checkout timers aligned with institutional operating hours.
+- Live stay duration tracking and auto-checkout timers aligned with institutional operating hours.
 
 ---
 
@@ -88,7 +101,7 @@ Try out the application with built-in test accounts across different user roles:
 - **Icons**: [Lucide React](https://lucide.dev/)
 - **Routing**: [React Router v7](https://reactrouter.com/)
 - **Build Tool**: [Vite 6](https://vitejs.dev/)
-- **Storage**: IndexedDB API + LocalStorage with automated payload sanitization
+- **Storage**: IndexedDB API + LocalStorage with automated payload sanitization and migration hooks
 
 ### **Backend Architecture & Database Schema (MySQL Specs)**
 The repository includes backend specifications in [`src/docs/database-and-backend-architecture.md`](src/docs/database-and-backend-architecture.md):
@@ -114,19 +127,19 @@ library-microsite/
     ├── main.tsx                # React root renderer
     ├── index.css               # Global styles & design system
     ├── components/             # Reusable UI Components
-    │   ├── admin/              # Admin-specific modals & tables
-    │   ├── common/             # Barcode Scanner, No Due Modal, Register Modal
+    │   ├── admin/              # Admin modals, tables & Calendar section
+    │   ├── common/             # Barcode Scanner, No Due Modal, Circulation Seal
     │   ├── guards/             # ProtectedRoute & RoleRoute guards
     │   └── layout/             # Navbar, Footer, Sidebar, Breadcrumbs
     ├── context/                # AuthContext (State Management)
     ├── docs/                   # DB Architecture & Admin Feature Docs
     ├── pages/                  # Public & Member Pages
-    │   ├── admin/              # Admin Desks (Books, Issue, Return, Fines, No Due, Downloads)
+    │   ├── admin/              # Admin Desks (Books, Issue, Return, Renew, Fines, No Due, Downloads)
     │   ├── auth/               # Login & Access Denied Pages
     │   └── dashboards/         # Admin, Faculty, and Student Dashboards
-    ├── services/               # libraryStore (Observable State & Storage)
+    ├── services/               # libraryStore (Observable State & Storage Engine)
     ├── types/                  # TypeScript Data Models & Interfaces
-    └── utils/                  # Barcode, PDF Generators, Digital Storage, Excel Exports
+    └── utils/                  # Barcode/QR, PDF Generators, Digital Storage, Excel Exports
 ```
 
 ---
