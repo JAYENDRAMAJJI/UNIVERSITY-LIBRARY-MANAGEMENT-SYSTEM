@@ -10,6 +10,7 @@ import {
   GraduationCap,
   X,
   Settings,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { libraryStore } from '../services/libraryStore.service';
@@ -134,19 +135,22 @@ export default function Downloads() {
       )}
 
       {/* Search & Category Filter Toolbar */}
-      <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative flex-1 w-full">
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-xs space-y-4">
+        {/* Search Input */}
+        <div className="relative w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             placeholder="Search forms, guidelines, exam schedules by keyword..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-4 pr-10 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+            className="w-full pl-11 pr-10 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
           />
           {searchQuery && (
             <button
+              type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-200/60"
             >
               <X className="w-4 h-4" />
             </button>
@@ -154,30 +158,42 @@ export default function Downloads() {
         </div>
 
         {/* Filter Pills */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pt-0.5">
           <button
+            type="button"
             onClick={() => setSelectedCategory('ALL')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
               selectedCategory === 'ALL'
                 ? 'bg-purple-600 text-white shadow-sm shadow-purple-200'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
             }`}
           >
-            All Forms ({activeDocuments.length})
+            <span>All Forms</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+              selectedCategory === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-600'
+            }`}>
+              {activeDocuments.length}
+            </span>
           </button>
           {dynamicCategories.map((cat) => {
             const count = activeDocuments.filter((d) => d.category === cat.id).length;
             return (
               <button
                 key={cat.id}
+                type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                   selectedCategory === cat.id
                     ? 'bg-purple-600 text-white shadow-sm shadow-purple-200'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
                 }`}
               >
-                {cat.title} ({count})
+                <span>{cat.title}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                  selectedCategory === cat.id ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-600'
+                }`}>
+                  {count}
+                </span>
               </button>
             );
           })}

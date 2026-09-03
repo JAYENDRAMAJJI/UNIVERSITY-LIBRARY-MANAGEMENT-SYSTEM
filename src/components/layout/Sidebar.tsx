@@ -1,5 +1,7 @@
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { libraryStore, getRelevantNoticesForUser, isNoticeReadForUser } from '../../services/libraryStore.service';
 import {
   LayoutDashboard,
   BookOpen,
@@ -33,6 +35,16 @@ interface SidebarProps {
 export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
   const { user } = useAuth();
   const location = useLocation();
+  const [state, setState] = useState(libraryStore.snapshot);
+
+  useEffect(() => {
+    const sub = libraryStore.getObservable().subscribe(setState);
+    return () => sub.unsubscribe();
+  }, []);
+
+  const notices = getRelevantNoticesForUser(user, state.notices || []);
+  const unreadNotices = notices.filter((n) => !isNoticeReadForUser(n, user, state));
+  const unreadCount = unreadNotices.length;
 
   const isLinkActive = (to: string) => {
     const [targetPath, targetSearch] = to.split('?');
@@ -177,7 +189,18 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
                 }`}
               >
                 <link.icon className="h-5 w-5 shrink-0" />
-                <span>{link.label}</span>
+                <span className="flex-1 truncate">{link.label}</span>
+                {link.to === '/notifications' && unreadCount > 0 && (
+                  <span
+                    className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-xs shrink-0 ${
+                      active
+                        ? 'bg-white text-blue-700'
+                        : 'bg-rose-600 text-white animate-pulse'
+                    }`}
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
               </Link>
             );
           })}

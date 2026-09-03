@@ -383,6 +383,7 @@ export interface Notice {
   isUrgent?: boolean;
   senderName?: string;
   category?: 'DUE_REMINDER' | 'OVERDUE_WARNING' | 'FINE_PAYMENT' | 'GENERAL' | 'EXTENSION_UPDATE';
+  readBy?: string[];
 }
 
 export type ExtensionRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';

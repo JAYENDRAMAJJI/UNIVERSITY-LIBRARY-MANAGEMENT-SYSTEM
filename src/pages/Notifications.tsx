@@ -13,9 +13,10 @@ import {
   Sparkles,
   Filter,
   Send,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { libraryStore, formatOnlyTimeInBracket, getMemberPendingFines } from '../services/libraryStore.service';
+import { libraryStore, formatOnlyTimeInBracket, getMemberPendingFines, isNoticeReadForUser } from '../services/libraryStore.service';
 import { Link } from 'react-router-dom';
 import SendNotificationModal from '../components/common/SendNotificationModal';
 
@@ -175,8 +176,8 @@ export default function Notifications() {
 
       if (matchMemberId || matchEmail || matchName || matchAudience) {
         let nType: 'FINE' | 'OVERDUE' | 'EXTENSION' | 'RESERVATION' | 'NO_DUE' | 'CIRCULAR' = 'CIRCULAR';
-        let actionUrl = '/downloads';
-        let actionText = 'Official Download Center';
+        let actionUrl: string | undefined = undefined;
+        let actionText: string | undefined = undefined;
 
         if (notice.category === 'DUE_REMINDER') {
           nType = 'OVERDUE';
@@ -193,7 +194,7 @@ export default function Notifications() {
         }
 
         list.push({
-          id: `notif-circular-${notice.id}`,
+          id: notice.id,
           type: nType,
           title: notice.title,
           description: notice.content,
@@ -209,13 +210,19 @@ export default function Notifications() {
     return list;
   }, [state, mId, mCard, userName, userEmail, userRole]);
 
+  const unreadAlerts = useMemo(() => {
+    return liveNotifications.filter((n) => !isNoticeReadForUser(n.id, user, state));
+  }, [liveNotifications, user, state]);
+
+  const unreadCount = unreadAlerts.length;
+
   // Filtered list
   const filteredList = useMemo(() => {
     return liveNotifications.filter((n) => {
-      const matchesType = filterType === 'ALL' || n.type === filterType;
+      if (filterType !== 'ALL' && n.type !== filterType) return false;
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch = !q || n.title.toLowerCase().includes(q) || n.description.toLowerCase().includes(q) || n.sender?.toLowerCase().includes(q);
-      return matchesType && matchesSearch;
+      return matchesSearch;
     });
   }, [liveNotifications, filterType, searchQuery]);
 
@@ -254,6 +261,14 @@ export default function Notifications() {
             <span className="text-[10px] uppercase font-bold text-slate-300 tracking-wider">Total Alerts</span>
             <p className="text-2xl font-black font-poppins text-white">{liveNotifications.length}</p>
           </div>
+
+          {unreadCount > 0 && (
+            <div className="bg-blue-500/20 border border-blue-400/40 px-4 py-3 rounded-2xl text-center">
+              <span className="text-[10px] uppercase font-bold text-blue-300 tracking-wider">Unread</span>
+              <p className="text-2xl font-black font-poppins text-blue-300">{unreadCount}</p>
+            </div>
+          )}
+
           {urgentCount > 0 && (
             <div className="bg-rose-500/20 border border-rose-500/40 px-4 py-3 rounded-2xl text-center">
               <span className="text-[10px] uppercase font-bold text-rose-300 tracking-wider">High Priority</span>
@@ -271,39 +286,54 @@ export default function Notifications() {
       )}
 
       {/* Filter Toolbar */}
-      <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-xs space-y-4">
         {/* Search Input */}
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <div className="relative w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             placeholder="Search alerts by title, keyword, or issuer..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white"
+            className="w-full pl-11 pr-10 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-200/60"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* Filter Pills */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pt-0.5">
           {[
             { id: 'ALL', label: 'All Alerts', count: liveNotifications.length },
             { id: 'FINE', label: 'Fines & Dues', count: liveNotifications.filter((n) => n.type === 'FINE').length },
             { id: 'OVERDUE', label: 'Overdue Books', count: liveNotifications.filter((n) => n.type === 'OVERDUE').length },
             { id: 'EXTENSION', label: 'Extensions', count: liveNotifications.filter((n) => n.type === 'EXTENSION').length },
+            { id: 'RESERVATION', label: 'Reservations', count: liveNotifications.filter((n) => n.type === 'RESERVATION').length },
             { id: 'NO_DUE', label: 'No Due Clearance', count: liveNotifications.filter((n) => n.type === 'NO_DUE').length },
             { id: 'CIRCULAR', label: 'Circulars', count: liveNotifications.filter((n) => n.type === 'CIRCULAR').length },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setFilterType(tab.id)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                 filterType === tab.id
                   ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
               }`}
             >
-              {tab.label} ({tab.count})
+              <span>{tab.label}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                filterType === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-600'
+              }`}>
+                {tab.count}
+              </span>
             </button>
           ))}
         </div>
@@ -314,16 +344,24 @@ export default function Notifications() {
         {filteredList.length > 0 ? (
           filteredList.map((notif) => {
             const isUrgent = notif.urgency === 'HIGH';
+            const isRead = isNoticeReadForUser(notif.id, user, state);
 
             return (
               <div
                 key={notif.id}
-                className={`p-6 rounded-3xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-5 group shadow-xs ${
-                  isUrgent
-                    ? 'bg-rose-50/60 border-rose-200/80 hover:border-rose-300 hover:bg-rose-50/90'
-                    : notif.type === 'FINE'
-                    ? 'bg-amber-50/50 border-amber-200/80 hover:border-amber-300'
-                    : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-md'
+                onClick={() => {
+                  if (!isRead) {
+                    libraryStore.markNoticeAsRead(notif.id, user);
+                  }
+                }}
+                className={`p-6 rounded-3xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-5 group shadow-xs cursor-pointer ${
+                  !isRead
+                    ? isUrgent
+                      ? 'bg-rose-50/90 border-rose-300 shadow-sm ring-1 ring-rose-500/20'
+                      : notif.type === 'FINE'
+                      ? 'bg-amber-50/80 border-amber-300 shadow-sm'
+                      : 'bg-blue-50/60 border-blue-200 shadow-sm ring-1 ring-blue-500/10'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-md opacity-85 hover:opacity-100'
                 }`}
               >
                 <div className="flex items-start gap-4 min-w-0 flex-1">
@@ -337,6 +375,8 @@ export default function Notifications() {
                         ? 'bg-purple-100 text-purple-700'
                         : notif.type === 'NO_DUE'
                         ? 'bg-emerald-100 text-emerald-800'
+                        : notif.type === 'RESERVATION'
+                        ? 'bg-indigo-100 text-indigo-700'
                         : 'bg-blue-100 text-blue-700'
                     }`}
                   >
@@ -359,20 +399,35 @@ export default function Notifications() {
                       >
                         {notif.type.replace(/_/g, ' ')}
                       </span>
+
+                      {!isRead ? (
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-blue-600 text-white animate-pulse">
+                          NEW
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-medium text-slate-400">
+                          Seen
+                        </span>
+                      )}
+
                       <span className="text-[11px] font-mono font-semibold text-slate-400">
-                        • {notif.timestamp}
+                        {notif.timestamp}
                       </span>
                     </div>
 
-                    <h3 className="text-sm sm:text-base font-bold font-poppins text-slate-900 leading-snug">
+                    <h3 className={`text-sm sm:text-base leading-snug transition-colors ${
+                      !isRead ? 'font-black font-poppins text-slate-950' : 'font-normal font-sans text-slate-600'
+                    }`}>
                       {notif.title}
                     </h3>
-                    <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">
+                    <p className={`text-xs leading-relaxed max-w-3xl transition-colors ${
+                      !isRead ? 'text-slate-700 font-medium' : 'text-slate-500 font-normal'
+                    }`}>
                       {notif.description}
                     </p>
 
                     <div className="pt-1.5 flex items-center gap-3 text-[11px] text-slate-400 font-medium">
-                      <span>Issued by: <strong className="text-slate-700">{notif.sender || 'Central Library Desk'}</strong></span>
+                      <span>Issued by: <strong className={!isRead ? 'text-slate-800 font-bold' : 'text-slate-600 font-normal'}>{notif.sender || 'Central Library Desk'}</strong></span>
                     </div>
                   </div>
                 </div>
@@ -381,6 +436,10 @@ export default function Notifications() {
                   <div className="shrink-0 pt-2 md:pt-0 self-end md:self-center">
                     <Link
                       to={notif.actionUrl}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        libraryStore.markNoticeAsRead(notif.id, user);
+                      }}
                       className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-sm ${
                         isUrgent
                           ? 'bg-rose-700 hover:bg-rose-800 text-white shadow-rose-200'

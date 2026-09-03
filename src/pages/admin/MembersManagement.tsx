@@ -325,17 +325,17 @@ export default function MembersManagement() {
           <h1 className="text-2xl font-bold font-poppins text-slate-900">Student & Faculty Members</h1>
           <p className="text-sm text-slate-500 mt-1">Manage library accounts, issue digital library cards, and review borrowing limits.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => setShowExportModal(true)}
-            className="px-4 py-2.5 rounded-2xl border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold text-xs transition-all flex items-center gap-2 cursor-pointer shadow-2xs active:scale-95"
+            className="px-4 py-2.5 rounded-2xl border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold text-xs transition-all flex items-center gap-2 cursor-pointer shadow-2xs active:scale-95 whitespace-nowrap"
             title="Filter and download Student, Faculty & Staff member registry CSV file"
           >
             <Download className="h-4 w-4 text-purple-600" /> Export CSV (All Members)
           </button>
           <button
             onClick={() => setIsRegisterModalOpen(true)}
-            className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
+            className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-2 cursor-pointer active:scale-95 whitespace-nowrap"
           >
             <UserPlus className="h-4 w-4" /> Register New Member
           </button>

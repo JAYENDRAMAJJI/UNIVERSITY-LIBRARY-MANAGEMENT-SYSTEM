@@ -1,6 +1,7 @@
 import XLSX from 'xlsx-js-style';
 import { exportStyledExcelFile } from '../utils/excelExport';
 import { digitalFileStorage } from '../utils/digitalFileStorage';
+import { normalizeRackAndShelf, ACADEMIC_RACK_HIERARCHY } from '../data/rackShelfHierarchy';
 import {
   Role,
   Book,
@@ -2959,6 +2960,7 @@ interface StateSchema {
   noDueApplications?: NoDueApplication[];
   officialDocuments?: OfficialDocument[];
   calendarEvents?: UniversityCalendarEvent[];
+  readNoticeIds?: { [userKey: string]: string[] };
 }
 
 // Lightweight Observable State Manager
@@ -3388,10 +3390,21 @@ class LibraryStoreService {
         const issuedCount = updatedCopies.filter((c) => c.status === 'ISSUED').length;
         const availableCount = Math.max(0, b.totalCopies - issuedCount);
 
+        const loc = normalizeRackAndShelf(b.rackNumber, b.shelfNumber, b.department || b.categoryName, b.title);
+        const normRack = loc.rackCode;
+        const normShelf = loc.shelfCode;
+        const copiesWithNormRack = updatedCopies.map((c) => ({
+          ...c,
+          rackNumber: normRack,
+          shelfNumber: normShelf,
+        }));
+
         return {
           ...b,
+          rackNumber: normRack,
+          shelfNumber: normShelf,
           availableCopies: availableCount,
-          copies: updatedCopies,
+          copies: copiesWithNormRack,
         };
       });
     }
@@ -3473,6 +3486,7 @@ class LibraryStoreService {
       noDueCertificates: DEFAULT_NO_DUE_CERTIFICATES,
       officialDocuments: DEFAULT_OFFICIAL_DOCUMENTS,
       calendarEvents: DEFAULT_CALENDAR_EVENTS,
+      readNoticeIds: {},
     };
   }
 
@@ -3689,9 +3703,21 @@ class LibraryStoreService {
         updatedCopies = updatedCopies.map((c) => ({ ...c, isReferenceOnly: true }));
       }
 
+      if (updated.rackNumber !== undefined || updated.shelfNumber !== undefined) {
+        const targetRack = updated.rackNumber || b.rackNumber || 'RACK-BTECH-CSE-01';
+        const targetShelf = updated.shelfNumber || b.shelfNumber || 'SHELF-1';
+        updatedCopies = updatedCopies.map((c) => ({
+          ...c,
+          rackNumber: targetRack,
+          shelfNumber: targetShelf,
+        }));
+      }
+
       return {
         ...b,
         ...updated,
+        rackNumber: updated.rackNumber !== undefined ? updated.rackNumber : b.rackNumber,
+        shelfNumber: updated.shelfNumber !== undefined ? updated.shelfNumber : b.shelfNumber,
         isReferenceOnly: isRefBook,
         collectionType: isRefBook ? 'REFERENCE' : (updated.collectionType || b.collectionType),
         totalCopies: newTotalCopies,
@@ -3702,6 +3728,11 @@ class LibraryStoreService {
 
     this.state$.next({ ...current, books });
     this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'UPDATE_BOOK', 'CATALOG', `Updated details for book ID ${id}`);
+  }
+
+  public moveBookRackAndShelf(bookId: string, targetRack: string, targetShelf: string) {
+    this.updateBook(bookId, { rackNumber: targetRack, shelfNumber: targetShelf });
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'MOVE_BOOK_LOCATION', 'CATALOG', `Assigned book "${bookId}" to Rack "${targetRack}" and Shelf "${targetShelf}"`);
   }
 
   public deleteBook(id: string) {
@@ -8014,10 +8045,221 @@ class LibraryStoreService {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   }
 
+  public markNoticeAsRead(noticeId: string, user?: any) {
+    const current = this.snapshot;
+    const userKey = getUserNotificationKey(user);
+    const userEmail = user?.email?.toLowerCase().trim();
+    const userId = user?.id;
+
+    const readMap: { [key: string]: string[] } = { ...(current.readNoticeIds || {}) };
+    const currentReadList = new Set(readMap[userKey] || []);
+    currentReadList.add(noticeId);
+    readMap[userKey] = Array.from(currentReadList);
+
+    if (userEmail) {
+      const emailList = new Set(readMap[`email_${userEmail}`] || []);
+      emailList.add(noticeId);
+      readMap[`email_${userEmail}`] = Array.from(emailList);
+    }
+    if (userId) {
+      const idList = new Set(readMap[`user_${userId}`] || []);
+      idList.add(noticeId);
+      readMap[`user_${userId}`] = Array.from(idList);
+    }
+
+    const updatedNotices = (current.notices || []).map((n) => {
+      if (n.id === noticeId) {
+        const readBy = new Set(n.readBy || []);
+        readBy.add(userKey);
+        if (userEmail) readBy.add(userEmail);
+        if (userId) readBy.add(userId);
+        return { ...n, readBy: Array.from(readBy) };
+      }
+      return n;
+    });
+
+    const updated: StateSchema = {
+      ...current,
+      notices: updatedNotices,
+      readNoticeIds: readMap,
+    };
+
+    this.state$.next(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save read state to localStorage', e);
+    }
+  }
+
+  public markNoticeAsUnread(noticeId: string, user?: any) {
+    const current = this.snapshot;
+    const userKey = getUserNotificationKey(user);
+    const userEmail = user?.email?.toLowerCase().trim();
+    const userId = user?.id;
+
+    const readMap: { [key: string]: string[] } = { ...(current.readNoticeIds || {}) };
+    if (readMap[userKey]) {
+      readMap[userKey] = readMap[userKey].filter((id) => id !== noticeId);
+    }
+    if (userEmail && readMap[`email_${userEmail}`]) {
+      readMap[`email_${userEmail}`] = readMap[`email_${userEmail}`].filter((id) => id !== noticeId);
+    }
+    if (userId && readMap[`user_${userId}`]) {
+      readMap[`user_${userId}`] = readMap[`user_${userId}`].filter((id) => id !== noticeId);
+    }
+
+    const updatedNotices = (current.notices || []).map((n) => {
+      if (n.id === noticeId && n.readBy) {
+        return {
+          ...n,
+          readBy: n.readBy.filter(
+            (k) => k !== userKey && k !== userEmail && k !== userId
+          ),
+        };
+      }
+      return n;
+    });
+
+    const updated: StateSchema = {
+      ...current,
+      notices: updatedNotices,
+      readNoticeIds: readMap,
+    };
+
+    this.state$.next(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save read state to localStorage', e);
+    }
+  }
+
+  public markAllNoticesAsRead(user?: any, additionalNoticeIds?: string[]) {
+    const current = this.snapshot;
+    const userKey = getUserNotificationKey(user);
+    const userEmail = user?.email?.toLowerCase().trim();
+    const userId = user?.id;
+
+    const relevant = getRelevantNoticesForUser(user, current.notices || []);
+    const relevantIds = relevant.map((n) => n.id);
+    const allIdsToMark = Array.from(new Set([...relevantIds, ...(additionalNoticeIds || [])]));
+
+    const readMap: { [key: string]: string[] } = { ...(current.readNoticeIds || {}) };
+    const currentReadList = new Set(readMap[userKey] || []);
+    allIdsToMark.forEach((id) => currentReadList.add(id));
+    readMap[userKey] = Array.from(currentReadList);
+
+    if (userEmail) {
+      const emailList = new Set(readMap[`email_${userEmail}`] || []);
+      allIdsToMark.forEach((id) => emailList.add(id));
+      readMap[`email_${userEmail}`] = Array.from(emailList);
+    }
+    if (userId) {
+      const idList = new Set(readMap[`user_${userId}`] || []);
+      allIdsToMark.forEach((id) => idList.add(id));
+      readMap[`user_${userId}`] = Array.from(idList);
+    }
+
+    const updatedNotices = (current.notices || []).map((n) => {
+      if (allIdsToMark.includes(n.id)) {
+        const readBy = new Set(n.readBy || []);
+        readBy.add(userKey);
+        if (userEmail) readBy.add(userEmail);
+        if (userId) readBy.add(userId);
+        return { ...n, readBy: Array.from(readBy) };
+      }
+      return n;
+    });
+
+    const updated: StateSchema = {
+      ...current,
+      notices: updatedNotices,
+      readNoticeIds: readMap,
+    };
+
+    this.state$.next(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save read state to localStorage', e);
+    }
+  }
+
   public resetToFactoryDefaults() {
     localStorage.removeItem(STORAGE_KEY);
     this.state$.next(this.getDefaultState());
   }
+}
+
+export function getUserNotificationKey(user?: { id?: string; email?: string; role?: Role; name?: string } | null): string {
+  if (!user) return 'guest';
+  if (user.id) return `user_${user.id}`;
+  if (user.email) return `email_${user.email.toLowerCase().trim()}`;
+  if (user.role) return `role_${user.role.toLowerCase().trim()}`;
+  return 'guest';
+}
+
+export function isNoticeReadForUser(
+  notice: Notice | string,
+  user: { id?: string; email?: string; role?: Role; name?: string } | null,
+  state: StateSchema
+): boolean {
+  if (!user) return false;
+  const noticeId = typeof notice === 'string' ? notice : notice.id;
+  const userKey = getUserNotificationKey(user);
+  const userEmail = user.email?.toLowerCase().trim();
+  const userId = user.id ? `user_${user.id}` : undefined;
+
+  // Check state.readNoticeIds
+  const readMap = state.readNoticeIds || {};
+  if (readMap[userKey]?.includes(noticeId)) return true;
+  if (userEmail && readMap[`email_${userEmail}`]?.includes(noticeId)) return true;
+  if (userId && readMap[userId]?.includes(noticeId)) return true;
+  if (user.role && readMap[`role_${user.role.toLowerCase()}`]?.includes(noticeId)) return true;
+
+  // Check notice.readBy if notice is an object
+  if (typeof notice !== 'string' && Array.isArray(notice.readBy)) {
+    if (notice.readBy.includes(userKey)) return true;
+    if (userEmail && notice.readBy.includes(userEmail)) return true;
+    if (user.id && notice.readBy.includes(user.id)) return true;
+  }
+
+  return false;
+}
+
+export function getRelevantNoticesForUser(
+  user: { id?: string; email?: string; role?: Role; name?: string } | null,
+  notices: Notice[]
+): Notice[] {
+  if (!notices || !Array.isArray(notices)) return [];
+  const userEmail = user?.email?.toLowerCase().trim() || '';
+  const userName = user?.name?.toLowerCase().trim() || '';
+  const userRole = user?.role || 'GUEST';
+  const userId = user?.id || '';
+
+  return notices.filter((notice) => {
+    if (notice.recipientEmail) {
+      const matchEmail = notice.recipientEmail.toLowerCase().trim() === userEmail;
+      const matchName = notice.recipientName && notice.recipientName.toLowerCase().trim() === userName;
+      const matchId = notice.recipientMemberId && (notice.recipientMemberId === userId);
+      return matchEmail || matchName || matchId;
+    }
+
+    if (notice.recipientMemberId && userId) {
+      if (notice.recipientMemberId === userId) return true;
+    }
+
+    if (notice.targetAudience) {
+      if (notice.targetAudience === 'ALL') return true;
+      if (notice.targetAudience === 'STUDENTS' && userRole === 'STUDENT') return true;
+      if (notice.targetAudience === 'FACULTY' && userRole === 'FACULTY') return true;
+      if (notice.targetAudience === 'ADMIN' && (userRole === 'ADMIN' || userRole === 'STAFF')) return true;
+      return false;
+    }
+
+    return true;
+  });
 }
 
 export const libraryStore = new LibraryStoreService();

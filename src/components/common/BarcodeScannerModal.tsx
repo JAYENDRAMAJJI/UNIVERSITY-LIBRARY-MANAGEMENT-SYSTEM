@@ -3,6 +3,7 @@ import { ScanBarcode, Camera, X, Check, AlertCircle, UserCheck, Cpu, Wifi, Searc
 import jsQR from 'jsqr';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { libraryStore } from '../../services/libraryStore.service';
+import { ACADEMIC_RACK_HIERARCHY, findRackDefinition } from '../../data/rackShelfHierarchy';
 
 interface BarcodeScannerModalProps {
   isOpen: boolean;
@@ -33,10 +34,15 @@ const cleanScannedCode = (raw: string): string => {
       }
     } catch {}
   }
+  if (str.toUpperCase().startsWith('RACK:')) {
+    str = str.substring(5).trim();
+  } else if (str.toUpperCase().startsWith('SHELF:')) {
+    str = str.substring(6).trim();
+  }
   if ((str.startsWith('{') && str.endsWith('}')) || (str.startsWith('[') && str.endsWith(']'))) {
     try {
       const obj = JSON.parse(str);
-      str = obj.memberCardNo || obj.id || obj.cardNo || obj.barcode || obj.isbn || obj.studentId || obj.qrCode || obj.code || str;
+      str = obj.rackNumber || obj.shelfNumber || obj.rack || obj.shelf || obj.memberCardNo || obj.id || obj.cardNo || obj.barcode || obj.isbn || obj.studentId || obj.qrCode || obj.code || str;
     } catch {
       // ignore
     }
@@ -276,6 +282,52 @@ export default function BarcodeScannerModal({
         (c.rack && c.rack.toLowerCase().includes(term))
     );
   }, [filteredCopies, copySearchTerm]);
+
+  // Academic Rack and 5-Shelf Locations Extraction
+  const rackLocations = useMemo(() => {
+    return ACADEMIC_RACK_HIERARCHY.map((r) => {
+      const books = (state.books || []).filter((b) => {
+        const rNorm = (b.rackNumber || '').toUpperCase().trim();
+        return rNorm === r.rackCode || rNorm === r.rackId || rNorm.includes(r.shortCode);
+      });
+      const totalCopies = books.reduce((acc, b) => acc + (b.totalCopies || b.copies?.length || 1), 0);
+      return {
+        code: r.rackCode,
+        barcode: r.rackCode,
+        qrCode: `RACK:${r.rackCode}`,
+        name: r.rackName,
+        shortCode: r.shortCode,
+        program: r.program,
+        books,
+        totalCopies,
+      };
+    });
+  }, [state.books]);
+
+  const shelfLocations = useMemo(() => {
+    return ACADEMIC_RACK_HIERARCHY.flatMap((r) => {
+      return r.shelves.map((s) => {
+        const books = (state.books || []).filter((b) => {
+          const rNorm = (b.rackNumber || '').toUpperCase().trim();
+          const sUpper = (b.shelfNumber || '').toUpperCase().trim();
+          const matchesRack = rNorm === r.rackCode || rNorm === r.rackId || rNorm.includes(r.shortCode);
+          const matchesShelf = sUpper === s.shelfId || sUpper.endsWith(String(s.shelfNumber));
+          return matchesRack && matchesShelf;
+        });
+        const totalCopies = books.reduce((acc, b) => acc + (b.totalCopies || b.copies?.length || 1), 0);
+        return {
+          code: s.shelfId,
+          rack: r.rackCode,
+          barcode: `${r.shortCode}-${s.shelfId}`,
+          qrCode: `SHELF:${r.rackCode}/${s.shelfId}`,
+          shelfName: s.shelfName,
+          rackShort: r.shortCode,
+          books,
+          totalCopies,
+        };
+      });
+    });
+  }, [state.books]);
 
   // Currently selected member object if any
   const currentMemberObj = memberCards.find((m) => {
@@ -1054,6 +1106,46 @@ export default function BarcodeScannerModal({
                         {item.accessionNo} ({item.barcode}) — {item.bookTitle} {item.isReferenceOnly ? '🚫 [REFERENCE ONLY]' : `[${item.status}]`} {item.rack ? `• ${item.rack}` : ''}
                       </option>
                     ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Rack & Shelf Physical Location Selector */}
+              {!isStudentOrMemberScan && (
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-teal-800 flex items-center justify-between">
+                    <span>📍 Scan / Select Rack or Shelf Location:</span>
+                    <span className="text-[10px] font-semibold text-teal-600 bg-teal-50 px-2 py-0.5 rounded">
+                      {rackLocations.length} Racks • {shelfLocations.length} Shelves
+                    </span>
+                  </label>
+                  <select
+                    value={selectedBarcode}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedBarcode(val);
+                      setManualInput('');
+                      if (val) {
+                        handleExecuteScan(val);
+                      }
+                    }}
+                    className="w-full p-2.5 rounded-xl border border-teal-200 text-xs font-medium text-slate-800 bg-teal-50/40 focus:bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none cursor-pointer"
+                  >
+                    <option value="">-- Choose Rack or Shelf to View Stored Books --</option>
+                    <optgroup label="🏢 Physical Library Racks (Aisles)">
+                      {rackLocations.map((r, idx) => (
+                        <option key={`rack-${idx}`} value={r.code}>
+                          🏷️ Rack Barcode: {r.code} ({r.books.length} Books / {r.totalCopies} Copies)
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🗄️ Physical Shelf Levels">
+                      {shelfLocations.map((s, idx) => (
+                        <option key={`shelf-${idx}`} value={s.code}>
+                          📌 Shelf Barcode: {s.code} on {s.rack} ({s.books.length} Books / {s.totalCopies} Copies)
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
               )}

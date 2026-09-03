@@ -45,6 +45,8 @@ import {
   IndianRupee,
   FileText,
   ShieldCheck,
+  GraduationCap,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { libraryStore, getLocalDateStr } from '../../services/libraryStore.service';
 import { Book, BookCopy, BookStatus, CopyCondition } from '../../types/library';
@@ -54,7 +56,17 @@ import {
   generateQrSvgString,
   downloadBarcodeOrQrFile,
   printLabelStickers,
+  printRackShelfPlacards,
+  RackShelfPlacard,
 } from '../../utils/barcodeQrGenerator';
+import {
+  ACADEMIC_RACK_HIERARCHY,
+  STANDARD_5_SHELVES,
+  findRackDefinition,
+  normalizeRackAndShelf,
+  RackDefinition,
+  ShelfDefinition,
+} from '../../data/rackShelfHierarchy';
 
 const ISBN_LOOKUP: Record<string, { title: string; author: string; publisher: string; year: number; price: number; description: string; coverUrl: string }> = {
   '978-0134610993': {
@@ -203,9 +215,15 @@ export default function BooksManagement() {
   const [previewBarcodeCopyModal, setPreviewBarcodeCopyModal] = useState<{ book: Book; copy: BookCopy } | null>(null);
   const [showBulkPrintModal, setShowBulkPrintModal] = useState(false);
   const [selectedBookIdsForPrint, setSelectedBookIdsForPrint] = useState<string[]>([]);
-
-
-
+  const [showRackShelfModal, setShowRackShelfModal] = useState(false);
+  const [academicProgramTab, setAcademicProgramTab] = useState<'ALL' | 'B.Tech' | 'B.Sc'>('ALL');
+  const [rackShelfTab, setRackShelfTab] = useState<'RACKS' | 'SHELVES'>('RACKS');
+  const [selectedRackForView, setSelectedRackForView] = useState<string | null>(null);
+  const [selectedShelfForView, setSelectedShelfForView] = useState<string | null>(null);
+  const [rackShelfSearchTerm, setRackShelfSearchTerm] = useState('');
+  const [movePlacementModal, setMovePlacementModal] = useState<{ book: Book; currentRack: string; currentShelf: string } | null>(null);
+  const [selectedMoveRack, setSelectedMoveRack] = useState<string>('RACK-BTECH-CSE-01');
+  const [selectedMoveShelf, setSelectedMoveShelf] = useState<string>('SHELF-1');
 
   // Barcode Scanner Modal states
   const [isAddBookScannerOpen, setIsAddBookScannerOpen] = useState(false);
@@ -494,47 +512,6 @@ export default function BooksManagement() {
     triggerToast(`Sent ${labels.length} copy barcode/QR labels for "${book.title}" to print!`);
   };
 
-  const handleExecuteBulkPrint = () => {
-    const targetBooks = state.books.filter((b) =>
-      selectedBookIdsForPrint.length > 0 ? selectedBookIdsForPrint.includes(b.id) : filteredBooks.some((fb) => fb.id === b.id)
-    );
-
-    const labels: Array<{
-      bookTitle: string;
-      authorName: string;
-      accessionNo: string;
-      barcode: string;
-      qrCode: string;
-      rackNumber: string;
-      shelfNumber: string;
-      department?: string;
-    }> = [];
-
-    targetBooks.forEach((book) => {
-      (book.copies || []).forEach((c) => {
-        labels.push({
-          bookTitle: book.title,
-          authorName: book.authorName,
-          accessionNo: c.accessionNo,
-          barcode: c.barcode,
-          qrCode: c.qrCode || `QR-${c.barcode}`,
-          rackNumber: c.rackNumber || book.rackNumber || 'RACK-CS-01',
-          shelfNumber: c.shelfNumber || book.shelfNumber || 'SHELF-A1',
-          department: book.department || 'ACADEMIC',
-        });
-      });
-    });
-
-    if (labels.length === 0) {
-      triggerToast('No book asset copies found to print.');
-      return;
-    }
-
-    printLabelStickers(labels);
-    setShowBulkPrintModal(false);
-    triggerToast(`Printed bulk label sticker sheet for ${labels.length} book copies!`);
-  };
-
   const handleAddNewCopyModal = (bookId: string) => {
     const newCopy = libraryStore.addBookCopy(bookId);
     triggerToast(`Added new physical copy (${newCopy?.accessionNo}) to book!`);
@@ -561,6 +538,119 @@ export default function BooksManagement() {
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  // Canonical Academic Rack and 5-Shelf Hierarchical Inventory Extraction
+  const academicRackInventories = useMemo(() => {
+    return ACADEMIC_RACK_HIERARCHY.map((def) => {
+      // Books assigned to this rack
+      const rackBooks = state.books.filter((b) => {
+        const norm = normalizeRackAndShelf(b.rackNumber, b.shelfNumber, b.department || b.categoryName, b.title);
+        return norm.rackCode === def.rackCode || norm.rackId === def.rackId || norm.domain === def.domain;
+      });
+
+      // 5 Shelves breakdown
+      const shelvesData = def.shelves.map((sDef) => {
+        const shelfBooks = rackBooks.filter((b) => {
+          const norm = normalizeRackAndShelf(b.rackNumber, b.shelfNumber, b.department || b.categoryName, b.title);
+          return norm.shelfNumber === sDef.shelfNumber;
+        });
+        const totalCopies = shelfBooks.reduce((acc, b) => acc + (b.totalCopies || b.copies?.length || 1), 0);
+        const availableCopies = shelfBooks.reduce((acc, b) => acc + (b.availableCopies || 0), 0);
+
+        return {
+          ...sDef,
+          books: shelfBooks,
+          totalCopies,
+          availableCopies,
+          parentRack: def,
+        };
+      });
+
+      const totalRackCopies = rackBooks.reduce((acc, b) => acc + (b.totalCopies || b.copies?.length || 1), 0);
+      const availableRackCopies = rackBooks.reduce((acc, b) => acc + (b.availableCopies || 0), 0);
+
+      return {
+        ...def,
+        books: rackBooks,
+        shelvesData,
+        totalCopies: totalRackCopies,
+        availableCopies: availableRackCopies,
+      };
+    });
+  }, [state.books]);
+
+  // Handle Move / Reassign Book Location
+  const handleExecuteMovePlacement = () => {
+    if (!movePlacementModal) return;
+    const targetBook = movePlacementModal.book;
+    libraryStore.moveBookRackAndShelf(targetBook.id, selectedMoveRack, selectedMoveShelf);
+    setMovePlacementModal(null);
+    triggerToast(`Moved "${targetBook.title}" to ${selectedMoveRack} - ${selectedMoveShelf}!`);
+  };
+
+  // Bulk Print Rack Placards
+  const handleBulkPrintRackPlacards = () => {
+    const items: RackShelfPlacard[] = academicRackInventories.map((r) => ({
+      type: 'RACK',
+      rackNumber: r.rackCode,
+      department: `${r.program} • ${r.department}`,
+      totalBooksCount: r.books.length,
+      totalCopiesCount: r.totalCopies,
+      barcode: r.rackCode,
+      qrPayload: `RACK:${r.rackCode}`,
+    }));
+    printRackShelfPlacards(items);
+    triggerToast(`Printed official barcode & QR placards for ${items.length} academic department racks!`);
+  };
+
+  // Bulk Print Shelf Strips
+  const handleBulkPrintShelfStrips = () => {
+    const items: RackShelfPlacard[] = academicRackInventories.flatMap((r) =>
+      r.shelvesData.map((s) => ({
+        type: 'SHELF' as const,
+        rackNumber: r.rackCode,
+        shelfNumber: s.shelfId,
+        department: `${r.shortCode} • ${s.shelfName}`,
+        totalBooksCount: s.books.length,
+        totalCopiesCount: s.totalCopies,
+        barcode: `${r.shortCode}-${s.shelfId}`,
+        qrPayload: `SHELF:${r.rackCode}/${s.shelfId}`,
+      }))
+    );
+    printRackShelfPlacards(items);
+    triggerToast(`Printed official shelf tags for all 50 physical shelf levels across departments!`);
+  };
+
+  // Print Single Rack Placard
+  const handlePrintSingleRackPlacard = (r: typeof academicRackInventories[0]) => {
+    const item: RackShelfPlacard = {
+      type: 'RACK',
+      rackNumber: r.rackCode,
+      department: `${r.program} • ${r.department}`,
+      totalBooksCount: r.books.length,
+      totalCopiesCount: r.totalCopies,
+      barcode: r.rackCode,
+      qrPayload: `RACK:${r.rackCode}`,
+    };
+    printRackShelfPlacards([item]);
+    triggerToast(`Printed official placard for ${r.rackName}!`);
+  };
+
+  // Print Single Shelf Tag
+  const handlePrintSingleShelfTag = (r: typeof academicRackInventories[0], s: typeof academicRackInventories[0]['shelvesData'][0]) => {
+    const item: RackShelfPlacard = {
+      type: 'SHELF',
+      rackNumber: r.rackCode,
+      shelfNumber: s.shelfId,
+      department: `${r.shortCode} • ${s.shelfName}`,
+      totalBooksCount: s.books.length,
+      totalCopiesCount: s.totalCopies,
+      barcode: `${r.shortCode}-${s.shelfId}`,
+      qrPayload: `SHELF:${r.rackCode}/${s.shelfId}`,
+    };
+    printRackShelfPlacards([item]);
+    triggerToast(`Printed official shelf tag for "${s.shelfId}" on ${r.shortCode}!`);
   };
 
   // Filtered & Sorted Catalog List
@@ -675,6 +765,48 @@ export default function BooksManagement() {
     sortBy,
     taxonomyFilter,
   ]);
+
+  // Execute Bulk Print Labels
+  const handleExecuteBulkPrint = () => {
+    const targetBooks = state.books.filter((b) =>
+      selectedBookIdsForPrint.length > 0 ? selectedBookIdsForPrint.includes(b.id) : filteredBooks.some((fb) => fb.id === b.id)
+    );
+
+    const labels: Array<{
+      bookTitle: string;
+      authorName: string;
+      accessionNo: string;
+      barcode: string;
+      qrCode: string;
+      rackNumber: string;
+      shelfNumber: string;
+      department?: string;
+    }> = [];
+
+    targetBooks.forEach((book) => {
+      (book.copies || []).forEach((c) => {
+        labels.push({
+          bookTitle: book.title,
+          authorName: book.authorName,
+          accessionNo: c.accessionNo,
+          barcode: c.barcode,
+          qrCode: c.qrCode || `QR-${c.barcode}`,
+          rackNumber: c.rackNumber || book.rackNumber || 'RACK-BTECH-CSE-01',
+          shelfNumber: c.shelfNumber || book.shelfNumber || 'SHELF-1',
+          department: book.department || 'ACADEMIC',
+        });
+      });
+    });
+
+    if (labels.length === 0) {
+      triggerToast('No book asset copies found to print.');
+      return;
+    }
+
+    printLabelStickers(labels);
+    setShowBulkPrintModal(false);
+    triggerToast(`Printed bulk label sticker sheet for ${labels.length} book copies!`);
+  };
 
   // Export CSV
   const handleExportCSV = (targetBooks?: Book[]) => {
@@ -1005,73 +1137,32 @@ export default function BooksManagement() {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-purple-700 bg-purple-50 px-3.5 py-1 rounded-full mb-1 border border-purple-200/80 shadow-2xs">
-            <BookOpen className="h-3.5 w-3.5" /> Enterprise University Library Catalog
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold font-poppins text-slate-900 tracking-tight">Manage Books</h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-xl">
-            Hierarchical classification, department collections, accession numbers, barcodes, digital library resources, and bulk operations.
-          </p>
-        </div>
-
-        {/* Structured Header Actions */}
-        <div className="flex flex-col sm:items-end gap-2.5 shrink-0">
-          {/* Row 1: Data Import / Export Tools */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => {
-                setCsvInputText(
-                  'Title,ISBN,Category,Author,Publisher,Price,Copies\nQuantum Computing Primer,978-0262039246,Physics & Applied Science,Dr. Alan Turing,MIT Press,850,4\nDatabase System Concepts,978-0078022159,Computer Science,Abraham Silberschatz,McGraw-Hill,1250,5'
-                );
-                setShowImportModal(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-2xs"
-            >
-              <Upload className="h-3.5 w-3.5 text-purple-600" /> Import CSV
-            </button>
-            <button
-              onClick={() => handleExportCSV()}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-2xs"
-            >
-              <Download className="h-3.5 w-3.5 text-purple-600" /> Export CSV
-            </button>
-            <button
-              onClick={handleExportExcel}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-emerald-700 transition-all cursor-pointer shadow-2xs"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5" /> Export Excel
-            </button>
+      <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+        {/* Top Header Row: Title & Primary Action CTAs */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-purple-700 bg-purple-50 px-3.5 py-1 rounded-full mb-1 border border-purple-200/80 shadow-2xs">
+              <BookOpen className="h-3.5 w-3.5" /> Enterprise University Library Catalog
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold font-poppins text-slate-900 tracking-tight">Manage Books</h1>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-2xl leading-relaxed">
+              Hierarchical classification, 5-shelf academic domain racks, barcodes, accession tracking, and bulk operations.
+            </p>
           </div>
 
-          {/* Row 2: Barcode Ops & Primary Book Creation */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Primary Quick Actions (Top Right) */}
+          <div className="flex items-center gap-2.5 self-start sm:self-center shrink-0">
             <button
+              type="button"
               onClick={() => setIsCatalogSearchScannerOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-xs font-bold text-purple-700 transition-all cursor-pointer shadow-2xs"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-800 transition-all cursor-pointer shadow-2xs active:scale-95"
               title="Scan ISBN / Barcode / Accession Tag to search catalog"
             >
-              <ScanBarcode className="h-3.5 w-3.5 text-purple-600" /> Scan Barcode
+              <ScanBarcode className="h-4 w-4 text-purple-600" /> Scan Barcode
             </button>
+
             <button
-              onClick={handleBulkGenerateBarcodes}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-800 transition-all cursor-pointer shadow-2xs"
-              title="Auto-generate and verify unique Barcode & QR Code tags for all book copies"
-            >
-              <Barcode className="h-3.5 w-3.5 text-amber-600" /> Bulk Barcode & QR
-            </button>
-            <button
-              onClick={() => {
-                setSelectedBookIdsForPrint([]);
-                setShowBulkPrintModal(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-xs font-bold text-indigo-800 transition-all cursor-pointer shadow-2xs"
-              title="Print barcode & QR label stickers sheet for catalog items"
-            >
-              <Printer className="h-3.5 w-3.5 text-indigo-600" /> Bulk Print Labels
-            </button>
-            <button
+              type="button"
               onClick={() => {
                 setAddFormData({
                   ...addFormData,
@@ -1081,9 +1172,84 @@ export default function BooksManagement() {
                 });
                 setShowAddModal(true);
               }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-200 transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold shadow-md shadow-purple-500/20 transition-all cursor-pointer active:scale-95 whitespace-nowrap"
             >
               <Plus className="h-4 w-4" /> Add New Book
+            </button>
+          </div>
+        </div>
+
+        {/* Integrated Sub-Toolbar: Smart Catalog Tools (Left) & Data Import/Export (Right) */}
+        <div className="pt-4 border-t border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          {/* Smart Catalog & Barcode Utilities */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => openFetchMetadataModal()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-purple-50 hover:border-purple-300 border border-slate-200 text-xs font-bold text-purple-700 transition-all cursor-pointer shadow-2xs whitespace-nowrap"
+              title="Auto-fetch book catalog metadata via 13-digit ISBN barcode"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-purple-600" /> Auto-Fetch ISBN
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowRackShelfModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-teal-50 hover:border-teal-300 border border-slate-200 text-xs font-bold text-teal-700 transition-all cursor-pointer shadow-2xs whitespace-nowrap"
+              title="Inspect Rack & Shelf Barcodes, QR Codes, and Physical Location Inventories"
+            >
+              <Layers className="h-3.5 w-3.5 text-teal-600" /> Rack & Shelf Barcodes
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkGenerateBarcodes}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-amber-50 hover:border-amber-300 border border-slate-200 text-xs font-bold text-amber-800 transition-all cursor-pointer shadow-2xs whitespace-nowrap"
+              title="Auto-generate and verify unique Barcode & QR Code tags for all book copies"
+            >
+              <Barcode className="h-3.5 w-3.5 text-amber-600" /> Bulk Barcode & QR
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedBookIdsForPrint([]);
+                setShowBulkPrintModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 border border-slate-200 text-xs font-bold text-indigo-700 transition-all cursor-pointer shadow-2xs whitespace-nowrap"
+              title="Print barcode & QR label stickers sheet for catalog items"
+            >
+              <Printer className="h-3.5 w-3.5 text-indigo-600" /> Print Labels
+            </button>
+          </div>
+
+          {/* Import / Export Operations */}
+          <div className="flex items-center gap-1.5 self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setCsvInputText(
+                  'Title,ISBN,Category,Author,Publisher,Price,Copies\nQuantum Computing Primer,978-0262039246,Physics & Applied Science,Dr. Alan Turing,MIT Press,850,4\nDatabase System Concepts,978-0078022159,Computer Science,Abraham Silberschatz,McGraw-Hill,1250,5'
+                );
+                setShowImportModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-2xs whitespace-nowrap"
+              title="Import catalog books from CSV"
+            >
+              <Upload className="h-3.5 w-3.5 text-purple-600" /> Import CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => handleExportCSV()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-2xs whitespace-nowrap"
+              title="Export catalog books to CSV"
+            >
+              <Download className="h-3.5 w-3.5 text-purple-600" /> Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold text-emerald-800 transition-all cursor-pointer shadow-2xs whitespace-nowrap"
+              title="Export catalog books to Excel format"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" /> Excel
             </button>
           </div>
         </div>
@@ -1963,11 +2129,11 @@ export default function BooksManagement() {
       {showFetchIsbnModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fadeIn">
           <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
+            <div className="flex items-center justify-between pb-1">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-purple-600" /> Auto-Fetch Catalog Metadata via ISBN
               </h2>
-              <button onClick={() => setShowFetchIsbnModal(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100">
+              <button onClick={() => setShowFetchIsbnModal(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1978,9 +2144,9 @@ export default function BooksManagement() {
                 value={fetchModalIsbn}
                 onChange={(e) => setFetchModalIsbn(e.target.value)}
                 placeholder="Enter 13-digit ISBN barcode..."
-                className="flex-1 px-3 py-2 border rounded-xl font-mono text-xs"
+                className="flex-1 px-3.5 py-2.5 border border-slate-200 rounded-xl font-mono text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
               />
-              <button onClick={() => executePreviewFetch(fetchModalIsbn)} className="px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+              <button onClick={() => executePreviewFetch(fetchModalIsbn)} className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm">
                 {isFetchingIsbn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 <span>Fetch</span>
               </button>
@@ -1996,8 +2162,9 @@ export default function BooksManagement() {
                     onClick={() => {
                       applyMetadataToAddForm(previewMetadata);
                       setShowFetchIsbnModal(false);
+                      setShowAddModal(true);
                     }}
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 cursor-pointer"
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 cursor-pointer shadow-sm"
                   >
                     Apply to Add Book Form
                   </button>
@@ -2128,23 +2295,41 @@ export default function BooksManagement() {
                   />
                 </div>
 
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Rack & Shelf Location</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 mb-1">Academic Rack & 5-Shelf Placement</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <select
                       value={addFormData.rackNumber}
                       onChange={(e) => setAddFormData({ ...addFormData, rackNumber: e.target.value })}
-                      placeholder="RACK-CS-01"
-                      className="px-2.5 py-2 border rounded-xl font-mono text-[11px]"
-                    />
-                    <input
-                      type="text"
+                      className="px-2.5 py-2 border rounded-xl font-semibold text-slate-800 text-xs"
+                    >
+                      <optgroup label="🎓 B.Tech Engineering Racks">
+                        {ACADEMIC_RACK_HIERARCHY.filter((r) => r.program === 'B.Tech').map((r) => (
+                          <option key={r.rackCode} value={r.rackCode}>
+                            {r.shortCode} - {r.rackName}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="🔬 B.Sc Pure & Applied Sciences Racks">
+                        {ACADEMIC_RACK_HIERARCHY.filter((r) => r.program === 'B.Sc').map((r) => (
+                          <option key={r.rackCode} value={r.rackCode}>
+                            {r.shortCode} - {r.rackName}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+
+                    <select
                       value={addFormData.shelfNumber}
                       onChange={(e) => setAddFormData({ ...addFormData, shelfNumber: e.target.value })}
-                      placeholder="SHELF-A1"
-                      className="px-2.5 py-2 border rounded-xl font-mono text-[11px]"
-                    />
+                      className="px-2.5 py-2 border rounded-xl font-semibold text-slate-800 text-xs"
+                    >
+                      {STANDARD_5_SHELVES.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -2309,24 +2494,43 @@ export default function BooksManagement() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Rack Location</label>
-                  <input
-                    type="text"
+                  <label className="block font-bold text-slate-700 mb-1">Academic Domain Rack</label>
+                  <select
                     value={editFormData.rackNumber}
                     onChange={(e) => setEditFormData({ ...editFormData, rackNumber: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-xl font-mono"
-                  />
+                    className="w-full px-3 py-2 border rounded-xl font-semibold text-slate-800 text-xs"
+                  >
+                    <optgroup label="🎓 B.Tech Engineering Racks">
+                      {ACADEMIC_RACK_HIERARCHY.filter((r) => r.program === 'B.Tech').map((r) => (
+                        <option key={r.rackCode} value={r.rackCode}>
+                          {r.shortCode} - {r.rackName}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🔬 B.Sc Pure & Applied Sciences Racks">
+                      {ACADEMIC_RACK_HIERARCHY.filter((r) => r.program === 'B.Sc').map((r) => (
+                        <option key={r.rackCode} value={r.rackCode}>
+                          {r.shortCode} - {r.rackName}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Shelf Location</label>
-                  <input
-                    type="text"
+                  <label className="block font-bold text-slate-700 mb-1">Shelf Tier Level (1 of 5)</label>
+                  <select
                     value={editFormData.shelfNumber}
                     onChange={(e) => setEditFormData({ ...editFormData, shelfNumber: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-xl font-mono"
-                  />
+                    className="w-full px-3 py-2 border rounded-xl font-semibold text-slate-800 text-xs"
+                  >
+                    {STANDARD_5_SHELVES.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -2594,6 +2798,437 @@ export default function BooksManagement() {
           </div>
         </div>
       )}
+
+      {/* ACADEMIC RACK & 5-SHELF HIERARCHY INSPECTION, EDITING & PRINTING MODAL */}
+      {showRackShelfModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-6xl w-full flex flex-col max-h-[94vh] border border-slate-200 overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 bg-gradient-to-r from-slate-950 via-teal-950 to-indigo-950 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-teal-500/20 border border-teal-400/30 rounded-2xl text-teal-300">
+                  <Layers className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="font-extrabold text-lg sm:text-xl font-poppins text-white flex items-center gap-2">
+                    Academic Racks & 5-Shelf Stacks Manager
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-500/30 text-teal-200 border border-teal-400/30">
+                      5 Shelves Per Domain Rack
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-300">
+                    Organized by B.Tech branches (CSE, ECE, EEE, Civil, Mech) and B.Sc sub-groups (Physics, Math, Chem, CS, Biotech). Exactly 5 shelves per rack.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRackShelfModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Sub-toolbar: Academic Degree Filters, Search & Bulk Actions */}
+            <div className="p-4 bg-slate-50/90 border-b border-slate-200 flex flex-col gap-3 shrink-0">
+              {/* Row 1: Academic Degree Filters & Search Bar */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                {/* Degree Program Filter Tabs */}
+                <div className="flex items-center gap-1.5 bg-slate-200/90 p-1 rounded-2xl">
+                  <button
+                    type="button"
+                    onClick={() => setAcademicProgramTab('ALL')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                      academicProgramTab === 'ALL'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/60'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" /> All Racks (10)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAcademicProgramTab('B.Tech')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                      academicProgramTab === 'B.Tech'
+                        ? 'bg-blue-700 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/60'
+                    }`}
+                  >
+                    <GraduationCap className="w-3.5 h-3.5 text-blue-300" /> B.Tech (5 Branches)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAcademicProgramTab('B.Sc')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                      academicProgramTab === 'B.Sc'
+                        ? 'bg-purple-700 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/60'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-purple-300" /> B.Sc (5 Sub-Groups)
+                  </button>
+                </div>
+
+                {/* Search Filter */}
+                <div className="relative w-full sm:w-72">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Search rack code, branch, book..."
+                    value={rackShelfSearchTerm}
+                    onChange={(e) => setRackShelfSearchTerm(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-none shadow-2xs"
+                  />
+                  {rackShelfSearchTerm && (
+                    <button
+                      onClick={() => setRackShelfSearchTerm('')}
+                      className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 2: Status Indicator & Aligned Bulk Action Buttons */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/60 text-xs">
+                <div className="flex items-center gap-2 text-slate-600 font-medium">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-teal-50 text-teal-800 font-bold border border-teal-200/60 text-[11px]">
+                    <Layers className="w-3 h-3 text-teal-600" />
+                    Strict 5 Shelves Per Domain Architecture
+                  </span>
+                  <span className="hidden sm:inline text-slate-400">•</span>
+                  <span className="text-[11px] text-slate-500">
+                    Showing {academicRackInventories.filter((r) => academicProgramTab === 'ALL' || r.program === academicProgramTab).length} Domain Racks & 50 Shelf Tiers
+                  </span>
+                </div>
+
+                {/* Bulk Print Actions */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleBulkPrintRackPlacards}
+                    className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                    title="Print official barcode & QR placards for all academic department racks"
+                  >
+                    <Printer className="w-3.5 h-3.5" /> Bulk Print Rack Signs
+                  </button>
+
+                  <button
+                    onClick={handleBulkPrintShelfStrips}
+                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                    title="Print official shelf tags for all 50 physical shelf tiers"
+                  >
+                    <Printer className="w-3.5 h-3.5" /> Bulk Print All Shelf Tags
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Body: Academic Racks List with 5 Shelves Per Rack */}
+            <div className="p-5 overflow-y-auto flex-1 space-y-6">
+              {academicRackInventories
+                .filter((r) => {
+                  if (academicProgramTab !== 'ALL' && r.program !== academicProgramTab) return false;
+                  if (!rackShelfSearchTerm.trim()) return true;
+                  const term = rackShelfSearchTerm.toLowerCase();
+                  return (
+                    r.rackName.toLowerCase().includes(term) ||
+                    r.rackCode.toLowerCase().includes(term) ||
+                    r.shortCode.toLowerCase().includes(term) ||
+                    r.department.toLowerCase().includes(term) ||
+                    r.books.some((b) => b.title.toLowerCase().includes(term) || b.authorName.toLowerCase().includes(term))
+                  );
+                })
+                .map((rack, rIdx) => {
+                  return (
+                    <div
+                      key={`acad-rack-${rIdx}`}
+                      className="bg-white rounded-3xl border-2 border-slate-200/90 shadow-sm overflow-hidden transition-all hover:border-teal-300"
+                    >
+                      {/* Rack Banner Header */}
+                      <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider text-white shadow-xs ${
+                              rack.program === 'B.Tech' ? 'bg-blue-600' : 'bg-purple-600'
+                            }`}>
+                              {rack.program}
+                            </span>
+                            <span className="font-mono font-black text-xs px-2.5 py-1 rounded-lg bg-white/10 text-teal-300 border border-teal-400/30">
+                              {rack.rackCode}
+                            </span>
+                            <span className="text-xs font-bold text-slate-300 bg-white/5 px-2.5 py-1 rounded-lg">
+                              Domain: {rack.domain} • Code: {rack.shortCode}
+                            </span>
+                          </div>
+                          <h3 className="text-base sm:text-lg font-bold font-poppins text-white pt-1">
+                            {rack.rackName}
+                          </h3>
+                          <p className="text-xs text-slate-300 max-w-2xl">
+                            {rack.description}
+                          </p>
+                        </div>
+
+                        {/* Top Rack Stats & Action Buttons */}
+                        <div className="flex items-center gap-3 shrink-0 flex-wrap">
+                          <div className="px-3.5 py-2 rounded-2xl bg-white/10 border border-white/10 text-center">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Domain Inventory</span>
+                            <span className="text-sm font-black text-teal-300 font-poppins">
+                              {rack.books.length} Books • {rack.totalCopies} Copies
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSearchTerm(rack.rackCode);
+                              setShowRackShelfModal(false);
+                              triggerToast(`Filtered catalog for ${rack.rackName}`);
+                            }}
+                            className="px-3.5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                            title="Filter main catalog view for all books located in this rack"
+                          >
+                            <Search className="w-3.5 h-3.5" /> View in Catalog
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handlePrintSingleRackPlacard(rack)}
+                            className="px-3.5 py-2 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                            title="Print physical turnstile sign for this rack stack"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-teal-300" /> Print Rack Placard
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 5-SHELF CABINET GRAPHICAL LAYOUT */}
+                      <div className="p-4 sm:p-5 bg-slate-50/80 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                            <Layers className="w-4 h-4 text-teal-600" />
+                            5-Tier Physical Shelf Stacks ({rack.shortCode})
+                          </span>
+                          <span className="text-[11px] font-bold text-slate-500">
+                            Strict 5 Shelves Per Rack Architecture
+                          </span>
+                        </div>
+
+                        {/* 5 Shelves Rendered as Tier 1 to Tier 5 */}
+                        <div className="grid grid-cols-1 gap-3">
+                          {rack.shelvesData.map((shelf, sIdx) => {
+                            return (
+                              <div
+                                key={`shelf-tier-${sIdx}`}
+                                className="bg-white rounded-2xl border border-slate-200 p-3.5 shadow-2xs hover:border-teal-300 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                              >
+                                {/* Shelf Identification & Focus */}
+                                <div className="space-y-1.5 min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-black px-2.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 font-mono">
+                                      {shelf.shelfId}
+                                    </span>
+                                    <span className="text-xs font-bold text-slate-900 font-poppins">
+                                      {shelf.shelfName}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] font-semibold text-slate-500">
+                                    Specialization: <span className="text-slate-700">{shelf.focus}</span>
+                                  </p>
+
+                                  {/* Books on this Shelf List */}
+                                  <div className="pt-1">
+                                    {shelf.books.length > 0 ? (
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        {shelf.books.map((b, bIdx) => (
+                                          <div
+                                            key={`sb-${bIdx}`}
+                                            className="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-teal-50/80 border border-slate-200 text-slate-800 text-xs font-medium transition-all shadow-2xs"
+                                          >
+                                            <BookOpen className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                                            <div className="flex flex-col min-w-0">
+                                              <span className="font-bold text-slate-900 truncate max-w-[220px]" title={b.title}>
+                                                {b.title}
+                                              </span>
+                                              <span className="text-[10px] text-slate-500 truncate max-w-[200px]">
+                                                {b.authorName}
+                                              </span>
+                                            </div>
+                                            <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0 ${
+                                              b.availableCopies > 0 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'
+                                            }`}>
+                                              {b.availableCopies}/{b.totalCopies} Avail
+                                            </span>
+
+                                            {/* Quick Move Button */}
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setSelectedMoveRack(rack.rackCode);
+                                                setSelectedMoveShelf(shelf.shelfId);
+                                                setMovePlacementModal({
+                                                  book: b,
+                                                  currentRack: rack.rackCode,
+                                                  currentShelf: shelf.shelfId,
+                                                });
+                                              }}
+                                              className="ml-1 px-2 py-1 rounded-lg bg-white hover:bg-indigo-600 hover:text-white text-indigo-600 border border-indigo-200 text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs shrink-0"
+                                              title={`Move or transfer "${b.title}" to another shelf or rack`}
+                                            >
+                                              <ArrowRightLeft className="w-2.5 h-2.5" /> Move
+                                            </button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-slate-400 text-xs">
+                                        <span className="italic">No books currently on this shelf tier.</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Shelf Action Buttons & Barcode Tag */}
+                                <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                                  <span className="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-xl font-mono">
+                                    {shelf.books.length} Books
+                                  </span>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePrintSingleShelfTag(rack, shelf)}
+                                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                                    title={`Print physical sticker strip for ${shelf.shelfId}`}
+                                  >
+                                    <Printer className="w-3.5 h-3.5" /> Print Shelf Tag
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0">
+              <span className="text-xs text-slate-500 font-medium">
+                💡 Tip: Each Domain Rack is restricted to 5 Shelves (Tier 1 to Tier 5). Use "Move" to organize books into their exact domain shelves.
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowRackShelfModal(false)}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MOVE / REASSIGN BOOK PLACEMENT MODAL */}
+      {movePlacementModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-indigo-100 text-indigo-700 rounded-2xl">
+                  <ArrowRightLeft className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base font-poppins">Move / Reassign Book Shelf</h3>
+                  <p className="text-xs text-slate-500 font-medium">Reassign book to its appropriate academic domain rack & 5-tier shelf.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setMovePlacementModal(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Book Info Summary */}
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+              <p className="text-xs font-bold text-slate-900">{movePlacementModal.book.title}</p>
+              <p className="text-[11px] text-slate-500">By {movePlacementModal.book.authorName} • ISBN: {movePlacementModal.book.isbn}</p>
+              <p className="text-[11px] font-mono text-indigo-700 font-bold">
+                Current Location: {movePlacementModal.currentRack} / {movePlacementModal.currentShelf}
+              </p>
+            </div>
+
+            {/* Destination Selection */}
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Select Target Domain Rack:</label>
+                <select
+                  value={selectedMoveRack}
+                  onChange={(e) => setSelectedMoveRack(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 font-semibold bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                >
+                  <optgroup label="🎓 B.Tech Engineering Racks">
+                    {ACADEMIC_RACK_HIERARCHY.filter((r) => r.program === 'B.Tech').map((r) => (
+                      <option key={r.rackCode} value={r.rackCode}>
+                        {r.rackName} ({r.rackCode})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="🔬 B.Sc Pure & Applied Sciences Racks">
+                    {ACADEMIC_RACK_HIERARCHY.filter((r) => r.program === 'B.Sc').map((r) => (
+                      <option key={r.rackCode} value={r.rackCode}>
+                        {r.rackName} ({r.rackCode})
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Select Target Shelf Level (1 of 5):</label>
+                <select
+                  value={selectedMoveShelf}
+                  onChange={(e) => setSelectedMoveShelf(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 font-semibold bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                >
+                  {STANDARD_5_SHELVES.map((s) => {
+                    const rackDef = ACADEMIC_RACK_HIERARCHY.find((r) => r.rackCode === selectedMoveRack);
+                    const shelfDef = rackDef?.shelves.find((sh) => sh.shelfId === s.id);
+                    return (
+                      <option key={s.id} value={s.id}>
+                        {s.label} {shelfDef ? `— ${shelfDef.focus}` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setMovePlacementModal(null)}
+                className="px-4 py-2 rounded-xl border text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteMovePlacement}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" /> Confirm Move & Reassign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

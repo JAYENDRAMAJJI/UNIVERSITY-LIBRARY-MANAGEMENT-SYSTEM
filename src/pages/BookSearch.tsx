@@ -10,6 +10,8 @@ import {
   RotateCcw,
   SlidersHorizontal,
   Barcode,
+  ScanBarcode,
+  Layers,
   Info,
   ChevronDown,
   ChevronUp,
@@ -21,6 +23,7 @@ import {
 import { libraryStore } from '../services/libraryStore.service';
 import { useAuth } from '../context/AuthContext';
 import { Book } from '../types/library';
+import BarcodeScannerModal from '../components/common/BarcodeScannerModal';
 
 export default function BookSearch() {
   const { user } = useAuth();
@@ -36,6 +39,7 @@ export default function BookSearch() {
   const [reservationMessage, setReservationMessage] = useState<string | null>(null);
   const [cardMessages, setCardMessages] = useState<Record<string, string>>({});
   const [selectedBookModal, setSelectedBookModal] = useState<Book | null>(null);
+  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
 
   useEffect(() => {
     const sub = libraryStore.getObservable().subscribe(setState);
@@ -107,7 +111,16 @@ export default function BookSearch() {
               book.isbn.toLowerCase().includes(term) ||
               book.categoryName.toLowerCase().includes(term) ||
               book.publisherName.toLowerCase().includes(term) ||
-              Boolean(book.department && book.department.toLowerCase().includes(term));
+              Boolean(book.department && book.department.toLowerCase().includes(term)) ||
+              Boolean(book.rackNumber && book.rackNumber.toLowerCase().includes(term)) ||
+              Boolean(book.shelfNumber && book.shelfNumber.toLowerCase().includes(term)) ||
+              (book.copies || []).some(
+                (c) =>
+                  (c.rackNumber && c.rackNumber.toLowerCase().includes(term)) ||
+                  (c.shelfNumber && c.shelfNumber.toLowerCase().includes(term)) ||
+                  (c.barcode && c.barcode.toLowerCase().includes(term)) ||
+                  (c.accessionNo && c.accessionNo.toLowerCase().includes(term))
+              );
             break;
         }
       }
@@ -364,24 +377,35 @@ export default function BookSearch() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-          {/* Main Search Input */}
-          <div className="md:col-span-6 relative">
-            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search title, author, ISBN, publisher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium transition-all"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+          {/* Main Search Input with Scan Button */}
+          <div className="md:col-span-6 flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search title, author, ISBN, rack (e.g. RACK-CS-01), shelf (e.g. SHELF-A1)..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium transition-all"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsScannerModalOpen(true)}
+              className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+              title="Scan physical Rack, Shelf, or Book barcode"
+            >
+              <ScanBarcode className="w-4 h-4" />
+              <span className="hidden sm:inline">Scan Rack / Shelf</span>
+            </button>
           </div>
 
           {/* Category Select Filter Dropdown */}
@@ -649,6 +673,18 @@ export default function BookSearch() {
           </div>
         </div>
       )}
+
+      {/* BARCODE SCANNER MODAL FOR RACKS, SHELVES & BOOKS */}
+      <BarcodeScannerModal
+        isOpen={isScannerModalOpen}
+        onClose={() => setIsScannerModalOpen(false)}
+        onScanSuccess={(code, method) => {
+          setSearchTerm(code);
+          setIsScannerModalOpen(false);
+          setReservationMessage(`🔍 Showing books located at scanned code "${code}"`);
+        }}
+        title="Scan Rack, Shelf or Book Barcode / QR"
+      />
     </div>
   );
 }

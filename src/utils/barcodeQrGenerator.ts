@@ -867,3 +867,255 @@ export function printLabelStickers(labels: Array<{
   printWindow.document.write(html);
   printWindow.document.close();
 }
+
+export interface RackShelfPlacard {
+  type: 'RACK' | 'SHELF';
+  rackNumber: string;
+  shelfNumber?: string;
+  department?: string;
+  categoryName?: string;
+  totalBooksCount: number;
+  totalCopiesCount: number;
+  barcode: string;
+  qrPayload: string;
+}
+
+export function printRackShelfPlacards(items: RackShelfPlacard[]) {
+  const printWindow = window.open('', '_blank', 'width=950,height=750');
+  if (!printWindow) return;
+
+  const cardsHtml = items
+    .map((item) => {
+      const isRack = item.type === 'RACK';
+      const barcodeSvg = generateBarcodeSvgString(item.barcode, { height: 42 });
+      const qrSvg = generateQrSvgString(item.qrPayload, 100);
+      const title = isRack ? `LIBRARY RACK AISLE: ${item.rackNumber}` : `SHELF: ${item.shelfNumber}`;
+      const subtitle = isRack
+        ? `Aisle Stack Location • ${item.department || 'Central Library Stacks'}`
+        : `Mounted on Rack: ${item.rackNumber} • ${item.department || 'General'}`;
+
+      return `
+        <div class="placard-card ${isRack ? 'rack-card' : 'shelf-card'}">
+          <div class="placard-header">
+            <div>
+              <div class="placard-univ">UNIVERSITY CENTRAL LIBRARY • INVENTORY LOCATION</div>
+              <div class="placard-title">${title}</div>
+              <div class="placard-sub">${subtitle}</div>
+            </div>
+            <div class="placard-type-badge">${isRack ? 'RACK SIGN' : 'SHELF TAG'}</div>
+          </div>
+
+          <div class="placard-body">
+            <div class="barcode-pane">
+              <div class="pane-title">SCAN CODE128 BARCODE</div>
+              <div class="svg-container">
+                ${barcodeSvg}
+              </div>
+              <div class="barcode-caption">Code: <strong>${item.barcode}</strong></div>
+            </div>
+
+            <div class="qr-pane">
+              <div class="pane-title">SCAN 2D QR CODE</div>
+              <div class="qr-svg-wrap">
+                ${qrSvg}
+              </div>
+              <div class="qr-caption">Payload: <strong>${item.qrPayload}</strong></div>
+            </div>
+          </div>
+
+          <div class="placard-footer">
+            <div class="meta-item">
+              <span class="meta-label">Stored Titles:</span>
+              <span class="meta-val">${item.totalBooksCount} Unique Books</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Physical Copies:</span>
+              <span class="meta-val">${item.totalCopiesCount} Asset Volumes</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Scan Action:</span>
+              <span class="meta-val highlight">Instant Catalog Inventory List</span>
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Print Library Rack & Shelf Barcode Placards</title>
+        <style>
+          @page {
+            size: A4;
+            margin: 12mm;
+          }
+          * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 12px;
+            color: #0f172a;
+          }
+          .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+          }
+          .placard-card {
+            border: 2.5px solid #0f172a;
+            border-radius: 12px;
+            padding: 14px;
+            background: #ffffff;
+            page-break-inside: avoid;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+          }
+          .rack-card {
+            border-color: #4338ca;
+            background: #faf5ff;
+          }
+          .shelf-card {
+            border-color: #0284c7;
+            background: #f0f9ff;
+          }
+          .placard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #cbd5e1;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+          }
+          .placard-univ {
+            font-size: 8.5px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            color: #475569;
+          }
+          .placard-title {
+            font-size: 15px;
+            font-weight: 900;
+            color: #0f172a;
+            margin: 2px 0;
+            letter-spacing: 0.5px;
+          }
+          .placard-sub {
+            font-size: 10px;
+            color: #64748b;
+            font-weight: 600;
+          }
+          .placard-type-badge {
+            font-size: 9px;
+            font-weight: 800;
+            background: #0f172a;
+            color: #ffffff;
+            padding: 3px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+          }
+          .placard-body {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 8px 0;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px;
+          }
+          .barcode-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          }
+          .pane-title {
+            font-size: 8px;
+            font-weight: 800;
+            color: #64748b;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+          }
+          .svg-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+          }
+          .barcode-caption, .qr-caption {
+            font-size: 9px;
+            font-family: monospace;
+            margin-top: 4px;
+            color: #334155;
+          }
+          .qr-pane {
+            width: 95px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-left: 1px dashed #cbd5e1;
+            padding-left: 8px;
+          }
+          .qr-svg-wrap {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .qr-svg-wrap svg {
+            width: 80px;
+            height: 80px;
+          }
+          .placard-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1.5px solid #cbd5e1;
+            padding-top: 6px;
+            font-size: 9px;
+            color: #334155;
+          }
+          .meta-label {
+            color: #64748b;
+            font-size: 8.5px;
+            display: block;
+          }
+          .meta-val {
+            font-weight: 700;
+          }
+          .meta-val.highlight {
+            color: #4338ca;
+            font-weight: 800;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="grid-container">
+          ${cardsHtml}
+        </div>
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 400);
+          };
+        </script>
+      </body>
+    </html>
+  `;
+
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+}
+
