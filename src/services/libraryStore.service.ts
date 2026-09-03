@@ -428,7 +428,7 @@ export const getLibraryOperatingStatus = (
     return {
       isOpen: false,
       statusText: 'CLOSED (Sunday)',
-      reason: 'Central Library is closed on Sundays. Reopens Monday at 8:00 AM.',
+      reason: 'Closed on Sundays for weekly maintenance.',
       nextOpenText: 'Opens Monday 8:00 AM',
     };
   }
@@ -439,8 +439,8 @@ export const getLibraryOperatingStatus = (
     return {
       isOpen: false,
       statusText: `CLOSED (${holidayCheck.holidayName})`,
-      reason: `Central Library is closed today for National Holiday (${holidayCheck.holidayName}).`,
-      nextOpenText: 'Reopens next working day 8:00 AM',
+      reason: `Closed today for ${holidayCheck.holidayName}.`,
+      nextOpenText: 'Reopens next working day at 8:00 AM',
       isHoliday: true,
       holidayName: holidayCheck.holidayName,
     };
@@ -454,7 +454,7 @@ export const getLibraryOperatingStatus = (
     return {
       isOpen: false,
       statusText: 'CLOSED (Before 8:00 AM)',
-      reason: 'Central Library opens at 8:00 AM (Mon – Sat).',
+      reason: 'Library opens at 8:00 AM.',
       nextOpenText: 'Opens today at 8:00 AM',
     };
   }
@@ -463,8 +463,8 @@ export const getLibraryOperatingStatus = (
     return {
       isOpen: false,
       statusText: 'CLOSED (After 10:00 PM)',
-      reason: 'Central Library closes automatically at 10:00 PM. Active visitors auto-checked out.',
-      nextOpenText: 'Opens tomorrow at 8:00 AM',
+      reason: 'Daily operating hours ended at 10:00 PM.',
+      nextOpenText: dayOfWeek === 6 ? 'Opens Monday at 8:00 AM' : 'Opens tomorrow at 8:00 AM',
     };
   }
 

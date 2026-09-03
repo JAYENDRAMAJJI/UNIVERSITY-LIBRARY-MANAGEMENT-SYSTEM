@@ -46,7 +46,7 @@ export default function AttendanceManagement() {
   const { user } = useAuth();
   const isAdminOrStaff = user?.role === 'ADMIN' || user?.role === 'STAFF';
   const [state, setState] = useState(libraryStore.snapshot);
-  const [activeTab, setActiveTab] = useState<'DESK' | 'LIVE' | 'CALENDAR' | 'HISTORY' | 'ANALYTICS'>(
+  const [activeTab, setActiveTab] = useState<'DESK' | 'LIVE' | 'HISTORY' | 'ANALYTICS' | 'CALENDAR'>(
     isAdminOrStaff ? 'DESK' : 'HISTORY'
   );
 
@@ -70,7 +70,13 @@ export default function AttendanceManagement() {
   const [selectedRole, setSelectedRole] = useState<'ALL' | Role>('ALL');
   const [selectedDepartment, setSelectedDepartment] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState<'ALL' | AttendanceStatus>('ALL');
-  const [dateFilter, setDateFilter] = useState<'TODAY' | 'WEEK' | 'MONTH' | 'ALL'>('TODAY');
+  const [dateFilter, setDateFilter] = useState<'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM' | 'ALL'>('TODAY');
+  const [customFromDate, setCustomFromDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1); // 1st of current month
+    return getLocalDateStr(d);
+  });
+  const [customToDate, setCustomToDate] = useState(() => getLocalDateStr(new Date()));
 
   // Manual Override Modal
   const [showOverrideModal, setShowOverrideModal] = useState(false);
@@ -330,11 +336,16 @@ export default function AttendanceManagement() {
         matchesDate = diffDays <= 7;
       } else if (dateFilter === 'MONTH') {
         matchesDate = r.date.substring(0, 7) === todayStr.substring(0, 7);
+      } else if (dateFilter === 'CUSTOM') {
+        const rDate = r.date || (r.checkInTime || '').split(' ')[0].split('T')[0];
+        if (customFromDate && rDate < customFromDate) return false;
+        if (customToDate && rDate > customToDate) return false;
+        matchesDate = true;
       }
 
       return matchesSearch && matchesRole && matchesDept && matchesStatus && matchesDate;
     });
-  }, [attendanceRecords, searchTerm, selectedRole, selectedDepartment, selectedStatus, dateFilter, todayStr]);
+  }, [attendanceRecords, searchTerm, selectedRole, selectedDepartment, selectedStatus, dateFilter, customFromDate, customToDate, todayStr]);
 
   const detectVerificationMethod = (raw: string, fallback: VerificationMethod = 'BARCODE'): VerificationMethod => {
     const code = (raw || '').trim().toLowerCase();
@@ -515,9 +526,7 @@ export default function AttendanceManagement() {
                   <span className="relative flex h-2.5 w-2.5 shrink-0">
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
                   </span>
-                  <span className="tracking-wide">
-                    LIBRARY CLOSED ({operatingStatus.holidayName || operatingStatus.statusText.replace(/^CLOSED\s*\(?|\)?$/gi, '') || 'Closed'})
-                  </span>
+                  <span className="tracking-wide">LIBRARY CLOSED</span>
                 </div>
               )}
 
@@ -576,8 +585,24 @@ export default function AttendanceManagement() {
 
         {/* Card 2: Live Occupancy / My Status */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-4 group">
-          <div className="w-13 h-13 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-            <UserCheck className="h-6 w-6 text-emerald-600" />
+          <div
+            className={`w-13 h-13 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform ${
+              !operatingStatus.isOpen
+                ? 'bg-slate-100 text-slate-500 border border-slate-200'
+                : activeVisitors.length > 0
+                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                : 'bg-teal-50 text-teal-600 border border-teal-100'
+            }`}
+          >
+            <UserCheck
+              className={`h-6 w-6 ${
+                !operatingStatus.isOpen
+                  ? 'text-slate-500'
+                  : activeVisitors.length > 0
+                  ? 'text-emerald-600'
+                  : 'text-teal-600'
+              }`}
+            />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs sm:text-sm font-extrabold text-slate-700 leading-tight">
@@ -585,15 +610,42 @@ export default function AttendanceManagement() {
             </p>
             <div className="flex items-center gap-2.5 mt-1">
               {isAdminOrStaff ? (
-                <>
-                  <span className="text-3xl font-extrabold font-poppins text-emerald-600 leading-none">
-                    {activeVisitors.length}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                    In Library
-                  </span>
-                </>
+                !operatingStatus.isOpen ? (
+                  <>
+                    <span className="text-3xl font-extrabold font-poppins text-slate-500 leading-none">
+                      {activeVisitors.length}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                      Library Closed
+                    </span>
+                  </>
+                ) : activeVisitors.length > 0 ? (
+                  <>
+                    <span className="text-3xl font-extrabold font-poppins text-emerald-600 leading-none">
+                      {activeVisitors.length}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                      In Library
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-3xl font-extrabold font-poppins text-teal-700 leading-none">
+                      0
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                      0 In Library
+                    </span>
+                  </>
+                )
+              ) : !operatingStatus.isOpen ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                  Library Closed
+                </span>
               ) : myActiveSession ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 animate-pulse">
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -692,6 +744,8 @@ export default function AttendanceManagement() {
                 className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
                   activeTab === 'LIVE'
                     ? 'bg-white/25 text-white'
+                    : !operatingStatus.isOpen
+                    ? 'bg-slate-100 text-slate-600'
                     : 'bg-emerald-100 text-emerald-800'
                 }`}
               >
@@ -699,30 +753,7 @@ export default function AttendanceManagement() {
               </span>
             </button>
 
-            {/* Tab 3: University Calendar */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('CALENDAR')}
-              className={`h-11 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
-                activeTab === 'CALENDAR'
-                  ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20 font-extrabold'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              <CalendarDays className="h-4 w-4 shrink-0" />
-              <span>University Calendar</span>
-              <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                  activeTab === 'CALENDAR'
-                    ? 'bg-white/25 text-white'
-                    : 'bg-indigo-100 text-indigo-800'
-                }`}
-              >
-                {(state.calendarEvents || []).length}
-              </span>
-            </button>
-
-            {/* Tab 4: Attendance History */}
+            {/* Tab 3: Attendance History */}
             <button
               type="button"
               onClick={() => setActiveTab('HISTORY')}
@@ -745,7 +776,7 @@ export default function AttendanceManagement() {
               </span>
             </button>
 
-            {/* Tab 5: Attendance Analytics */}
+            {/* Tab 4: Attendance Analytics */}
             <button
               type="button"
               onClick={() => setActiveTab('ANALYTICS')}
@@ -757,6 +788,29 @@ export default function AttendanceManagement() {
             >
               <BarChart3 className="h-4 w-4 shrink-0" />
               <span>Attendance Analytics</span>
+            </button>
+
+            {/* Tab 5: University Calendar */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('CALENDAR')}
+              className={`h-11 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
+                activeTab === 'CALENDAR'
+                  ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20 font-extrabold'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <CalendarDays className="h-4 w-4 shrink-0" />
+              <span>University Calendar</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  activeTab === 'CALENDAR'
+                    ? 'bg-white/25 text-white'
+                    : 'bg-indigo-100 text-indigo-800'
+                }`}
+              >
+                {(state.calendarEvents || []).length}
+              </span>
             </button>
           </div>
         ) : (
@@ -875,6 +929,21 @@ export default function AttendanceManagement() {
               scannerType="STUDENT_ID"
               title="Scan Member / ID Card Pass"
             />
+
+            {/* Library Closed Info Banner */}
+            {!operatingStatus.isOpen && (
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-start gap-3 text-amber-900 text-xs">
+                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5 min-w-0 flex-1">
+                  <p className="font-bold text-slate-900">
+                    Library is Currently Closed • <span className="text-amber-800 font-semibold">{operatingStatus.statusText.replace(/^CLOSED\s*\(?|\)?$/gi, '') || 'Closed'}</span>
+                  </p>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Operating Hours: Mon – Sat (8:00 AM – 10:00 PM) • {operatingStatus.nextOpenText}. Check-in counter is currently paused.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Scan / Manual Entry Form */}
             <form onSubmit={handleScanSubmit} className="space-y-4">
@@ -1247,7 +1316,9 @@ export default function AttendanceManagement() {
                   <Users className="h-5 w-5 text-emerald-600" /> Live Library Building Occupancy
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Currently {activeVisitors.length} active visitors inside the central library reading rooms and wings.
+                  {!operatingStatus.isOpen
+                    ? `Closed • Regular Hours: Mon – Sat (8:00 AM – 10:00 PM) • ${operatingStatus.nextOpenText}.`
+                    : `Currently ${activeVisitors.length} active visitors inside the central library reading rooms and wings.`}
                 </p>
               </div>
 
@@ -1298,14 +1369,14 @@ export default function AttendanceManagement() {
               </div>
 
               {/* Live Occupancy Search Bar */}
-              <div className="relative min-w-[260px]">
+              <div className="relative w-full sm:w-80">
                 <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search active visitor name, card no, department..."
+                  placeholder="Search visitor name, card no, dept..."
                   value={liveSearchTerm}
                   onChange={(e) => setLiveSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-800"
+                  className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-800 transition-all placeholder:text-slate-400"
                 />
                 {liveSearchTerm && (
                   <button
@@ -1386,20 +1457,20 @@ export default function AttendanceManagement() {
             ) : (
               <div className="p-12 text-center text-slate-500 space-y-2">
                 <Users className="h-10 w-10 text-slate-300 mx-auto" />
-                <p className="font-bold text-slate-700">No active visitors currently checked into library</p>
-                <p className="text-xs">Scan member barcodes at the desk counter to record Check-In sessions.</p>
+                <p className="font-bold text-slate-700">
+                  {!operatingStatus.isOpen
+                    ? 'Central Library is Currently Closed'
+                    : 'No active visitors currently checked into library'}
+                </p>
+                <p className="text-xs">
+                  {!operatingStatus.isOpen
+                    ? `Regular Hours: Mon – Sat (8:00 AM – 10:00 PM) • ${operatingStatus.nextOpenText}.`
+                    : 'Scan member barcodes at the desk counter to record Check-In sessions.'}
+                </p>
               </div>
             )}
           </div>
         </div>
-      )}
-
-      {/* TAB: UNIVERSITY CALENDAR & SCHEDULES */}
-      {activeTab === 'CALENDAR' && (
-        <UniversityCalendarSection
-          events={state.calendarEvents || []}
-          attendanceRecords={state.attendanceRecords || []}
-        />
       )}
 
       {/* TAB 3: ATTENDANCE HISTORY LOGS */}
@@ -1429,14 +1500,14 @@ export default function AttendanceManagement() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3">
               {/* Search Bar */}
-              <div className={`${isAdminOrStaff ? 'md:col-span-3' : 'md:col-span-5'} relative`}>
+              <div className={`${isAdminOrStaff ? 'md:col-span-4' : 'md:col-span-5'} relative`}>
                 <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder={isAdminOrStaff ? "Search name, card no, dept, gate..." : "Search timestamp, gate, visit purpose..."}
+                  placeholder={isAdminOrStaff ? "Search name, card no, dept..." : "Search timestamp, gate, purpose..."}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
+                  className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 placeholder:text-slate-400"
                 />
                 {searchTerm && (
                   <button
@@ -1468,7 +1539,7 @@ export default function AttendanceManagement() {
 
               {/* ADMIN ONLY: Department Filter */}
               {isAdminOrStaff && (
-                <div className="md:col-span-3 relative">
+                <div className="md:col-span-2 relative">
                   <select
                     value={selectedDepartment}
                     onChange={(e) => setSelectedDepartment(e.target.value)}
@@ -1510,11 +1581,66 @@ export default function AttendanceManagement() {
                   <option value="TODAY">Today's Visits ({todayStr})</option>
                   <option value="WEEK">Past 7 Days</option>
                   <option value="MONTH">This Month</option>
+                  <option value="CUSTOM">Custom Date Range</option>
                   <option value="ALL">All Time History</option>
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
               </div>
             </div>
+
+            {/* Custom Date Range (From - End Date) Picker Bar */}
+            {dateFilter === 'CUSTOM' && (
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50/90 to-indigo-50/90 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-blue-600 shrink-0" />
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">Custom Date Range:</span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-blue-200/90 shadow-2xs">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase">From Date:</span>
+                      <input
+                        type="date"
+                        value={customFromDate}
+                        onChange={(e) => setCustomFromDate(e.target.value)}
+                        className="text-xs font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
+                      />
+                    </div>
+
+                    <span className="text-slate-400 font-bold text-xs">to</span>
+
+                    <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-blue-200/90 shadow-2xs">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase">End Date:</span>
+                      <input
+                        type="date"
+                        value={customToDate}
+                        onChange={(e) => setCustomToDate(e.target.value)}
+                        className="text-xs font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                    {filteredHistory.length} logs in range
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(1);
+                      setCustomFromDate(getLocalDateStr(d));
+                      setCustomToDate(getLocalDateStr(new Date()));
+                    }}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Attendance History Table */}
@@ -1626,6 +1752,10 @@ export default function AttendanceManagement() {
                     setSelectedDepartment('ALL');
                     setSelectedStatus('ALL');
                     setDateFilter('ALL');
+                    const d = new Date();
+                    d.setDate(1);
+                    setCustomFromDate(getLocalDateStr(d));
+                    setCustomToDate(getLocalDateStr(new Date()));
                   }}
                   className="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
                 >
@@ -1678,6 +1808,14 @@ export default function AttendanceManagement() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* TAB 5: UNIVERSITY CALENDAR & SCHEDULES */}
+      {activeTab === 'CALENDAR' && (
+        <UniversityCalendarSection
+          events={state.calendarEvents || []}
+          attendanceRecords={state.attendanceRecords || []}
+        />
       )}
 
       {/* MANUAL OVERRIDE DIALOG */}

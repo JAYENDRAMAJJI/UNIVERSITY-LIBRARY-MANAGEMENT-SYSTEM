@@ -1146,7 +1146,7 @@ export default function BooksManagement() {
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold font-poppins text-slate-900 tracking-tight">Manage Books</h1>
             <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-2xl leading-relaxed">
-              Hierarchical classification, 5-shelf academic domain racks, barcodes, accession tracking, and bulk operations.
+              Catalog books, rack-shelf locations, barcodes, and accession inventory.
             </p>
           </div>
 

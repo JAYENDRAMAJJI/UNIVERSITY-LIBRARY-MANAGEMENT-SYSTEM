@@ -5,7 +5,6 @@ import {
   Search,
   Filter,
   Download,
-  RotateCcw,
   Clock,
   Building2,
   CheckCircle,
@@ -636,17 +635,6 @@ export default function UniversityCalendarSection({
             <Download className="h-3.5 w-3.5 text-blue-400 shrink-0" />
             <span>Export CSV</span>
           </button>
-
-          {isAdminOrStaff && (
-            <button
-              type="button"
-              onClick={handleResetDefaults}
-              title="Reset to standard 2026/2027 university holidays"
-              className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white border border-white/10 transition-all flex items-center justify-center cursor-pointer"
-            >
-              <RotateCcw className="h-3.5 w-3.5 shrink-0" />
-            </button>
-          )}
         </div>
       </div>
 
