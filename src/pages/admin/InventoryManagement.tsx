@@ -37,6 +37,7 @@ import {
   ACADEMIC_RACK_HIERARCHY,
   RackDefinition,
   ShelfDefinition,
+  STANDARD_5_SHELVES,
   calculatePhysicalShelves,
   PHYSICAL_SHELF_CAPACITY,
   generateLocationCode,
@@ -300,7 +301,7 @@ export default function InventoryManagement() {
       );
 
       const targetRack = currentRacks.find((r) => r.rackCode === norm.rackCode) || currentRacks[0];
-      const targetShelf = targetRack.shelves.find((s) => s.shelfNumber === norm.shelfNumber || s.shelfId === norm.shelfId) || targetRack.shelves[0];
+      const targetShelf = targetRack.shelves.find((s) => s.shelfNumber === norm.shelfNumber || s.shelfId === norm.shelfCode) || targetRack.shelves[0];
 
       setLocatedBookResult({
         book: matchedBook,
@@ -349,18 +350,17 @@ export default function InventoryManagement() {
         rackId: `RACK-${shortCode.toUpperCase()}`,
         rackCode: generatedCode,
         rackName: rackName.trim(),
-        program: (program === 'B.Tech' || program === 'B.Sc' ? program : 'B.Tech') as any,
+        degreeName: rackName.trim(),
+        program: program || 'B.Tech / B.E.',
         department: department.trim() || rackName.trim(),
         domain: domain.trim() || department.trim() || rackName.trim(),
         shortCode: shortCode.trim().toUpperCase(),
         description: description.trim() || `Departmental stacks for ${rackName}.`,
         colorTheme: colorTheme || 'from-blue-600 to-indigo-700',
         shelves: [
-          { shelfId: 'SHELF-1', shelfNumber: 1, shelfName: 'Tier 1: Core Fundamentals & Textbooks', focus: 'Core Curricula, Introductory Texts & Syllabi', maxCapacity: 40 },
-          { shelfId: 'SHELF-2', shelfNumber: 2, shelfName: 'Tier 2: Advanced Reference & Monographs', focus: 'Standard Reference & Academic Handbooks', maxCapacity: 40 },
-          { shelfId: 'SHELF-3', shelfNumber: 3, shelfName: 'Tier 3: Specialized Domain Research', focus: 'Research Papers, Monographs & Case Studies', maxCapacity: 40 },
-          { shelfId: 'SHELF-4', shelfNumber: 4, shelfName: 'Tier 4: Applied Practical & Lab Manuals', focus: 'Laboratory Manuals, Practicals & Projects', maxCapacity: 40 },
-          { shelfId: 'SHELF-5', shelfNumber: 5, shelfName: 'Tier 5: Competitive & General Literature', focus: 'GATE, Entrance & Professional Preparation', maxCapacity: 40 },
+          { shelfId: 'S01', shelfNumber: 1, shelfName: 'Branch 01: Core Curricula & Prescribed Textbooks', focus: 'Core Curricula, Introductory Texts & Syllabi', maxCapacity: 50 },
+          { shelfId: 'S02', shelfNumber: 2, shelfName: 'Branch 02: Advanced Reference & Monographs', focus: 'Standard Reference & Academic Handbooks', maxCapacity: 50 },
+          { shelfId: 'S03', shelfNumber: 3, shelfName: 'Branch 03: Specialized Domain Research', focus: 'Research Papers, Monographs & Case Studies', maxCapacity: 50 },
         ],
       };
 

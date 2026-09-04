@@ -18,6 +18,8 @@ export interface ShelfDefinition {
   maxCapacity?: number; // Dynamic physical capacity
 }
 
+export type AcademicProgram = string;
+
 export interface RackDefinition {
   rackId: string; // e.g. 'RACK-R01-BTECH-BE'
   rackCode: string; // 'R01', 'R02', 'R03' ... 'R24'

@@ -57,6 +57,7 @@ import {
   downloadBarcodeOrQrFile,
   printLabelStickers,
 } from '../../utils/barcodeQrGenerator';
+import { ACADEMIC_RACK_HIERARCHY, STANDARD_5_SHELVES } from '../../data/rackShelfHierarchy';
 
 const ISBN_LOOKUP: Record<string, { title: string; author: string; publisher: string; year: number; price: number; description: string; coverUrl: string }> = {
   '978-0134610993': {
