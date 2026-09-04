@@ -1,7 +1,7 @@
 import XLSX from 'xlsx-js-style';
 import { exportStyledExcelFile } from '../utils/excelExport';
 import { digitalFileStorage } from '../utils/digitalFileStorage';
-import { normalizeRackAndShelf, ACADEMIC_RACK_HIERARCHY } from '../data/rackShelfHierarchy';
+import { normalizeRackAndShelf, ACADEMIC_RACK_HIERARCHY, RackDefinition, ShelfDefinition } from '../data/rackShelfHierarchy';
 import {
   Role,
   Book,
@@ -2961,6 +2961,7 @@ interface StateSchema {
   officialDocuments?: OfficialDocument[];
   calendarEvents?: UniversityCalendarEvent[];
   readNoticeIds?: { [userKey: string]: string[] };
+  racks?: RackDefinition[];
 }
 
 // Lightweight Observable State Manager
@@ -3058,6 +3059,9 @@ class LibraryStoreService {
         }
         if (!initialState.noDueCertificates || initialState.noDueCertificates.length === 0) {
           initialState.noDueCertificates = DEFAULT_NO_DUE_CERTIFICATES;
+        }
+        if (!initialState.racks || initialState.racks.length === 0) {
+          initialState.racks = ACADEMIC_RACK_HIERARCHY;
         }
         if (!initialState.officialDocuments || initialState.officialDocuments.length === 0) {
           initialState.officialDocuments = DEFAULT_OFFICIAL_DOCUMENTS;
@@ -3487,6 +3491,7 @@ class LibraryStoreService {
       officialDocuments: DEFAULT_OFFICIAL_DOCUMENTS,
       calendarEvents: DEFAULT_CALENDAR_EVENTS,
       readNoticeIds: {},
+      racks: ACADEMIC_RACK_HIERARCHY,
     };
   }
 
@@ -3496,6 +3501,223 @@ class LibraryStoreService {
 
   public getObservable() {
     return this.state$;
+  }
+
+  // ================= RACK & SHELF MANAGEMENT =================
+  public addRack(rack: RackDefinition): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const racks = current.racks || ACADEMIC_RACK_HIERARCHY;
+    const cleanCode = rack.rackCode.trim().toUpperCase();
+
+    if (racks.some((r) => r.rackCode.toUpperCase() === cleanCode)) {
+      return { success: false, message: `A rack with code "${cleanCode}" already exists.` };
+    }
+
+    const newRack: RackDefinition = {
+      ...rack,
+      rackCode: cleanCode,
+      shelves: rack.shelves && rack.shelves.length > 0 ? rack.shelves : [
+        { shelfId: 'SHELF-1', shelfNumber: 1, shelfName: 'Tier 1: Core Fundamentals & Textbooks', focus: 'Prescribed Course Curricula & Core Texts', maxCapacity: 40 },
+        { shelfId: 'SHELF-2', shelfNumber: 2, shelfName: 'Tier 2: Advanced Reference & Monographs', focus: 'Standard Reference & Academic Guides', maxCapacity: 40 },
+        { shelfId: 'SHELF-3', shelfNumber: 3, shelfName: 'Tier 3: Research & Specialized Topics', focus: 'Specialized Domain Research & Case Studies', maxCapacity: 40 },
+        { shelfId: 'SHELF-4', shelfNumber: 4, shelfName: 'Tier 4: Applied & Laboratory Manuals', focus: 'Lab Practicals, Experiments & Project Handbooks', maxCapacity: 40 },
+        { shelfId: 'SHELF-5', shelfNumber: 5, shelfName: 'Tier 5: General & Competitive Literature', focus: 'GATE, IES, GRE & General Industry Stacks', maxCapacity: 40 },
+      ],
+    };
+
+    const updatedRacks = [...racks, newRack];
+    this.state$.next({ ...current, racks: updatedRacks });
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'ADD_RACK', 'INVENTORY', `Created new rack "${newRack.rackName}" (${newRack.rackCode})`);
+
+    return { success: true, message: `Rack "${newRack.rackName}" (${newRack.rackCode}) added successfully!` };
+  }
+
+  public updateRack(rackCode: string, updated: Partial<RackDefinition>): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const racks = current.racks || ACADEMIC_RACK_HIERARCHY;
+    const index = racks.findIndex((r) => r.rackCode.toUpperCase() === rackCode.toUpperCase());
+
+    if (index === -1) {
+      return { success: false, message: `Rack "${rackCode}" not found.` };
+    }
+
+    const oldRack = racks[index];
+    const newRackCode = (updated.rackCode || oldRack.rackCode).trim().toUpperCase();
+
+    // Check code collision if code changed
+    if (newRackCode !== oldRack.rackCode && racks.some((r, i) => i !== index && r.rackCode.toUpperCase() === newRackCode)) {
+      return { success: false, message: `Another rack with code "${newRackCode}" already exists.` };
+    }
+
+    const updatedRack: RackDefinition = {
+      ...oldRack,
+      ...updated,
+      rackCode: newRackCode,
+    };
+
+    const updatedRacks = [...racks];
+    updatedRacks[index] = updatedRack;
+
+    // If rackCode changed, update all associated books and copies
+    let updatedBooks = current.books;
+    if (newRackCode !== oldRack.rackCode) {
+      updatedBooks = current.books.map((b) => {
+        if (b.rackNumber === oldRack.rackCode) {
+          const updatedCopies = (b.copies || []).map((c) => (c.rackNumber === oldRack.rackCode ? { ...c, rackNumber: newRackCode } : c));
+          return { ...b, rackNumber: newRackCode, copies: updatedCopies };
+        }
+        return b;
+      });
+    }
+
+    this.state$.next({ ...current, racks: updatedRacks, books: updatedBooks });
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'UPDATE_RACK', 'INVENTORY', `Updated rack "${oldRack.rackCode}" to "${newRackCode}"`);
+
+    return { success: true, message: `Rack "${updatedRack.rackName}" updated successfully!` };
+  }
+
+  public deleteRack(rackCode: string): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const racks = current.racks || ACADEMIC_RACK_HIERARCHY;
+    const cleanCode = rackCode.trim().toUpperCase();
+
+    // Reassign books on this rack to fallback CSE rack
+    const fallbackRack = racks.find((r) => r.rackCode !== cleanCode)?.rackCode || 'RACK-BTECH-CSE-01';
+    const updatedBooks = current.books.map((b) => {
+      if (b.rackNumber === cleanCode) {
+        const updatedCopies = (b.copies || []).map((c) => (c.rackNumber === cleanCode ? { ...c, rackNumber: fallbackRack } : c));
+        return { ...b, rackNumber: fallbackRack, copies: updatedCopies };
+      }
+      return b;
+    });
+
+    const updatedRacks = racks.filter((r) => r.rackCode.toUpperCase() !== cleanCode);
+    this.state$.next({ ...current, racks: updatedRacks, books: updatedBooks });
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'DELETE_RACK', 'INVENTORY', `Deleted rack "${cleanCode}" and reassigned books to "${fallbackRack}"`);
+
+    return { success: true, message: `Rack "${cleanCode}" deleted and books reassigned to "${fallbackRack}".` };
+  }
+
+  public addShelf(rackCode: string, shelfData: ShelfDefinition): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const racks = current.racks || ACADEMIC_RACK_HIERARCHY;
+    const rackIndex = racks.findIndex((r) => r.rackCode.toUpperCase() === rackCode.toUpperCase());
+
+    if (rackIndex === -1) {
+      return { success: false, message: `Rack "${rackCode}" not found.` };
+    }
+
+    const rack = racks[rackIndex];
+    const cleanShelfId = shelfData.shelfId.trim().toUpperCase();
+
+    if (rack.shelves.some((s) => s.shelfId.toUpperCase() === cleanShelfId)) {
+      return { success: false, message: `Shelf tier "${cleanShelfId}" already exists on rack "${rackCode}".` };
+    }
+
+    const updatedShelves = [...rack.shelves, { ...shelfData, shelfId: cleanShelfId }];
+    const updatedRack: RackDefinition = { ...rack, shelves: updatedShelves };
+    const updatedRacks = [...racks];
+    updatedRacks[rackIndex] = updatedRack;
+
+    this.state$.next({ ...current, racks: updatedRacks });
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'ADD_SHELF', 'INVENTORY', `Added shelf "${cleanShelfId}" to rack "${rackCode}"`);
+
+    return { success: true, message: `Shelf "${cleanShelfId}" added to ${rack.rackName}!` };
+  }
+
+  public updateShelf(rackCode: string, shelfId: string, updatedData: Partial<ShelfDefinition>): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const racks = current.racks || ACADEMIC_RACK_HIERARCHY;
+    const rackIndex = racks.findIndex((r) => r.rackCode.toUpperCase() === rackCode.toUpperCase());
+
+    if (rackIndex === -1) {
+      return { success: false, message: `Rack "${rackCode}" not found.` };
+    }
+
+    const rack = racks[rackIndex];
+    const shelfIndex = rack.shelves.findIndex((s) => s.shelfId.toUpperCase() === shelfId.toUpperCase());
+
+    if (shelfIndex === -1) {
+      return { success: false, message: `Shelf "${shelfId}" not found in rack "${rackCode}".` };
+    }
+
+    const oldShelf = rack.shelves[shelfIndex];
+    const newShelfId = (updatedData.shelfId || oldShelf.shelfId).trim().toUpperCase();
+
+    const updatedShelf: ShelfDefinition = {
+      ...oldShelf,
+      ...updatedData,
+      shelfId: newShelfId,
+    };
+
+    const updatedShelves = [...rack.shelves];
+    updatedShelves[shelfIndex] = updatedShelf;
+
+    const updatedRack: RackDefinition = { ...rack, shelves: updatedShelves };
+    const updatedRacks = [...racks];
+    updatedRacks[rackIndex] = updatedRack;
+
+    // If shelfId changed, update books placed on this shelf
+    let updatedBooks = current.books;
+    if (newShelfId !== oldShelf.shelfId) {
+      updatedBooks = current.books.map((b) => {
+        if (b.rackNumber === rack.rackCode && (b.shelfNumber === oldShelf.shelfId || b.shelfNumber === `SHELF-${oldShelf.shelfNumber}`)) {
+          const updatedCopies = (b.copies || []).map((c) =>
+            c.shelfNumber === oldShelf.shelfId || c.shelfNumber === `SHELF-${oldShelf.shelfNumber}`
+              ? { ...c, shelfNumber: newShelfId }
+              : c
+          );
+          return { ...b, shelfNumber: newShelfId, copies: updatedCopies };
+        }
+        return b;
+      });
+    }
+
+    this.state$.next({ ...current, racks: updatedRacks, books: updatedBooks });
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'UPDATE_SHELF', 'INVENTORY', `Updated shelf "${shelfId}" on rack "${rackCode}"`);
+
+    return { success: true, message: `Shelf "${updatedShelf.shelfName}" updated successfully!` };
+  }
+
+  public deleteShelf(rackCode: string, shelfId: string): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const racks = current.racks || ACADEMIC_RACK_HIERARCHY;
+    const rackIndex = racks.findIndex((r) => r.rackCode.toUpperCase() === rackCode.toUpperCase());
+
+    if (rackIndex === -1) {
+      return { success: false, message: `Rack "${rackCode}" not found.` };
+    }
+
+    const rack = racks[rackIndex];
+    if (rack.shelves.length <= 1) {
+      return { success: false, message: 'Cannot delete the only shelf in a rack. Each rack must have at least 1 shelf.' };
+    }
+
+    const fallbackShelf = rack.shelves.find((s) => s.shelfId.toUpperCase() !== shelfId.toUpperCase())?.shelfId || 'SHELF-1';
+    const updatedBooks = current.books.map((b) => {
+      if (b.rackNumber === rack.rackCode && b.shelfNumber === shelfId) {
+        const updatedCopies = (b.copies || []).map((c) => (c.shelfNumber === shelfId ? { ...c, shelfNumber: fallbackShelf } : c));
+        return { ...b, shelfNumber: fallbackShelf, copies: updatedCopies };
+      }
+      return b;
+    });
+
+    const updatedShelves = rack.shelves.filter((s) => s.shelfId.toUpperCase() !== shelfId.toUpperCase());
+    const updatedRack: RackDefinition = { ...rack, shelves: updatedShelves };
+    const updatedRacks = [...racks];
+    updatedRacks[rackIndex] = updatedRack;
+
+    this.state$.next({ ...current, racks: updatedRacks, books: updatedBooks });
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'DELETE_SHELF', 'INVENTORY', `Deleted shelf "${shelfId}" from rack "${rackCode}"`);
+
+    return { success: true, message: `Shelf "${shelfId}" deleted. Books moved to "${fallbackShelf}".` };
+  }
+
+  public resetRacksToDefault(): { success: boolean; message: string } {
+    const current = this.snapshot;
+    this.state$.next({ ...current, racks: ACADEMIC_RACK_HIERARCHY });
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'RESET_RACKS', 'INVENTORY', 'Reset rack and shelf hierarchy to factory defaults');
+    return { success: true, message: 'All racks and shelves reset to academic defaults.' };
   }
 
   public addAuditLog(userId: string, userName: string, userRole: Role | string, action: string, module: string, details: string) {
