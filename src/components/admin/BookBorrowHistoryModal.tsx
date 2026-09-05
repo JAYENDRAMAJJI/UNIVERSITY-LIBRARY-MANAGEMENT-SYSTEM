@@ -596,7 +596,7 @@ export default function BookBorrowHistoryModal({
             </div>
 
             <div className="bg-white p-3.5 rounded-2xl border border-rose-200 bg-rose-50/20 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700">Overdue Loans</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700">Overdue Books</span>
               <span className="text-2xl font-extrabold text-rose-900 mt-1">{stats.overdueCount}</span>
               <span className="text-[10px] text-rose-600 font-medium">Action Needed</span>
             </div>

@@ -1,6 +1,6 @@
-export type Role = 'ADMIN' | 'STAFF' | 'FACULTY' | 'STUDENT' | 'GUEST';
+export type Role = 'ADMIN' | 'LIBRARIAN' | 'STAFF' | 'FACULTY' | 'STUDENT' | 'GUEST' | 'OTHER';
 
-export type UserStatus = 'ACTIVE' | 'SUSPENDED' | 'PENDING_APPROVAL' | 'INACTIVE';
+export type UserStatus = 'ACTIVE' | 'APPROVED' | 'PENDING_APPROVAL' | 'REJECTED' | 'SUSPENDED' | 'INACTIVE';
 
 export interface User {
   id: string;
@@ -12,6 +12,13 @@ export interface User {
   avatarUrl?: string;
   department?: string;
   memberCardNo?: string;
+  rollNo?: string;
+  appliedDate?: string;
+  approvedDate?: string;
+  approvedBy?: string;
+  rejectionReason?: string;
+  suspendedReason?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
 }
 
 export type BookStatus = 'AVAILABLE' | 'ISSUED' | 'RESERVED' | 'MAINTENANCE' | 'LOST' | 'DISPOSED';
@@ -240,14 +247,21 @@ export interface MemberProfile {
   userId: string;
   name: string;
   email: string;
+  password?: string;
   role: Role;
-  memberCardNo: string;
+  memberCardNo?: string;
   department: string;
   status: UserStatus;
   maxAllowedBooks: number;
   currentActiveLoans: number;
   pendingFines: number;
   registeredDate: string;
+  appliedDate?: string;
+  approvedDate?: string;
+  approvedBy?: string;
+  rejectionReason?: string;
+  suspendedReason?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
   avatarUrl?: string;
   phone?: string;
   rollNo?: string;
@@ -257,6 +271,8 @@ export interface MemberProfile {
   academicBatch?: string;
   address?: string;
   emergencyContact?: string;
+  idProofType?: 'COLLEGE_ID' | 'AADHAAR' | 'PASSPORT' | 'DRIVING_LICENSE' | 'OTHER';
+  idProofNumber?: string;
   noDueStatus?: 'ELIGIBLE' | 'DUES_PENDING' | 'ISSUED';
   noDueCertificateNo?: string;
   noDueIssuedDate?: string;
@@ -382,7 +398,7 @@ export interface Notice {
   createdDate: string;
   isUrgent?: boolean;
   senderName?: string;
-  category?: 'DUE_REMINDER' | 'OVERDUE_WARNING' | 'FINE_PAYMENT' | 'GENERAL' | 'EXTENSION_UPDATE';
+  category?: 'DUE_REMINDER' | 'OVERDUE_WARNING' | 'FINE_PAYMENT' | 'GENERAL' | 'EXTENSION_UPDATE' | 'ACCOUNT_APPROVAL' | 'ACCOUNT_REJECTION' | 'ACCOUNT_REGISTRATION' | 'ACCOUNT_SUSPENSION';
   readBy?: string[];
 }
 

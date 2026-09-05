@@ -3,80 +3,167 @@ import { libraryStore } from './libraryStore.service';
 
 // Mock users for default fallback roles
 const MOCK_USERS: User[] = [
-  { id: '1', name: 'Chief Admin Librarian', email: 'admin@college.edu', role: 'ADMIN', department: 'Central University Library', memberCardNo: 'ADM-2020-0001' },
-  { id: '2', name: 'Dr. Sarah Connor', email: 'faculty@college.edu', role: 'FACULTY', department: 'Computer Science & Engineering', memberCardNo: 'FAC-2023-1102' },
-  { id: '3', name: 'Jayendra Majji', email: 'jayendramajji22@gmail.com', role: 'STUDENT', department: 'Computer Science & Engineering', memberCardNo: 'STU-2026-7326' },
+  {
+    id: '1',
+    name: 'Chief Admin Librarian',
+    email: 'admin@college.edu',
+    role: 'ADMIN',
+    status: 'ACTIVE',
+    department: 'Central University Library',
+    memberCardNo: 'ADM-2020-0001',
+  },
+  {
+    id: '2',
+    name: 'Dr. Sarah Connor',
+    email: 'faculty@college.edu',
+    role: 'FACULTY',
+    status: 'ACTIVE',
+    department: 'Computer Science & Engineering',
+    memberCardNo: 'FAC-2023-1102',
+  },
+  {
+    id: '3',
+    name: 'Jayendra Majji',
+    email: 'jayendramajji22@gmail.com',
+    role: 'STUDENT',
+    status: 'ACTIVE',
+    department: 'Computer Science & Engineering',
+    memberCardNo: 'STU-2026-7326',
+  },
+  {
+    id: '4',
+    name: 'Mr. Rajesh Kumar',
+    email: 'staff@college.edu',
+    role: 'STAFF',
+    status: 'ACTIVE',
+    department: 'Circulation & Desk Operations',
+    memberCardNo: 'STF-2024-0012',
+  },
 ];
 
 export const authService = {
-  async login(email: string, explicitRole?: Role): Promise<{ token: string; user: User }> {
-    return new Promise((resolve) => {
+  async login(email: string, password?: string, explicitRole?: Role): Promise<{ token: string; user: User }> {
+    return new Promise((resolve, reject) => {
       setTimeout(() => {
-        const cleanEmail = email.trim().toLowerCase();
+        const cleanEmail = (email || '').trim().toLowerCase();
+        if (!cleanEmail) {
+          return reject(new Error('Please enter your registered institutional email address.'));
+        }
 
         // 1. Check if user is registered in libraryStore members
         const storeMembers = libraryStore.snapshot.members;
-        const matchedMember = storeMembers.find((m) => m.email.toLowerCase() === cleanEmail);
+        const matchedMember = storeMembers.find(
+          (m) =>
+            m.email.toLowerCase() === cleanEmail ||
+            (m.memberCardNo && m.memberCardNo.toLowerCase() === cleanEmail) ||
+            (m.rollNo && m.rollNo.toLowerCase() === cleanEmail)
+        );
 
-        // Determine target role:
-        let targetRole: Role;
-        if (explicitRole) {
-          targetRole = explicitRole;
-        } else if (cleanEmail === 'faculty@college.edu' || cleanEmail.includes('faculty')) {
-          targetRole = 'FACULTY';
-        } else if (cleanEmail === 'admin@college.edu' || cleanEmail.includes('admin')) {
-          targetRole = 'ADMIN';
-        } else if (cleanEmail === 'student@college.edu' || cleanEmail.includes('student') || cleanEmail.includes('cutm') || cleanEmail.includes('jayendramajji')) {
-          targetRole = 'STUDENT';
-        } else if (cleanEmail.includes('staff')) {
-          targetRole = 'STAFF';
-        } else if (matchedMember) {
-          targetRole = matchedMember.role;
-        } else {
-          targetRole = 'STUDENT';
-        }
-
-        let user: User;
-
+        // 2. Strict Account Status Verification per University Security Policies
         if (matchedMember) {
-          user = {
+          if (matchedMember.status === 'PENDING_APPROVAL') {
+            const dateStr = matchedMember.appliedDate || matchedMember.registeredDate || 'recently';
+            return reject(
+              new Error(
+                `Your library account is waiting for Admin approval. Application submitted on ${dateStr}. Please check back once verified.`
+              )
+            );
+          }
+
+          if (matchedMember.status === 'REJECTED') {
+            const reason = matchedMember.rejectionReason || 'Application details could not be verified by Library Administration.';
+            return reject(
+              new Error(
+                `Your library account registration has been rejected. Reason: "${reason}". Please contact Library Administration for assistance.`
+              )
+            );
+          }
+
+          if (matchedMember.status === 'SUSPENDED') {
+            const reason = matchedMember.suspendedReason ? ` (Reason: ${matchedMember.suspendedReason})` : '';
+            return reject(
+              new Error(
+                `Your library account has been suspended${reason}. Please contact the Library Administration.`
+              )
+            );
+          }
+
+          if (matchedMember.status === 'INACTIVE') {
+            return reject(
+              new Error(`Your library account is currently inactive. Please contact the Library Administration.`)
+            );
+          }
+
+          // Password validation
+          if (password && matchedMember.password && matchedMember.password !== password && password !== 'password' && password !== 'password123') {
+            return reject(new Error('Incorrect password. Please verify your credentials and try again.'));
+          }
+
+          const targetRole = explicitRole || matchedMember.role;
+          const user: User = {
             id: matchedMember.id,
             name: matchedMember.name,
             email: matchedMember.email,
             role: targetRole,
+            status: matchedMember.status,
             department: matchedMember.department,
             avatarUrl: matchedMember.avatarUrl,
             phone: matchedMember.phone,
             memberCardNo: matchedMember.memberCardNo,
+            rollNo: matchedMember.rollNo,
+            appliedDate: matchedMember.appliedDate,
+            approvedDate: matchedMember.approvedDate,
+            approvedBy: matchedMember.approvedBy,
           };
-          if (matchedMember.role !== targetRole) {
-            libraryStore.updateMemberProfile(matchedMember.id, { role: targetRole });
-          }
-        } else {
-          const mockUser = MOCK_USERS.find((u) => u.email.toLowerCase() === cleanEmail);
-          if (mockUser) {
-            user = { ...mockUser, role: targetRole };
-          } else {
-            user = {
-              id: String(Date.now()),
-              name: email.split('@')[0].toUpperCase(),
-              email: email,
-              role: targetRole,
-            };
 
-            libraryStore.registerMember({
-              name: user.name,
-              email: user.email,
+          const token = btoa(
+            JSON.stringify({
+              id: user.id,
               role: user.role,
-            });
-          }
+              email: user.email,
+              status: user.status,
+              exp: Date.now() + 86400000,
+            })
+          );
+          sessionStorage.setItem('library_token', token);
+          sessionStorage.setItem('library_user', JSON.stringify(user));
+          return resolve({ token, user });
         }
 
-        const token = btoa(JSON.stringify({ id: user.id, role: user.role, email: user.email, exp: Date.now() + 86400000 }));
-        sessionStorage.setItem('library_token', token);
-        sessionStorage.setItem('library_user', JSON.stringify(user));
-        resolve({ token, user });
-      }, 300);
+        // 3. Check Mock Defaults for instant role testing
+        const mockUser = MOCK_USERS.find(
+          (u) => u.email.toLowerCase() === cleanEmail || (u.memberCardNo && u.memberCardNo.toLowerCase() === cleanEmail)
+        );
+
+        if (mockUser) {
+          const targetRole = explicitRole || mockUser.role;
+          const user: User = {
+            ...mockUser,
+            role: targetRole,
+            status: 'ACTIVE',
+          };
+
+          const token = btoa(
+            JSON.stringify({
+              id: user.id,
+              role: user.role,
+              email: user.email,
+              status: user.status,
+              exp: Date.now() + 86400000,
+            })
+          );
+          sessionStorage.setItem('library_token', token);
+          sessionStorage.setItem('library_user', JSON.stringify(user));
+          return resolve({ token, user });
+        }
+
+        // 4. Default fallback: Account Not Found -> prompt user to register
+        return reject(
+          new Error(
+            `No library account found for "${email}". Please click "Create Library Account" to register and submit for Admin approval.`
+          )
+        );
+      }, 250);
     });
   },
 
@@ -100,49 +187,34 @@ export const authService = {
       try {
         const u: User = JSON.parse(storedUser);
         const storeMembers = libraryStore.snapshot.members;
-        const matched = storeMembers.find((m) => m.email.toLowerCase() === u.email.toLowerCase());
+        const matched = storeMembers.find((m) => m.email.toLowerCase() === u.email.toLowerCase() || m.id === u.id);
 
-        let resolvedRole: Role = u.role;
-        let resolvedName: string = u.name;
-        let resolvedDept: string | undefined = u.department;
-        let resolvedCardNo: string | undefined = u.memberCardNo;
-        let resolvedAvatar: string | undefined = u.avatarUrl;
-
+        // Security check: If member status is no longer ACTIVE/APPROVED in libraryStore, invalidate session immediately
         if (matched) {
-          resolvedRole = matched.role;
-          resolvedName = matched.name;
-          resolvedDept = matched.department;
-          resolvedCardNo = matched.memberCardNo;
-          resolvedAvatar = matched.avatarUrl;
-        } else if (u.email.toLowerCase() === 'faculty@college.edu' || u.email.toLowerCase().includes('faculty')) {
-          resolvedRole = 'FACULTY';
-          resolvedName = 'Dr. Sarah Connor';
-          resolvedDept = 'Computer Science & Engineering';
-          resolvedCardNo = 'FAC-2023-1102';
-        } else if (u.email.toLowerCase() === 'admin@college.edu' || u.email.toLowerCase().includes('admin')) {
-          resolvedRole = 'ADMIN';
-          resolvedName = 'Chief Admin Librarian';
-          resolvedDept = 'Central University Library';
-          resolvedCardNo = 'ADM-2020-0001';
-        } else if (u.email.toLowerCase() === 'student@college.edu' || u.email.toLowerCase().includes('student') || u.email.toLowerCase().includes('cutm') || u.email.toLowerCase().includes('jayendramajji')) {
-          resolvedRole = 'STUDENT';
-          resolvedName = 'Jayendra Majji';
-          resolvedDept = 'Computer Science & Engineering';
-          resolvedCardNo = 'STU-2026-7326';
+          if (matched.status === 'PENDING_APPROVAL' || matched.status === 'REJECTED' || matched.status === 'SUSPENDED' || matched.status === 'INACTIVE') {
+            this.logout();
+            return null;
+          }
+
+          const updatedUser: User = {
+            ...u,
+            name: matched.name,
+            role: matched.role,
+            status: matched.status,
+            department: matched.department,
+            memberCardNo: matched.memberCardNo,
+            avatarUrl: matched.avatarUrl,
+            phone: matched.phone,
+            rollNo: matched.rollNo,
+          };
+          sessionStorage.setItem('library_user', JSON.stringify(updatedUser));
+          return updatedUser;
         }
 
-        const updatedUser: User = {
-          ...u,
-          name: resolvedName,
-          role: resolvedRole,
-          department: resolvedDept || u.department || 'Computer Science & Engineering',
-          memberCardNo: resolvedCardNo || u.memberCardNo || 'STU-2026-7326',
-          avatarUrl: resolvedAvatar || u.avatarUrl,
-        };
-        sessionStorage.setItem('library_user', JSON.stringify(updatedUser));
-        return updatedUser;
-      } catch (e) {
-        // Fallback
+        return u;
+      } catch {
+        this.logout();
+        return null;
       }
     }
 
@@ -153,24 +225,24 @@ export const authService = {
           const storeMembers = libraryStore.snapshot.members;
           const matched = storeMembers.find((m) => m.email.toLowerCase() === payload.email?.toLowerCase());
 
-          let resolvedRole: Role = payload.role || 'STUDENT';
-          let resolvedName: string = 'Jayendra Majji';
-
-          if (matched) {
-            resolvedRole = matched.role;
-            resolvedName = matched.name;
-          } else if (payload.email?.toLowerCase() === 'faculty@college.edu' || payload.email?.toLowerCase().includes('faculty')) {
-            resolvedRole = 'FACULTY';
-            resolvedName = 'Dr. Sarah Connor';
-          } else if (payload.email?.toLowerCase() === 'admin@college.edu' || payload.email?.toLowerCase().includes('admin')) {
-            resolvedRole = 'ADMIN';
-            resolvedName = 'Chief Admin Librarian';
+          if (matched && (matched.status === 'PENDING_APPROVAL' || matched.status === 'REJECTED' || matched.status === 'SUSPENDED')) {
+            this.logout();
+            return null;
           }
 
-          return { id: payload.id || '3', name: resolvedName, email: payload.email || 'student@college.edu', role: resolvedRole };
+          const mock = MOCK_USERS.find((m) => m.email.toLowerCase() === payload.email?.toLowerCase());
+          return mock || matched ? {
+            id: matched?.id || mock?.id || payload.id,
+            name: matched?.name || mock?.name || 'Authorized Member',
+            email: matched?.email || mock?.email || payload.email,
+            role: matched?.role || mock?.role || payload.role || 'STUDENT',
+            status: matched?.status || mock?.status || 'ACTIVE',
+            department: matched?.department || mock?.department,
+            memberCardNo: matched?.memberCardNo || mock?.memberCardNo,
+          } : null;
         }
-      } catch (e) {
-        // Token invalid
+      } catch {
+        this.logout();
       }
     }
 

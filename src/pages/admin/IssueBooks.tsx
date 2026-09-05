@@ -53,7 +53,7 @@ export default function IssueBooks() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Circulation Loan Receipt - ${tx.accessionNo}</title>
+          <title>Circulation Borrowing Receipt - ${tx.accessionNo}</title>
           <style>
             @page { size: portrait; margin: 15mm; }
             body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #0f172a; margin: 0; padding: 30px; font-size: 13px; line-height: 1.5; }
@@ -88,7 +88,7 @@ export default function IssueBooks() {
         </head>
         <body>
           <div class="no-print">
-            <button class="print-btn" onclick="window.print()">🖨️ Print Official Loan Slip</button>
+            <button class="print-btn" onclick="window.print()">🖨️ Print Official Issue Slip</button>
             <button class="close-btn" onclick="window.close()">Close</button>
           </div>
           <div class="receipt-card">
@@ -155,7 +155,7 @@ export default function IssueBooks() {
               <strong>Circulation Rules & Advisory:</strong>
               <ol>
                 <li>Please return or renew on or before the due date (${tx.dueDate}) to avoid overdue fines (₹5/day).</li>
-                <li>Keep this loan receipt for your records until the book copy is officially returned and cleared.</li>
+                <li>Keep this issue receipt for your records until the book copy is officially returned and cleared.</li>
                 <li>Marking, underlining, or tearing pages in library books is strictly prohibited.</li>
               </ol>
             </div>
@@ -395,7 +395,7 @@ export default function IssueBooks() {
             <ScanBarcode className="h-3.5 w-3.5" /> Circulation Desk
           </div>
           <h1 className="text-2xl font-bold font-poppins text-slate-900">Issue Book to Member</h1>
-          <p className="text-sm text-slate-500 mt-1">Perform real-time eligibility checks, loan validations, and issue receipts.</p>
+          <p className="text-sm text-slate-500 mt-1">Perform real-time eligibility checks, borrowing validations, and issue receipts.</p>
         </div>
       </div>
 
@@ -766,7 +766,7 @@ export default function IssueBooks() {
                   <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">{selectedMember.status}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-50">
-                  <span className="text-slate-500">Allowed Loan Duration:</span>
+                  <span className="text-slate-500">Allowed Borrowing Duration:</span>
                   <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
                     {selectedMember.role === 'FACULTY' ? `${state.config.facultyMaxLoanDays} Days (Faculty)` : `${state.config.studentMaxLoanDays} Days (Student)`}
                   </span>
@@ -918,7 +918,7 @@ export default function IssueBooks() {
               </span>
               <h3 className="text-xl font-bold font-poppins text-slate-900">Reference Copy Restriction</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Copy #1 of this book is reserved as an <strong>In-Library Reference Copy</strong> for reading room reference only. It has a barcode for catalog inventory tracking, but <strong>CANNOT be issued or checked out to members</strong>. Please issue Copy #2 or higher for member loans.
+                Copy #1 of this book is reserved as an <strong>In-Library Reference Copy</strong> for reading room reference only. It has a barcode for catalog inventory tracking, but <strong>CANNOT be issued or checked out to members</strong>. Please issue Copy #2 or higher for member borrowing.
               </p>
             </div>
 

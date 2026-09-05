@@ -1562,7 +1562,7 @@ export default function UniversityCalendarSection({
                   <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-500 text-center">
                     {selectedDayData.isSunday
                       ? 'Standard closed Sunday (No special overrides configured).'
-                      : 'Standard working day with regular operating hours (8:00 AM – 10:00 PM).'}
+                      : 'Standard working day (Mon–Fri 8:00 AM – 10:00 PM, Sat 9:00 AM – 4:00 PM).'}
                   </div>
                 ) : (
                   selectedDayData.events.map((ev) => (

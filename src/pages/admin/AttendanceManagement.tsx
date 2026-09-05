@@ -393,6 +393,15 @@ export default function AttendanceManagement() {
     e.preventDefault();
     if (!scanInput.trim()) return;
 
+    if (!operatingStatus.isOpen) {
+      setLastScanResult({
+        success: false,
+        message: 'Attendance Disabled: Central Library is currently CLOSED. Check-in and check-out are only enabled during official library hours.',
+      });
+      setScanInput('');
+      return;
+    }
+
     const term = scanInput.trim();
     const autoMethod = detectVerificationMethod(term, verificationMethod);
     setVerificationMethod(autoMethod);
@@ -425,6 +434,16 @@ export default function AttendanceManagement() {
 
   const handleExplicitCheckIn = () => {
     if (!scanInput.trim()) return;
+
+    if (!operatingStatus.isOpen) {
+      setLastScanResult({
+        success: false,
+        message: 'Check-in Disabled: Central Library is currently CLOSED.',
+      });
+      setScanInput('');
+      return;
+    }
+
     const term = scanInput.trim();
     const autoMethod = detectVerificationMethod(term, verificationMethod);
     setVerificationMethod(autoMethod);
@@ -443,6 +462,16 @@ export default function AttendanceManagement() {
 
   const handleExplicitCheckOut = () => {
     if (!scanInput.trim()) return;
+
+    if (!operatingStatus.isOpen && activeVisitors.length === 0) {
+      setLastScanResult({
+        success: false,
+        message: `Check-out Disabled: Central Library is currently CLOSED and there are no active visitor sessions.`,
+      });
+      setScanInput('');
+      return;
+    }
+
     const res = libraryStore.checkOutMember(
       scanInput.trim(),
       user?.name || 'Scan Kiosk',
@@ -544,7 +573,7 @@ export default function AttendanceManagement() {
                 Library Attendance Management
               </h1>
               <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed mt-1.5">
-                Real-time Barcode & QR Card Check-In/Out desk, live capacity occupancy monitoring, student & faculty access verification, and attendance reports.
+                Real-time Barcode/QR Check-In & Check-Out, Live Occupancy Monitoring, Access Verification, and Attendance Reports.
               </p>
             </div>
           </div>
@@ -713,7 +742,7 @@ export default function AttendanceManagement() {
       {/* Main Tab Navigation Header - Polished Uniform Layout */}
       <div className="bg-white rounded-2xl border border-slate-200 p-1.5 shadow-xs overflow-x-auto no-scrollbar">
         {isAdminOrStaff ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 min-w-[700px] lg:min-w-0">
+          <div className="flex sm:grid sm:grid-cols-3 lg:grid-cols-5 gap-1.5 min-w-max sm:min-w-0">
             {/* Tab 1: Check-In / Out Desk */}
             <button
               type="button"
@@ -873,11 +902,25 @@ export default function AttendanceManagement() {
               </div>
               <button
                 type="button"
-                onClick={() => setIsStudentScannerOpen(true)}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 hover:shadow-lg transition-all cursor-pointer shrink-0 self-start sm:self-auto"
+                onClick={() => {
+                  if (!operatingStatus.isOpen) {
+                    setLastScanResult({
+                      success: false,
+                      message: 'Scanner Unavailable: Central Library is currently CLOSED. Attendance is enabled only during library operating hours.',
+                    });
+                    return;
+                  }
+                  setIsStudentScannerOpen(true);
+                }}
+                disabled={!operatingStatus.isOpen}
+                className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all shrink-0 self-start sm:self-auto ${
+                  !operatingStatus.isOpen
+                    ? 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-500/20 hover:shadow-lg cursor-pointer'
+                }`}
               >
                 <Camera className="w-4 h-4 shrink-0" />
-                <span className="whitespace-nowrap">Scan Member ID</span>
+                <span className="whitespace-nowrap">{!operatingStatus.isOpen ? 'Scanner (Closed)' : 'Scan Member ID'}</span>
               </button>
             </div>
 
@@ -932,14 +975,14 @@ export default function AttendanceManagement() {
 
             {/* Library Closed Info Banner */}
             {!operatingStatus.isOpen && (
-              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-start gap-3 text-amber-900 text-xs">
-                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200/80 flex items-start gap-3 text-rose-900 text-xs">
+                <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
                 <div className="space-y-0.5 min-w-0 flex-1">
                   <p className="font-bold text-slate-900">
-                    Library is Currently Closed • <span className="text-amber-800 font-semibold">{operatingStatus.statusText.replace(/^CLOSED\s*\(?|\)?$/gi, '') || 'Closed'}</span>
+                    Library Currently Closed • <span className="text-rose-700 font-semibold">Check-in counter closed after operating hours.</span>
                   </p>
-                  <p className="text-[11px] text-slate-600 leading-relaxed">
-                    Operating Hours: Mon – Sat (8:00 AM – 10:00 PM) • {operatingStatus.nextOpenText}. Check-in counter is currently paused.
+                  <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                    Mon–Fri: 8 AM–10 PM | Sat: 9 AM–4 PM | Sun & Holidays: Closed • {operatingStatus.nextOpenText}.
                   </p>
                 </div>
               </div>
@@ -961,7 +1004,12 @@ export default function AttendanceManagement() {
                   <input
                     ref={scanInputRef}
                     type="text"
-                    placeholder="Scan card barcode/QR or type ID / email..."
+                    disabled={!operatingStatus.isOpen}
+                    placeholder={
+                      !operatingStatus.isOpen
+                        ? 'Library is CLOSED — Attendance Disabled'
+                        : 'Scan card barcode/QR or type ID / email...'
+                    }
                     value={scanInput}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -972,7 +1020,11 @@ export default function AttendanceManagement() {
                         setIsAutoDetectedMethod(true);
                       }
                     }}
-                    className="w-full pl-12 pr-4 shadow-2xs py-3 rounded-2xl border-2 border-blue-200 bg-blue-50/20 text-slate-900 font-mono text-base font-bold focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                    className={`w-full pl-12 pr-4 shadow-2xs py-3 rounded-2xl border-2 font-mono text-base font-bold focus:outline-none transition-all ${
+                      !operatingStatus.isOpen
+                        ? 'bg-slate-100 border-slate-300 text-slate-400 placeholder:text-slate-400 cursor-not-allowed'
+                        : 'border-blue-200 bg-blue-50/20 text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10'
+                    }`}
                   />
                 </div>
 
@@ -1023,23 +1075,38 @@ export default function AttendanceManagement() {
                 <div className="grid grid-cols-3 gap-2 mt-3">
                   <button
                     type="submit"
-                    className="py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                    disabled={!operatingStatus.isOpen}
+                    className={`py-2.5 rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1.5 ${
+                      !operatingStatus.isOpen
+                        ? 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white cursor-pointer active:scale-95 shadow-md'
+                    }`}
                   >
-                    <Zap className="h-3.5 w-3.5" /> Smart Tap
+                    <Zap className="h-3.5 w-3.5" /> {!operatingStatus.isOpen ? 'Smart Tap (Closed)' : 'Smart Tap'}
                   </button>
                   <button
                     type="button"
                     onClick={handleExplicitCheckIn}
-                    className="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                    disabled={!operatingStatus.isOpen}
+                    className={`py-2.5 rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1.5 ${
+                      !operatingStatus.isOpen
+                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                        : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95'
+                    }`}
                   >
-                    <LogIn className="h-3.5 w-3.5" /> Check-In (Entry)
+                    <LogIn className="h-3.5 w-3.5" /> {!operatingStatus.isOpen ? 'Check-In (Closed)' : 'Check-In (Entry)'}
                   </button>
                   <button
                     type="button"
                     onClick={handleExplicitCheckOut}
-                    className="py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                    disabled={!operatingStatus.isOpen && activeVisitors.length === 0}
+                    className={`py-2.5 rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1.5 ${
+                      !operatingStatus.isOpen && activeVisitors.length === 0
+                        ? 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed'
+                        : 'bg-rose-600 hover:bg-rose-700 text-white cursor-pointer active:scale-95'
+                    }`}
                   >
-                    <LogOut className="h-3.5 w-3.5" /> Check-Out (Exit)
+                    <LogOut className="h-3.5 w-3.5" /> {!operatingStatus.isOpen && activeVisitors.length === 0 ? 'Check-Out (Closed)' : 'Check-Out (Exit)'}
                   </button>
                 </div>
               </div>
@@ -1264,7 +1331,7 @@ export default function AttendanceManagement() {
                     if (res.checkedOutCount > 0) {
                       setLastScanResult({
                         success: true,
-                        message: `Operating Hours Auto-Checkout: Successfully checked out ${res.checkedOutCount} visitor(s) (10:00 PM Closing Rule).`,
+                        message: `Operating Hours Auto-Checkout: Successfully checked out ${res.checkedOutCount} visitor(s) (Closing Rule).`,
                       });
                     } else {
                       setLastScanResult({
@@ -1276,7 +1343,7 @@ export default function AttendanceManagement() {
                   className="w-full p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200/80 transition-colors flex items-center justify-between cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-amber-600" /> Run Auto Check-Out (10 PM Closing)
+                    <Clock className="h-4 w-4 text-amber-600" /> Run Auto Check-Out (Closing Rule)
                   </span>
                   <span className="text-[10px] text-amber-700 font-extrabold uppercase">Auto Rule</span>
                 </button>
@@ -1317,7 +1384,7 @@ export default function AttendanceManagement() {
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {!operatingStatus.isOpen
-                    ? `Closed • Regular Hours: Mon – Sat (8:00 AM – 10:00 PM) • ${operatingStatus.nextOpenText}.`
+                    ? `Closed • Mon–Fri: 8 AM–10 PM | Sat: 9 AM–4 PM | Sun & Holidays: Closed • ${operatingStatus.nextOpenText}.`
                     : `Currently ${activeVisitors.length} active visitors inside the central library reading rooms and wings.`}
                 </p>
               </div>
@@ -1464,7 +1531,7 @@ export default function AttendanceManagement() {
                 </p>
                 <p className="text-xs">
                   {!operatingStatus.isOpen
-                    ? `Regular Hours: Mon – Sat (8:00 AM – 10:00 PM) • ${operatingStatus.nextOpenText}.`
+                    ? `Mon–Fri: 8 AM–10 PM | Sat: 9 AM–4 PM | Sun & Holidays: Closed • ${operatingStatus.nextOpenText}.`
                     : 'Scan member barcodes at the desk counter to record Check-In sessions.'}
                 </p>
               </div>

@@ -39,6 +39,7 @@ import {
   CalendarEventType,
   CalendarEventCategory,
   UniversityCalendarEvent,
+  UserStatus,
 } from '../types/library';
 
 // Key for LocalStorage
@@ -227,16 +228,16 @@ export const getMemberPendingFines = (
 
   const member = (state.members || []).find(
     (m: any) =>
-      m.id.toLowerCase() === term ||
-      m.memberCardNo.toLowerCase() === term ||
-      m.email.toLowerCase() === term ||
-      m.name.toLowerCase() === term
+      m.id?.toLowerCase() === term ||
+      m.memberCardNo?.toLowerCase() === term ||
+      m.email?.toLowerCase() === term ||
+      m.name?.toLowerCase() === term
   );
 
   if (!member) return 0;
 
   const mId = member.id;
-  const mCard = member.memberCardNo.toLowerCase();
+  const mCard = (member.memberCardNo || '').toLowerCase();
 
   const allFines = getAllUnifiedFines(state);
   let totalPending = 0;
@@ -395,7 +396,7 @@ export const getLibraryOperatingStatus = (
       return {
         isOpen: false,
         statusText: `CLOSED (Opens ${openTimeStr})`,
-        reason: `${matchedEvent.title}: Library opens today at ${matchedEvent.customHoursText || openTimeStr}.`,
+        reason: `Library opens today at ${openTimeStr}.`,
         nextOpenText: `Opens today at ${openTimeStr}`,
         isSpecialWorkingDay: true,
         calendarEvent: matchedEvent,
@@ -403,11 +404,17 @@ export const getLibraryOperatingStatus = (
     }
 
     if (currentMinutes >= eventCloseMins) {
+      let nextText = 'Opens tomorrow at 8:00 AM';
+      if (dayOfWeek === 6) {
+        nextText = 'Opens Monday at 8:00 AM';
+      } else if (dayOfWeek === 5) {
+        nextText = 'Opens tomorrow (Saturday) at 9:00 AM';
+      }
       return {
         isOpen: false,
-        statusText: `CLOSED (Closed at ${closeTimeStr})`,
-        reason: `${matchedEvent.title}: Library closed for today at ${matchedEvent.customHoursText || closeTimeStr}.`,
-        nextOpenText: 'Opens tomorrow at 8:00 AM',
+        statusText: `CLOSED (After ${closeTimeStr})`,
+        reason: 'Closed after operating hours.',
+        nextOpenText: nextText,
         isSpecialWorkingDay: true,
         calendarEvent: matchedEvent,
       };
@@ -416,7 +423,7 @@ export const getLibraryOperatingStatus = (
     return {
       isOpen: true,
       statusText: `OPEN (${matchedEvent.title})`,
-      reason: `${matchedEvent.title} — Active Schedule: ${matchedEvent.customHoursText || `${openTimeStr} – ${closeTimeStr}`}`,
+      reason: `${matchedEvent.title} • Active: ${matchedEvent.customHoursText || `${openTimeStr} – ${closeTimeStr}`}`,
       nextOpenText: `Closes today at ${closeTimeStr}`,
       isSpecialWorkingDay: true,
       calendarEvent: matchedEvent,
@@ -446,33 +453,45 @@ export const getLibraryOperatingStatus = (
     };
   }
 
-  // 4. Standard Working Day Operating Hours (8:00 AM - 10:00 PM)
-  const openMinutes = 8 * 60;   // 8:00 AM = 480 mins
-  const closeMinutes = 22 * 60; // 10:00 PM = 1320 mins
+  // 4. Standard Working Day Operating Hours
+  // Monday – Friday: 8:00 AM – 10:00 PM (480 to 1320 mins)
+  // Saturday: 9:00 AM – 4:00 PM (540 to 960 mins)
+  const isSaturday = dayOfWeek === 6;
+  const openMinutes = isSaturday ? 9 * 60 : 8 * 60;     // Sat: 9:00 AM, Mon-Fri: 8:00 AM
+  const closeMinutes = isSaturday ? 16 * 60 : 22 * 60;  // Sat: 4:00 PM, Mon-Fri: 10:00 PM
+  const scheduleStr = isSaturday ? '9:00 AM – 4:00 PM' : '8:00 AM – 10:00 PM';
+  const openTimeStr = isSaturday ? '9:00 AM' : '8:00 AM';
+  const closeTimeStr = isSaturday ? '4:00 PM' : '10:00 PM';
 
   if (currentMinutes < openMinutes) {
     return {
       isOpen: false,
-      statusText: 'CLOSED (Before 8:00 AM)',
-      reason: 'Library opens at 8:00 AM.',
-      nextOpenText: 'Opens today at 8:00 AM',
+      statusText: `CLOSED (Before ${openTimeStr})`,
+      reason: `Library opens today at ${openTimeStr}.`,
+      nextOpenText: `Opens today at ${openTimeStr}`,
     };
   }
 
   if (currentMinutes >= closeMinutes) {
+    let nextText = 'Opens tomorrow at 8:00 AM';
+    if (isSaturday) {
+      nextText = 'Opens Monday at 8:00 AM';
+    } else if (dayOfWeek === 5) {
+      nextText = 'Opens tomorrow (Saturday) at 9:00 AM';
+    }
     return {
       isOpen: false,
-      statusText: 'CLOSED (After 10:00 PM)',
-      reason: 'Daily operating hours ended at 10:00 PM.',
-      nextOpenText: dayOfWeek === 6 ? 'Opens Monday at 8:00 AM' : 'Opens tomorrow at 8:00 AM',
+      statusText: `CLOSED (After ${closeTimeStr})`,
+      reason: `Daily operating hours ended at ${closeTimeStr}.`,
+      nextOpenText: nextText,
     };
   }
 
   return {
     isOpen: true,
-    statusText: 'OPEN NOW (8:00 AM – 10:00 PM)',
+    statusText: `OPEN NOW (${scheduleStr})`,
     reason: 'Central Library Circulation Desk & Reading Rooms are open.',
-    nextOpenText: 'Closes today at 10:00 PM',
+    nextOpenText: `Closes today at ${closeTimeStr}`,
   };
 };
 
@@ -1633,6 +1652,95 @@ const DEFAULT_MEMBERS: MemberProfile[] = [
     pendingFines: 0.00,
     registeredDate: '2020-01-01',
   },
+  {
+    id: 'mem-app-1',
+    userId: 'usr-app-1',
+    name: 'Rohan Sharma',
+    email: 'rohan.sharma@college.edu',
+    role: 'STUDENT',
+    memberCardNo: 'APP-2026-8841',
+    department: 'Computer Science & Engineering',
+    program: 'B.Tech CSE (Hons)',
+    rollNo: '24CS089',
+    academicBatch: '2024 - 2028',
+    phone: '+91 98765 43210',
+    idProofType: 'COLLEGE_ID',
+    idProofNumber: 'CLG-2024-8841',
+    status: 'PENDING_APPROVAL',
+    appliedDate: '2026-09-04 10:30',
+    maxAllowedBooks: 4,
+    currentActiveLoans: 0,
+    pendingFines: 0.00,
+    registeredDate: '2026-09-04',
+    address: 'Hostel Block 4, Room 218, North Campus',
+    avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=200&q=80',
+  },
+  {
+    id: 'mem-app-2',
+    userId: 'usr-app-2',
+    name: 'Dr. Anita Desai',
+    email: 'anita.desai@college.edu',
+    role: 'FACULTY',
+    memberCardNo: 'APP-2026-8821',
+    department: 'Mechanical Engineering',
+    phone: '+91 91234 56789',
+    idProofType: 'COLLEGE_ID',
+    idProofNumber: 'FAC-EMP-8821',
+    status: 'PENDING_APPROVAL',
+    appliedDate: '2026-09-05 09:15',
+    maxAllowedBooks: 10,
+    currentActiveLoans: 0,
+    pendingFines: 0.00,
+    registeredDate: '2026-09-05',
+    address: 'Faculty Enclave, Quarter B-12, Main Campus',
+    avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80',
+  },
+  {
+    id: 'mem-app-3',
+    userId: 'usr-app-3',
+    name: 'Vikram Malhotra',
+    email: 'vikram.m@college.edu',
+    role: 'STUDENT',
+    memberCardNo: 'APP-2026-4512',
+    department: 'Civil Engineering',
+    program: 'B.Tech Civil',
+    rollNo: '23CE044',
+    academicBatch: '2023 - 2027',
+    phone: '+91 97654 32109',
+    idProofType: 'AADHAAR',
+    idProofNumber: 'XXXX-XXXX-4512',
+    status: 'REJECTED',
+    appliedDate: '2026-09-01 14:00',
+    rejectionReason: 'Invalid student ID card attachment and mismatched roll number. Please re-apply with official registration proof.',
+    maxAllowedBooks: 4,
+    currentActiveLoans: 0,
+    pendingFines: 0.00,
+    registeredDate: '2026-09-01',
+    address: 'Sector 15, Near City Center, Metro Gate 2',
+  },
+  {
+    id: 'mem-app-4',
+    userId: 'usr-app-4',
+    name: 'Kavita Reddy',
+    email: 'kavita.reddy@college.edu',
+    role: 'STUDENT',
+    memberCardNo: 'STU-2024-4190',
+    department: 'Biotechnology',
+    program: 'M.Tech Biotech',
+    rollNo: '24BT012',
+    academicBatch: '2024 - 2026',
+    phone: '+91 94455 66778',
+    status: 'SUSPENDED',
+    appliedDate: '2024-08-10',
+    approvedDate: '2024-08-11',
+    approvedBy: 'Chief Admin Librarian',
+    suspendedReason: 'Account suspended due to consecutive unreturned reference volumes and unaddressed disciplinary notice.',
+    maxAllowedBooks: 5,
+    currentActiveLoans: 1,
+    pendingFines: 120.00,
+    registeredDate: '2024-08-11',
+    address: 'Post Graduate Hostel, Room 104',
+  },
 ];
 
 const DEFAULT_TRANSACTIONS: IssueTransaction[] = [
@@ -2502,8 +2610,8 @@ const DEFAULT_NOTICES: Notice[] = [
   },
   {
     id: 'notice-102',
-    title: 'Central Library Monsoon Operating Hours & Reading Room Schedule',
-    content: 'The Central Library reading rooms will remain open from 8:00 AM to 10:00 PM on all weekdays. Digital Library terminals and catalog search kiosks are fully operational.',
+    title: 'Central Library Operating Hours & Reading Room Schedule',
+    content: 'The Central Library reading rooms will remain open from 8:00 AM to 10:00 PM on weekdays (Mon-Fri) and 9:00 AM to 4:00 PM on Saturdays. Digital Library terminals and catalog search kiosks are fully operational.',
     targetAudience: 'ALL',
     createdDate: '2026-07-18',
     isUrgent: false,
@@ -2815,9 +2923,9 @@ export const DEFAULT_CALENDAR_EVENTS: UniversityCalendarEvent[] = [
     type: 'SPECIAL_HOURS',
     category: 'SPECIAL_SCHEDULE',
     isLibraryOpen: true,
-    openTime: '08:00',
-    closeTime: '22:00',
-    customHoursText: '08:00 AM – 10:00 PM',
+    openTime: '09:00',
+    closeTime: '16:00',
+    customHoursText: '09:00 AM – 04:00 PM',
     description: "Honoring Dr. Sarvepalli Radhakrishnan with special faculty research access and open reading desks.",
     declaredBy: 'Chief Librarian',
     affectedBranches: ['Central Library', 'Faculty Research Wing'],
@@ -3276,8 +3384,24 @@ class LibraryStoreService {
           }));
         }
 
-        // Strict cleanup: Purge any unregistered people from all store arrays
+        // Ensure all DEFAULT_MEMBERS exist
         if (initialState.members) {
+          DEFAULT_MEMBERS.forEach((dm) => {
+            if (!initialState.members.some((m) => m.id === dm.id || m.email.toLowerCase() === dm.email.toLowerCase())) {
+              initialState.members.push(dm);
+            }
+          });
+          // Auto-repair any member missing memberCardNo
+          initialState.members = initialState.members.map((m) => {
+            if (!m.memberCardNo) {
+              const prefix = m.role === 'STUDENT' ? 'STU' : m.role === 'FACULTY' ? 'FAC' : m.role === 'STAFF' ? 'STF' : 'ADM';
+              return {
+                ...m,
+                memberCardNo: m.status === 'PENDING_APPROVAL' ? `APP-${m.id.slice(-6)}` : `${prefix}-2024-${Math.floor(1000 + Math.random() * 9000)}`,
+              };
+            }
+            return m;
+          });
           const validMemberIds = new Set(initialState.members.map((m) => m.id.toLowerCase()));
           const validCardNos = new Set(initialState.members.map((m) => (m.memberCardNo || '').toLowerCase()));
           const validEmails = new Set(initialState.members.map((m) => (m.email || '').toLowerCase()));
@@ -3436,6 +3560,21 @@ class LibraryStoreService {
       });
     }
 
+    // Auto-update calendar event hours for consistency with Saturday operating hours
+    if (initialState.calendarEvents) {
+      initialState.calendarEvents = initialState.calendarEvents.map((ev) => {
+        if (ev.id === 'cal-2026-010' || ev.date === '2026-09-05') {
+          return {
+            ...ev,
+            openTime: '09:00',
+            closeTime: '16:00',
+            customHoursText: '09:00 AM – 04:00 PM',
+          };
+        }
+        return ev;
+      });
+    }
+
     this.state$ = new SimpleBehaviorSubject<StateSchema>(initialState);
     this.state$.subscribe((state) => {
       try {
@@ -3582,7 +3721,7 @@ class LibraryStoreService {
     const cleanCode = rackCode.trim().toUpperCase();
 
     // Reassign books on this rack to fallback CSE rack
-    const fallbackRack = racks.find((r) => r.rackCode !== cleanCode)?.rackCode || 'RACK-BTECH-CSE-01';
+    const fallbackRack = racks.find((r) => r.rackCode !== cleanCode)?.rackCode || 'R01';
     const updatedBooks = current.books.map((b) => {
       if (b.rackNumber === cleanCode) {
         const updatedCopies = (b.copies || []).map((c) => (c.rackNumber === cleanCode ? { ...c, rackNumber: fallbackRack } : c));
@@ -3926,8 +4065,8 @@ class LibraryStoreService {
       }
 
       if (updated.rackNumber !== undefined || updated.shelfNumber !== undefined) {
-        const targetRack = updated.rackNumber || b.rackNumber || 'RACK-BTECH-CSE-01';
-        const targetShelf = updated.shelfNumber || b.shelfNumber || 'SHELF-1';
+        const targetRack = updated.rackNumber || b.rackNumber || 'R01';
+        const targetShelf = updated.shelfNumber || b.shelfNumber || 'S01';
         updatedCopies = updatedCopies.map((c) => ({
           ...c,
           rackNumber: targetRack,
@@ -4277,9 +4416,9 @@ class LibraryStoreService {
     const qNoPrefix = qClean.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
 
     const member = current.members.find((m) => {
-      const cLower = m.memberCardNo.toLowerCase();
-      const idLower = m.id.toLowerCase();
-      const eLower = m.email.toLowerCase();
+      const cLower = (m.memberCardNo || '').toLowerCase();
+      const idLower = (m.id || '').toLowerCase();
+      const eLower = (m.email || '').toLowerCase();
 
       if (cLower === qClean || idLower === qClean || eLower === qClean) return true;
 
@@ -4321,8 +4460,8 @@ class LibraryStoreService {
 
     // Check if the provided code is actually a Member ID Card
     const isMemberCode = current.members.some((m) => {
-      const cLower = m.memberCardNo.toLowerCase();
-      const idLower = m.id.toLowerCase();
+      const cLower = (m.memberCardNo || '').toLowerCase();
+      const idLower = (m.id || '').toLowerCase();
       if (cLower === cleanQuery || idLower === cleanQuery) return true;
       const cNorm = cLower.replace(/[^a-z0-9]/g, '');
       const idNorm = idLower.replace(/[^a-z0-9]/g, '');
@@ -4372,7 +4511,7 @@ class LibraryStoreService {
       return {
         success: false,
         isReferenceBook: true,
-        message: `RESTRICTED ITEM: Copy "${targetCopy.accessionNo}" (${targetCopy.barcode}) of "${targetBook.title}" is reserved as Copy #1 Reference Copy for in-library reading room use only and CANNOT be checked out. Please issue Copy #2 or higher for member loans.`,
+        message: `RESTRICTED ITEM: Copy "${targetCopy.accessionNo}" (${targetCopy.barcode}) of "${targetBook.title}" is reserved as Copy #1 Reference Copy for in-library reading room use only and CANNOT be checked out. Please issue Copy #2 or higher for member borrowing.`,
       };
     }
 
@@ -4565,8 +4704,8 @@ class LibraryStoreService {
       success: true,
       message: fineAmount > 0
         ? isFinePaid
-          ? `Overdue fine of ₹${fineAmount.toFixed(2)} paid successfully via ${paidFineDetails?.paymentMethod}. Book returned cleanly (Receipt: ${generatedReceiptNo}).`
-          : `Book returned. Overdue fine assessed: ₹${fineAmount.toFixed(2)}`
+        ? `Overdue fine of ₹${fineAmount.toFixed(2)} paid successfully via ${paidFineDetails?.paymentMethod}. Book returned cleanly (Receipt: ${generatedReceiptNo}).`
+        : `Book returned. Overdue fine assessed: ₹${fineAmount.toFixed(2)}`
         : 'Book returned on time cleanly.',
       fineAssessed: fineAmount,
       receiptNo: generatedReceiptNo,
@@ -4611,7 +4750,7 @@ class LibraryStoreService {
       transactions: updatedTransactions,
     });
 
-    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'RENEW_BOOK', 'CIRCULATION', `Renewed loan ${tx.id} for ${tx.memberName}. New Due: ${newDueDate}`);
+    this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'RENEW_BOOK', 'CIRCULATION', `Renewed borrowing ${tx.id} for ${tx.memberName}. New Due: ${newDueDate}`);
 
     return { success: true, message: `Renewal approved. Extended due date: ${newDueDate}`, newDueDate };
   }
@@ -4620,11 +4759,11 @@ class LibraryStoreService {
     const current = this.snapshot;
     const tx = current.transactions.find((t) => t.id === transactionId);
     if (!tx) {
-      return { success: false, message: 'Active borrowed loan transaction record not found.' };
+      return { success: false, message: 'Active borrowed transaction record not found.' };
     }
 
     if (tx.status !== 'ISSUED' && tx.status !== 'OVERDUE') {
-      return { success: false, message: 'This book loan is not active. Cannot request extension.' };
+      return { success: false, message: 'This book checkout is not active. Cannot request extension.' };
     }
 
     // Check if pending request already exists for this loan
@@ -5435,6 +5574,8 @@ class LibraryStoreService {
     academicBatch?: string;
     address?: string;
     emergencyContact?: string;
+    password?: string;
+    status?: UserStatus;
   }): MemberProfile {
     const current = this.snapshot;
 
@@ -5453,14 +5594,16 @@ class LibraryStoreService {
       userId: `user-${Date.now()}`,
       name: data.name,
       email: data.email,
+      password: data.password || 'password123',
       role: data.role,
       memberCardNo: cardNo,
       department: data.department || 'General Academic',
-      status: 'ACTIVE',
+      status: data.status || 'ACTIVE',
       maxAllowedBooks: maxBooks,
       currentActiveLoans: 0,
       pendingFines: 0.00,
       registeredDate: getLocalDateStr(new Date()),
+      appliedDate: getLocalDateStr(new Date()),
       avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80`,
       phone: data.phone || '+91 98765 43210',
       rollNo: data.rollNo || (data.role === 'STUDENT' ? '2026-CS-101' : 'EMP-2026-88'),
@@ -5476,6 +5619,390 @@ class LibraryStoreService {
 
     this.addAuditLog(newMember.id, newMember.name, newMember.role, 'REGISTER_MEMBER', 'MEMBER_MANAGEMENT', `Registered new ${newMember.role} account (${cardNo})`);
     return newMember;
+  }
+
+  /**
+   * Submits a self-service registration request for Students, Faculty, Staff, or Other users
+   * Account is automatically set to PENDING_APPROVAL and cannot log in until Admin approval
+   */
+  public submitAccountRegistration(data: {
+    name: string;
+    email: string;
+    password?: string;
+    role: Role;
+    department?: string;
+    phone?: string;
+    rollNo?: string;
+    program?: string;
+    academicBatch?: string;
+    address?: string;
+    emergencyContact?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+    idProofType?: 'COLLEGE_ID' | 'AADHAAR' | 'PASSPORT' | 'DRIVING_LICENSE' | 'OTHER';
+    idProofNumber?: string;
+  }): { success: boolean; message: string; member?: MemberProfile } {
+    const current = this.snapshot;
+    const cleanEmail = (data.email || '').trim().toLowerCase();
+
+    const existing = current.members.find((m) => m.email.toLowerCase() === cleanEmail);
+    if (existing) {
+      if (existing.status === 'PENDING_APPROVAL') {
+        return {
+          success: false,
+          message: `An account application with email "${cleanEmail}" is already pending approval. Submitted on ${existing.appliedDate || existing.registeredDate}.`,
+          member: existing,
+        };
+      }
+      if (existing.status === 'REJECTED') {
+        return {
+          success: false,
+          message: `A registration with email "${cleanEmail}" was previously rejected (Reason: ${existing.rejectionReason || 'Incomplete details'}). Please contact Library Admin or re-apply.`,
+          member: existing,
+        };
+      }
+      return {
+        success: false,
+        message: `An account with email "${cleanEmail}" already exists. Please proceed to login.`,
+        member: existing,
+      };
+    }
+
+    const todayStr = getLocalDateStr(new Date());
+    const tempAppId = `APP-${Date.now().toString().slice(-6)}`;
+    const maxBooks = data.role === 'FACULTY' ? 10 : data.role === 'STAFF' ? 8 : data.role === 'STUDENT' ? 5 : 3;
+
+    const newApplicant: MemberProfile = {
+      id: `mem-app-${Date.now()}`,
+      userId: `user-app-${Date.now()}`,
+      name: data.name.trim(),
+      email: cleanEmail,
+      password: data.password || 'password123',
+      role: data.role,
+      memberCardNo: tempAppId, // Temporary Application ID until approved
+      department: data.department || 'General Academic',
+      status: 'PENDING_APPROVAL',
+      maxAllowedBooks: maxBooks,
+      currentActiveLoans: 0,
+      pendingFines: 0,
+      registeredDate: todayStr,
+      appliedDate: todayStr,
+      gender: data.gender || 'MALE',
+      avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80`,
+      phone: data.phone || '+91 98765 43210',
+      rollNo: data.rollNo || (data.role === 'STUDENT' ? '2026-CS-NEW' : 'EMP-2026-NEW'),
+      program: data.program || 'Undergraduate Program',
+      academicBatch: data.academicBatch || (data.role === 'STUDENT' ? 'Batch 2024-2028' : 'Faculty Staff'),
+      address: data.address || 'Hostel / Campus Residential',
+      emergencyContact: data.emergencyContact || '+91 98000 00000',
+      idProofType: data.idProofType || 'COLLEGE_ID',
+      idProofNumber: data.idProofNumber || data.rollNo,
+    };
+
+    // Add Admin Notification
+    const adminNotice: Notice = {
+      id: `notice-app-${Date.now()}`,
+      title: `New ${data.role} Account Registration Request`,
+      content: `Applicant "${newApplicant.name}" (${newApplicant.role}, Dept: ${newApplicant.department}) has submitted a library membership application (Ref: ${tempAppId}). Please review and approve/reject in Account Approvals.`,
+      targetAudience: 'ADMIN',
+      createdDate: todayStr,
+      isUrgent: true,
+      senderName: 'Portal Registration Gateway',
+      category: 'ACCOUNT_REGISTRATION',
+    };
+
+    this.state$.next({
+      ...current,
+      members: [newApplicant, ...current.members],
+      notices: [adminNotice, ...(current.notices || [])],
+    });
+
+    this.addAuditLog(
+      newApplicant.id,
+      newApplicant.name,
+      newApplicant.role,
+      'SUBMIT_REGISTRATION',
+      'ACCOUNT_APPROVALS',
+      `Submitted membership application for ${newApplicant.role} (${newApplicant.department}). Status set to PENDING_APPROVAL.`
+    );
+
+    return {
+      success: true,
+      message: `Registration submitted successfully! Application Ref: ${tempAppId}. Your account is waiting for Admin approval before you can log in.`,
+      member: newApplicant,
+    };
+  }
+
+  /**
+   * Approves a pending library account and assigns official Member Card ID & permissions
+   */
+  public approveAccount(
+    memberId: string,
+    options?: { memberCardNo?: string; notes?: string; reviewerName?: string }
+  ): { success: boolean; message: string; member?: MemberProfile } {
+    const current = this.snapshot;
+    const target = current.members.find((m) => m.id === memberId || m.email.toLowerCase() === memberId.toLowerCase());
+
+    if (!target) {
+      return { success: false, message: 'Member account not found.' };
+    }
+
+    const todayStr = getLocalDateStr(new Date());
+    const prefix = target.role === 'STUDENT' ? 'STU' : target.role === 'FACULTY' ? 'FAC' : target.role === 'STAFF' ? 'STF' : 'LIB';
+    const generatedCardNo = options?.memberCardNo?.trim() || `${prefix}-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const updatedMember: MemberProfile = {
+      ...target,
+      status: 'ACTIVE',
+      memberCardNo: target.memberCardNo.startsWith('APP-') ? generatedCardNo : target.memberCardNo || generatedCardNo,
+      approvedDate: todayStr,
+      approvedBy: options?.reviewerName || 'Chief Admin Librarian',
+      rejectionReason: undefined,
+      suspendedReason: undefined,
+    };
+
+    const approvalNotice: Notice = {
+      id: `notice-appr-${Date.now()}`,
+      title: '🎉 Library Account Approved & Activated',
+      content: `Dear ${target.name}, congratulations! Your University Central Library Account registration has been approved. Your official Library Card Number is "${updatedMember.memberCardNo}". You can now log into your portal dashboard to borrow books, reserve catalog items, and access digital resources.`,
+      recipientEmail: target.email,
+      recipientName: target.name,
+      recipientMemberId: updatedMember.id,
+      targetAudience: target.role,
+      createdDate: todayStr,
+      isUrgent: false,
+      senderName: options?.reviewerName || 'Chief Admin Librarian',
+      category: 'ACCOUNT_APPROVAL',
+    };
+
+    const members = current.members.map((m) => (m.id === target.id ? updatedMember : m));
+    this.state$.next({
+      ...current,
+      members,
+      notices: [approvalNotice, ...(current.notices || [])],
+    });
+
+    this.addAuditLog(
+      target.id,
+      target.name,
+      target.role,
+      'APPROVE_ACCOUNT',
+      'ACCOUNT_APPROVALS',
+      `Approved ${target.role} account. Assigned Member Card: ${updatedMember.memberCardNo}.`
+    );
+
+    return {
+      success: true,
+      message: `Account for "${target.name}" has been approved successfully! Assigned Card No: ${updatedMember.memberCardNo}.`,
+      member: updatedMember,
+    };
+  }
+
+  /**
+   * Rejects a pending library account registration with required reason
+   */
+  public rejectAccount(
+    memberId: string,
+    reason: string,
+    reviewerName?: string
+  ): { success: boolean; message: string; member?: MemberProfile } {
+    const current = this.snapshot;
+    const target = current.members.find((m) => m.id === memberId || m.email.toLowerCase() === memberId.toLowerCase());
+
+    if (!target) {
+      return { success: false, message: 'Member account not found.' };
+    }
+
+    const cleanReason = reason?.trim() || 'Application details could not be verified by Library Administration.';
+    const todayStr = getLocalDateStr(new Date());
+
+    const updatedMember: MemberProfile = {
+      ...target,
+      status: 'REJECTED',
+      rejectionReason: cleanReason,
+      approvedDate: todayStr,
+      approvedBy: reviewerName || 'Chief Admin Librarian',
+    };
+
+    const rejectionNotice: Notice = {
+      id: `notice-rej-${Date.now()}`,
+      title: '⚠️ Library Account Registration Update',
+      content: `Dear ${target.name}, your library account registration was reviewed and could not be approved at this time. Reason: "${cleanReason}". Please contact the Central Library Administration Desk if you require assistance.`,
+      recipientEmail: target.email,
+      recipientName: target.name,
+      recipientMemberId: updatedMember.id,
+      targetAudience: target.role,
+      createdDate: todayStr,
+      isUrgent: true,
+      senderName: reviewerName || 'Chief Admin Librarian',
+      category: 'ACCOUNT_REJECTION',
+    };
+
+    const members = current.members.map((m) => (m.id === target.id ? updatedMember : m));
+    this.state$.next({
+      ...current,
+      members,
+      notices: [rejectionNotice, ...(current.notices || [])],
+    });
+
+    this.addAuditLog(
+      target.id,
+      target.name,
+      target.role,
+      'REJECT_ACCOUNT',
+      'ACCOUNT_APPROVALS',
+      `Rejected account application for ${target.name} (${target.email}). Reason: ${cleanReason}`
+    );
+
+    return {
+      success: true,
+      message: `Registration for "${target.name}" has been rejected.`,
+      member: updatedMember,
+    };
+  }
+
+  /**
+   * Suspends an active library account
+   */
+  public suspendAccount(
+    memberId: string,
+    reason: string,
+    reviewerName?: string
+  ): { success: boolean; message: string; member?: MemberProfile } {
+    const current = this.snapshot;
+    const target = current.members.find((m) => m.id === memberId || m.email.toLowerCase() === memberId.toLowerCase());
+
+    if (!target) {
+      return { success: false, message: 'Member account not found.' };
+    }
+
+    const cleanReason = reason?.trim() || 'Account suspended by Library Administration due to policy compliance review.';
+    const todayStr = getLocalDateStr(new Date());
+
+    const updatedMember: MemberProfile = {
+      ...target,
+      status: 'SUSPENDED',
+      suspendedReason: cleanReason,
+    };
+
+    const suspensionNotice: Notice = {
+      id: `notice-susp-${Date.now()}`,
+      title: '🛑 Library Membership Suspended',
+      content: `Dear ${target.name}, your library borrowing privileges and portal access have been temporarily suspended. Reason: "${cleanReason}". Please report to the Circulation Counter to resolve any outstanding issues.`,
+      recipientEmail: target.email,
+      recipientName: target.name,
+      recipientMemberId: updatedMember.id,
+      targetAudience: target.role,
+      createdDate: todayStr,
+      isUrgent: true,
+      senderName: reviewerName || 'Chief Admin Librarian',
+      category: 'ACCOUNT_SUSPENSION',
+    };
+
+    const members = current.members.map((m) => (m.id === target.id ? updatedMember : m));
+    this.state$.next({
+      ...current,
+      members,
+      notices: [suspensionNotice, ...(current.notices || [])],
+    });
+
+    this.addAuditLog(
+      target.id,
+      target.name,
+      target.role,
+      'SUSPEND_ACCOUNT',
+      'ACCOUNT_APPROVALS',
+      `Suspended account for ${target.name} (${target.memberCardNo}). Reason: ${cleanReason}`
+    );
+
+    return {
+      success: true,
+      message: `Account for "${target.name}" has been suspended.`,
+      member: updatedMember,
+    };
+  }
+
+  /**
+   * Reactivates a suspended or inactive library account
+   */
+  public reactivateAccount(
+    memberId: string,
+    reviewerName?: string
+  ): { success: boolean; message: string; member?: MemberProfile } {
+    const current = this.snapshot;
+    const target = current.members.find((m) => m.id === memberId || m.email.toLowerCase() === memberId.toLowerCase());
+
+    if (!target) {
+      return { success: false, message: 'Member account not found.' };
+    }
+
+    const todayStr = getLocalDateStr(new Date());
+    const updatedMember: MemberProfile = {
+      ...target,
+      status: 'ACTIVE',
+      suspendedReason: undefined,
+    };
+
+    const reactivateNotice: Notice = {
+      id: `notice-react-${Date.now()}`,
+      title: '✅ Library Membership Restored',
+      content: `Dear ${target.name}, your library membership and portal privileges have been successfully restored and reactivated.`,
+      recipientEmail: target.email,
+      recipientName: target.name,
+      recipientMemberId: updatedMember.id,
+      targetAudience: target.role,
+      createdDate: todayStr,
+      isUrgent: false,
+      senderName: reviewerName || 'Chief Admin Librarian',
+      category: 'ACCOUNT_APPROVAL',
+    };
+
+    const members = current.members.map((m) => (m.id === target.id ? updatedMember : m));
+    this.state$.next({
+      ...current,
+      members,
+      notices: [reactivateNotice, ...(current.notices || [])],
+    });
+
+    this.addAuditLog(
+      target.id,
+      target.name,
+      target.role,
+      'REACTIVATE_ACCOUNT',
+      'ACCOUNT_APPROVALS',
+      `Reactivated membership privileges for ${target.name} (${target.memberCardNo}).`
+    );
+
+    return {
+      success: true,
+      message: `Account for "${target.name}" has been restored to Active status.`,
+      member: updatedMember,
+    };
+  }
+
+  /**
+   * Deletes a member account record permanently
+   */
+  public deleteMemberAccount(memberId: string): { success: boolean; message: string } {
+    const current = this.snapshot;
+    const target = current.members.find((m) => m.id === memberId || m.email.toLowerCase() === memberId.toLowerCase());
+
+    if (!target) {
+      return { success: false, message: 'Member record not found.' };
+    }
+
+    const members = current.members.filter((m) => m.id !== target.id);
+    this.state$.next({ ...current, members });
+
+    this.addAuditLog(
+      target.id,
+      target.name,
+      target.role,
+      'DELETE_ACCOUNT',
+      'ACCOUNT_APPROVALS',
+      `Deleted account record for ${target.name} (${target.email}).`
+    );
+
+    return { success: true, message: `Account record for "${target.name}" has been deleted.` };
   }
 
   public updateMemberProfile(memberId: string, updates: Partial<MemberProfile>) {
@@ -5884,7 +6411,7 @@ class LibraryStoreService {
     const kpiSummaryList = [
       { name: 'Total Book Titles Registered', val: totalTitles, detail: 'Physical Accessions Catalog', status: 'ACTIVE CATALOG', badge: 'badge-blue' },
       { name: 'Total Physical Book Copies Stock', val: totalCopies, detail: `Copies Available: ${availableCopies}`, status: 'SHELF READY', badge: 'badge-green' },
-      { name: 'Active Checked-Out Loans', val: activeLoans, detail: `Overdue: ${overdueLoans} | Returned: ${returnedLoans}`, status: overdueLoans > 0 ? 'ATTENTION NEEDED' : 'CIRCULATION HEALTHY', badge: overdueLoans > 0 ? 'badge-red' : 'badge-green' },
+      { name: 'Active Checked-Out Books', val: activeLoans, detail: `Overdue: ${overdueLoans} | Returned: ${returnedLoans}`, status: overdueLoans > 0 ? 'ATTENTION NEEDED' : 'CIRCULATION HEALTHY', badge: overdueLoans > 0 ? 'badge-red' : 'badge-green' },
       { name: 'Total Fine Assessed (INR)', val: `₹${totalFinesSum.toFixed(2)}`, detail: `Collected: ₹${paidFinesSum.toFixed(2)} | Pending: ₹${unpaidFinesSum.toFixed(2)}`, status: unpaidFinesSum > 0 ? 'PENDING RECOVERY' : 'FULLY SETTLED', badge: unpaidFinesSum > 0 ? 'badge-amber' : 'badge-green' },
       { name: 'Registered Library Members', val: totalMembers, detail: `Students: ${studentCount} | Faculty: ${facultyCount} | Staff: ${staffCount}`, status: 'VERIFIED REGISTRY', badge: 'badge-purple' },
       { name: 'Attendance & Gate Access Entries', val: attendanceCount, detail: `Currently Active Visitors Inside: ${activeVisitorsCount}`, status: 'REAL-TIME MONITORING', badge: 'badge-blue' },
@@ -6151,7 +6678,7 @@ class LibraryStoreService {
       <th>Status</th>
       <th>Joined Date</th>
       <th>Max Limit</th>
-      <th>Active Loans</th>
+      <th>Active Borrowings</th>
       <th>Pending Fines</th>
     </tr>
     ${current.members.map((m, idx) => `
@@ -6371,7 +6898,7 @@ class LibraryStoreService {
       'Executive Summary & Metadata',
       'KPI Metrics Summary',
       'Books Catalog & Inventory',
-      'Circulation & Loans',
+      'Circulation & Borrowings',
       'Members Registry',
       'Fines & Payments Ledger',
       'Attendance Logs',
@@ -6394,7 +6921,7 @@ class LibraryStoreService {
       'Executive Summary & Metadata': { headerBg: '1E3A8A', headerFont: 'FFFFFF', titleBg: '0F172A', titleFont: 'FBBF24' },
       'KPI Metrics Summary': { headerBg: '2563EB', headerFont: 'FFFFFF', titleBg: '1E3A8A', titleFont: 'FFFFFF' },
       'Books Catalog & Inventory': { headerBg: '059669', headerFont: 'FFFFFF', titleBg: '065F46', titleFont: 'FFFFFF' },
-      'Circulation & Loans': { headerBg: '4F46E5', headerFont: 'FFFFFF', titleBg: '3730A3', titleFont: 'FFFFFF' },
+      'Circulation & Borrowings': { headerBg: '4F46E5', headerFont: 'FFFFFF', titleBg: '3730A3', titleFont: 'FFFFFF' },
       'Members Registry': { headerBg: '7C3AED', headerFont: 'FFFFFF', titleBg: '5B21B6', titleFont: 'FFFFFF' },
       'Fines & Payments Ledger': { headerBg: '334155', headerFont: 'FFFFFF', titleBg: '0F172A', titleFont: 'FFFFFF' },
       'Attendance Logs': { headerBg: 'E11D48', headerFont: 'FFFFFF', titleBg: '881337', titleFont: 'FFFFFF' },
@@ -6495,7 +7022,7 @@ class LibraryStoreService {
     if (!opStatus.isOpen && !allowClosedCheckIn) {
       return {
         success: false,
-        message: `Check-in Failed: Central Library is currently CLOSED. Operating Hours: Mon – Sat (8:00 AM – 10:00 PM) | Closed on Sundays & National Holidays. (${opStatus.reason})`,
+        message: `Check-in Failed: Central Library is currently CLOSED. Operating Hours: Mon – Fri (8:00 AM – 10:00 PM), Sat (9:00 AM – 4:00 PM) | Closed on Sundays & National Holidays. (${opStatus.reason})`,
       };
     }
 
@@ -6765,7 +7292,7 @@ class LibraryStoreService {
             durationMinutes = Math.max(1, Math.round((outTimeMs - inTimeMs) / (1000 * 60)));
           }
 
-          let noteText = 'Automatic check-out at Library Closing Time (10:00 PM Operating Hours Rule)';
+          let noteText = `Automatic check-out at Library Closing Time (${opStatus.reason || 'Operating Hours Rule'})`;
           if (opStatus.reason?.includes('Sunday') || opStatus.reason?.includes('Holiday')) {
             noteText = `Automatic check-out: ${opStatus.reason}`;
           }
@@ -6795,7 +7322,7 @@ class LibraryStoreService {
         'ADMIN',
         'AUTO_CHECK_OUT_OPERATING_HOURS',
         'ATTENDANCE',
-        `Automatically checked out ${count} active library visitors outside operating hours (Mon-Sat 8:00 AM - 10:00 PM).`
+        `Automatically checked out ${count} active library visitors outside operating hours (Mon-Fri 8:00 AM - 10:00 PM, Sat 9:00 AM - 4:00 PM).`
       );
     }
 
@@ -7320,7 +7847,7 @@ class LibraryStoreService {
 
     csv += '--- 1. PROFILE ACCOUNT PRIVILEGES & METRICS SUMMARY ---\n';
     csv += `Max Borrowing Books Quota,${member.maxAllowedBooks}\n`;
-    csv += `Current Active Loans,${activeLoansCount}\n`;
+    csv += `Current Active Borrowings,${activeLoansCount}\n`;
     csv += `Total Books Borrowed All Time,${memberTransactions.length}\n`;
     csv += `Returned Circulations,${returnedCount}\n`;
     csv += `Overdue Circulations,${overdueCount}\n`;
@@ -7567,7 +8094,7 @@ class LibraryStoreService {
           <div class="stats-row">
             <div class="stat-box">
               <div class="stat-num">${activeLoansCount} / ${member.maxAllowedBooks}</div>
-              <div class="stat-label">Active Loans</div>
+              <div class="stat-label">Active Borrowings</div>
             </div>
             <div class="stat-box">
               <div class="stat-num">${memberTransactions.length}</div>
@@ -7759,7 +8286,7 @@ class LibraryStoreService {
   public issueNoDueCertificate(
     memberIdOrCard: string,
     issuedByName: string = 'Dr. M. S. Ramanujan (Chief Admin Librarian & Head of Library)',
-    remarks: string = 'Cleared all library book loans and financial dues upon college course completion.'
+    remarks: string = 'Cleared all borrowed library books and financial dues upon college course completion.'
   ): { success: boolean; certificate?: NoDueCertificate; message: string } {
     const audit = this.getMemberNoDueAudit(memberIdOrCard);
     if (!audit.member) {
@@ -7937,7 +8464,7 @@ class LibraryStoreService {
       outstandingLoansCount: audit.activeLoansCount,
       outstandingFinesAmount: audit.pendingFinesAmount,
       adminRemarks: audit.isEligible
-        ? 'Real-time database audit passed: 0 Active Loans & ₹0 Fines. Ready for Head of Library approval.'
+        ? 'Real-time database audit passed: 0 Active Borrowings & ₹0 Fines. Ready for Head of Library approval.'
         : `Outstanding liabilities detected: ${audit.reasons.join(', ')}`,
       history: [
         ...app.history,
@@ -7946,7 +8473,7 @@ class LibraryStoreService {
           changedAt: nowStr,
           changedBy: verifiedByName,
           remarks: audit.isEligible
-            ? 'Live clearance audit passed: 0 active loans and 0 fines.'
+            ? 'Live clearance audit passed: 0 active borrowings and 0 fines.'
             : `Dues pending: ${audit.reasons.join(', ')}`,
         },
       ],

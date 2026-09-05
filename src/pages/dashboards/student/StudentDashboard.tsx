@@ -1031,7 +1031,7 @@ export default function StudentDashboard() {
                 </span>
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <div className={`p-2.5 rounded-xl border ${myNoDueAudit.activeLoansCount === 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`}>
-                    <span className="text-[10px] font-bold block">Active Book Loans</span>
+                    <span className="text-[10px] font-bold block">Active Borrowed Books</span>
                     <strong className="text-xs">{myNoDueAudit.activeLoansCount === 0 ? '✓ 0 (All Returned)' : `⚠ ${myNoDueAudit.activeLoansCount} Books Out`}</strong>
                   </div>
                   <div className={`p-2.5 rounded-xl border ${myNoDueAudit.pendingFinesAmount === 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`}>

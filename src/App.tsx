@@ -54,6 +54,7 @@ import BookBorrowHistory from './pages/admin/BookBorrowHistory';
 import AttendanceManagement from './pages/admin/AttendanceManagement';
 import NoDueClearanceDesk from './pages/admin/NoDueClearanceDesk';
 import DownloadsManagement from './pages/admin/DownloadsManagement';
+import AccountApprovals from './pages/admin/AccountApprovals';
 import NoDueClearance from './pages/NoDueClearance';
 import MyFines from './pages/MyFines';
 import Notifications from './pages/Notifications';
@@ -121,11 +122,14 @@ function DashboardRedirect() {
   }
 }
 
+import ErrorBoundary from './components/common/ErrorBoundary';
+
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
+    <ErrorBoundary>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
           {/* Auth & Access Control */}
           <Route path="login" element={<Login />} />
           <Route path="access-denied" element={<AccessDenied />} />
@@ -157,6 +161,8 @@ export default function App() {
               <Route element={<RoleRoute allowedRoles={['ADMIN', 'STAFF']} />}>
                 <Route path="admin" element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="admin/dashboard" element={<AdminDashboard />} />
+                <Route path="admin/approvals" element={<AccountApprovals />} />
+                <Route path="admin/account-approvals" element={<AccountApprovals />} />
                 <Route path="admin/books" element={<BooksManagement />} />
                 <Route path="admin/inventory" element={<InventoryManagement />} />
                 <Route path="admin/issue-books" element={<IssueBooks />} />
@@ -208,5 +214,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+  </ErrorBoundary>
   );
 }

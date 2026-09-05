@@ -75,7 +75,6 @@ export default function InventoryManagement() {
   const [locatedBookResult, setLocatedBookResult] = useState<LocatedBookResult | null>(null);
   const [expandedRackCodes, setExpandedRackCodes] = useState<Record<string, boolean>>({
     'R01': true,
-    'RACK-BTECH-CSE-01': true,
   });
 
   // Add / Edit Rack Modal State
@@ -125,8 +124,8 @@ export default function InventoryManagement() {
     currentRack: string;
     currentShelf: string;
   } | null>(null);
-  const [selectedMoveRack, setSelectedMoveRack] = useState<string>('RACK-BTECH-CSE-01');
-  const [selectedMoveShelf, setSelectedMoveShelf] = useState<string>('SHELF-1');
+  const [selectedMoveRack, setSelectedMoveRack] = useState<string>('R01');
+  const [selectedMoveShelf, setSelectedMoveShelf] = useState<string>('S01');
 
   // Barcode & QR Scanner Modal State
   const [isRackScannerOpen, setIsRackScannerOpen] = useState(false);
@@ -228,7 +227,7 @@ export default function InventoryManagement() {
     const raw = (scannedCode || '').trim();
     const clean = raw.toUpperCase().replace(/^QR-/, '').replace(/^RACK:/, '').replace(/^SHELF:/, '').trim();
 
-    // 1. Check if scanned code directly matches a Rack or Shelf QR/Barcode
+    // 1. Check if scanned code directly matches a Rack QR/Barcode
     const directRack = currentRacks.find(
       (r) =>
         r.rackCode.toUpperCase() === clean ||
@@ -237,7 +236,7 @@ export default function InventoryManagement() {
         clean.startsWith(r.rackCode.toUpperCase())
     );
 
-    if (directRack && !state.books.some((b) => b.isbn === raw || b.id === raw)) {
+    if (directRack && !state.books.some((b) => b.isbn === raw || b.id === raw || b.copies?.some((c) => c.barcode === raw))) {
       setViewMode('RACK_SHELF');
       setAcademicProgramTab(directRack.program as any);
       setHighlightedRackCode(directRack.rackCode);
@@ -251,6 +250,32 @@ export default function InventoryManagement() {
         if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 200);
       return;
+    }
+
+    // 1b. Check if scanned code directly matches a Physical Shelf Tag (e.g. CS-S01 or SHELF:RACK-01/S01)
+    for (const r of currentRacks) {
+      const directShelf = r.shelves.find(
+        (s) =>
+          s.shelfId.toUpperCase() === clean ||
+          `${r.shortCode}-${s.shelfId}`.toUpperCase() === clean ||
+          `${r.rackCode}/${s.shelfId}`.toUpperCase() === clean ||
+          clean.includes(s.shelfId.toUpperCase())
+      );
+      if (directShelf && !state.books.some((b) => b.isbn === raw || b.id === raw)) {
+        setViewMode('RACK_SHELF');
+        setAcademicProgramTab(r.program as any);
+        setHighlightedRackCode(r.rackCode);
+        setHighlightedShelfId(directShelf.shelfId);
+        setRackShelfSearchTerm(directShelf.shelfId);
+        setExpandedRackCodes((prev) => ({ ...prev, [r.rackCode]: true }));
+        triggerToast(`📌 Scanned Shelf Identified: ${directShelf.shelfName} on Rack ${r.rackCode}`);
+
+        setTimeout(() => {
+          const elem = document.getElementById(`rack-card-${r.rackCode}`);
+          if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 200);
+        return;
+      }
     }
 
     // 2. Locate Book by Copy Barcode, Accession No, ISBN, Book ID, or Title
@@ -703,11 +728,10 @@ export default function InventoryManagement() {
             <button
               type="button"
               onClick={() => setViewMode('RACK_SHELF')}
-              className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                viewMode === 'RACK_SHELF'
+              className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${viewMode === 'RACK_SHELF'
                   ? 'bg-white text-teal-900 shadow-sm border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
+                }`}
             >
               <Layers className="w-4 h-4 text-teal-600 shrink-0" />
               <span>Rack & Shelf Barcodes</span>
@@ -716,11 +740,10 @@ export default function InventoryManagement() {
             <button
               type="button"
               onClick={() => setViewMode('BOOK_WISE')}
-              className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                viewMode === 'BOOK_WISE'
+              className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${viewMode === 'BOOK_WISE'
                   ? 'bg-white text-indigo-900 shadow-sm border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
+                }`}
             >
               <BookOpen className="w-4 h-4 text-indigo-600 shrink-0" />
               <span>Book-Wise Inventory</span>
@@ -729,11 +752,10 @@ export default function InventoryManagement() {
             <button
               type="button"
               onClick={() => setViewMode('ALL_COPIES')}
-              className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                viewMode === 'ALL_COPIES'
+              className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${viewMode === 'ALL_COPIES'
                   ? 'bg-white text-indigo-900 shadow-sm border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
+                }`}
             >
               <Barcode className="w-4 h-4 text-indigo-600 shrink-0" />
               <span>All Accession Copies ({allCopies.length})</span>
@@ -915,11 +937,11 @@ export default function InventoryManagement() {
           </div>
         </div>
 
-        {/* Active Loans */}
+        {/* Active Borrowings */}
         <div className="bg-white p-4 rounded-2xl border border-blue-200/80 bg-blue-50/20 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between h-full group">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-blue-800 truncate" title="On Active Loan">
-              Active Loans
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-blue-800 truncate" title="Currently Borrowed">
+              Active Borrowings
             </span>
             <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
               <UserCheck className="w-4 h-4" />
@@ -1112,20 +1134,18 @@ export default function InventoryManagement() {
                   <div
                     key={`acad-rack-${rIdx}`}
                     id={`rack-card-${rack.rackCode}`}
-                    className={`bg-white rounded-3xl border-2 shadow-sm overflow-hidden transition-all ${
-                      isRackHighlighted
+                    className={`bg-white rounded-3xl border-2 shadow-sm overflow-hidden transition-all ${isRackHighlighted
                         ? 'border-teal-500 ring-4 ring-teal-500/20 shadow-xl'
                         : 'border-slate-200/90 hover:border-teal-300'
-                    }`}
+                      }`}
                   >
                     {/* Rack Banner Header */}
                     <div className="p-5 bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 text-white flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                       <div className="space-y-1.5 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span
-                            className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider text-white shadow-xs ${
-                              rack.program === 'B.Tech' ? 'bg-blue-600' : rack.program === 'B.Sc' ? 'bg-purple-600' : 'bg-emerald-600'
-                            }`}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider text-white shadow-xs ${rack.program === 'B.Tech' ? 'bg-blue-600' : rack.program === 'B.Sc' ? 'bg-purple-600' : 'bg-emerald-600'
+                              }`}
                           >
                             {rack.program}
                           </span>
@@ -1219,11 +1239,10 @@ export default function InventoryManagement() {
                         <button
                           type="button"
                           onClick={() => toggleRackExpanded(rack.rackCode)}
-                          className={`px-4 py-2 text-xs font-black rounded-xl flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap shadow-sm active:scale-95 ${
-                            isExpanded
+                          className={`px-4 py-2 text-xs font-black rounded-xl flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap shadow-sm active:scale-95 ${isExpanded
                               ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 ring-2 ring-amber-400/40'
                               : 'bg-emerald-400 hover:bg-emerald-300 text-slate-950 ring-2 ring-emerald-400/30'
-                          }`}
+                            }`}
                           title={isExpanded ? 'Hide physical shelves' : `Drop down and view ${rack.shelvesData.length} physical shelves`}
                         >
                           <Layers className="w-3.5 h-3.5" />
@@ -1277,13 +1296,6 @@ export default function InventoryManagement() {
                             <span className="text-[11px] font-bold text-slate-500">
                               Capacity: {rack.totalCopies} / {rack.shelvesData.length * 40} Copies Allocated ({Math.min(100, Math.round((rack.totalCopies / (rack.shelvesData.length * 40 || 1)) * 100))}% filled)
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => toggleRackExpanded(rack.rackCode)}
-                              className="text-[11px] font-bold text-slate-500 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
-                            >
-                              <ChevronUp className="w-3.5 h-3.5" /> Collapse
-                            </button>
                           </div>
                         </div>
 
@@ -1295,19 +1307,17 @@ export default function InventoryManagement() {
                             return (
                               <div
                                 key={`shelf-tier-${sIdx}`}
-                                className={`rounded-2xl border p-4 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
-                                  isShelfHighlighted
+                                className={`rounded-2xl border p-4 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${isShelfHighlighted
                                     ? 'bg-teal-50 border-teal-500 shadow-md ring-2 ring-teal-500/20'
                                     : 'bg-white border-slate-200 shadow-2xs hover:border-teal-300 hover:shadow-xs'
-                                }`}
+                                  }`}
                               >
                                 {/* Shelf Identification & Focus */}
                                 <div className="space-y-1.5 min-w-0 flex-1">
                                   <div className="flex flex-wrap items-center gap-2">
                                     <span
-                                      className={`text-xs font-black px-2.5 py-0.5 rounded-lg font-mono ${
-                                        isShelfHighlighted ? 'bg-teal-600 text-white' : 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
-                                      }`}
+                                      className={`text-xs font-black px-2.5 py-0.5 rounded-lg font-mono ${isShelfHighlighted ? 'bg-teal-600 text-white' : 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
+                                        }`}
                                     >
                                       {shelf.shelfId}
                                     </span>
@@ -1349,11 +1359,10 @@ export default function InventoryManagement() {
                                           return (
                                             <div
                                               key={`sb-${bIdx}`}
-                                              className={`group relative inline-flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all shadow-2xs ${
-                                                isBookMatched
+                                              className={`group relative inline-flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all shadow-2xs ${isBookMatched
                                                   ? 'bg-amber-100 border-2 border-amber-500 text-slate-950 font-bold shadow-md'
                                                   : 'bg-slate-50 hover:bg-teal-50/80 border border-slate-200 text-slate-800'
-                                              }`}
+                                                }`}
                                             >
                                               <BookOpen className={`w-3.5 h-3.5 shrink-0 ${isBookMatched ? 'text-amber-700' : 'text-teal-600'}`} />
                                               <div className="flex flex-col min-w-0">
@@ -1365,11 +1374,10 @@ export default function InventoryManagement() {
                                                 </span>
                                               </div>
                                               <span
-                                                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0 ${
-                                                  b.availableCopies > 0
+                                                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0 ${b.availableCopies > 0
                                                     ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                                     : 'bg-rose-100 text-rose-800 border border-rose-200'
-                                                }`}
+                                                  }`}
                                               >
                                                 {b.availableCopies}/{b.totalCopies} Avail
                                               </span>
@@ -1519,9 +1527,8 @@ export default function InventoryManagement() {
               </div>
               <div className="relative" ref={bookSelectRef}>
                 <div
-                  className={`w-full px-4 py-3 rounded-2xl border bg-white flex items-center justify-between gap-3 transition-all shadow-xs ${
-                    isBookSelectOpen ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200 hover:border-indigo-300'
-                  }`}
+                  className={`w-full px-4 py-3 rounded-2xl border bg-white flex items-center justify-between gap-3 transition-all shadow-xs ${isBookSelectOpen ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200 hover:border-indigo-300'
+                    }`}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <Search className="h-4.5 w-4.5 text-indigo-600 shrink-0" />
@@ -1564,9 +1571,8 @@ export default function InventoryManagement() {
                       title="Select Book Catalog Record"
                     >
                       <ChevronDown
-                        className={`h-4 w-4 transition-transform duration-200 ${
-                          isBookSelectOpen ? 'rotate-180 text-indigo-600' : ''
-                        }`}
+                        className={`h-4 w-4 transition-transform duration-200 ${isBookSelectOpen ? 'rotate-180 text-indigo-600' : ''
+                          }`}
                       />
                     </button>
                   </div>
@@ -1585,9 +1591,8 @@ export default function InventoryManagement() {
                               setSelectedBookId(b.id);
                               setIsBookSelectOpen(false);
                             }}
-                            className={`p-3.5 cursor-pointer flex items-center justify-between transition-colors ${
-                              isSelected ? 'bg-indigo-50/80 text-indigo-900 font-semibold' : 'hover:bg-slate-50 text-slate-800'
-                            }`}
+                            className={`p-3.5 cursor-pointer flex items-center justify-between transition-colors ${isSelected ? 'bg-indigo-50/80 text-indigo-900 font-semibold' : 'hover:bg-slate-50 text-slate-800'
+                              }`}
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               <img
@@ -1734,11 +1739,10 @@ export default function InventoryManagement() {
                               {copy.accessionNo}
                             </span>
                             <span
-                              className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase border ${
-                                copy.status === 'AVAILABLE'
+                              className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase border ${copy.status === 'AVAILABLE'
                                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                   : 'bg-amber-50 text-amber-800 border-amber-200'
-                              }`}
+                                }`}
                             >
                               {copy.status}
                             </span>
@@ -1756,15 +1760,14 @@ export default function InventoryManagement() {
 
                           <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-xs">
                             <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                                copy.condition === 'NEW'
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded ${copy.condition === 'NEW'
                                   ? 'bg-cyan-100 text-cyan-800'
                                   : copy.condition === 'GOOD'
-                                  ? 'bg-slate-200 text-slate-800'
-                                  : copy.condition === 'DAMAGED'
-                                  ? 'bg-amber-100 text-amber-900'
-                                  : 'bg-rose-100 text-rose-800'
-                              }`}
+                                    ? 'bg-slate-200 text-slate-800'
+                                    : copy.condition === 'DAMAGED'
+                                      ? 'bg-amber-100 text-amber-900'
+                                      : 'bg-rose-100 text-rose-800'
+                                }`}
                             >
                               Condition: {copy.condition}
                             </span>
@@ -1832,13 +1835,12 @@ export default function InventoryManagement() {
                   key={c.id}
                   type="button"
                   onClick={() => setFilterCondition(c.id)}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
-                    filterCondition === c.id
+                  className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${filterCondition === c.id
                       ? c.id === 'REFERENCE'
                         ? 'bg-rose-600 text-white shadow-xs'
                         : 'bg-indigo-600 text-white shadow-xs'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
+                    }`}
                 >
                   {c.label}
                 </button>
@@ -1874,22 +1876,21 @@ export default function InventoryManagement() {
                         <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium">
                           <MapPin className="h-3.5 w-3.5 text-rose-500" />
                           <span className="font-mono">
-                            {copy.rackNumber || 'RACK-BTECH-CSE-01'} / {copy.shelfNumber || 'SHELF-1'}
+                            {copy.rackNumber || 'R01'} / {copy.shelfNumber || 'S01'}
                           </span>
                         </div>
                       </td>
                       <td className="py-4 px-4">
                         <div className="space-y-1">
                           <span
-                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase ${
-                              copy.isReferenceOnly
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase ${copy.isReferenceOnly
                                 ? 'bg-rose-100 text-rose-800 border border-rose-300'
                                 : copy.status === 'AVAILABLE'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : copy.status === 'ISSUED'
-                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                : 'bg-amber-50 text-amber-700 border border-amber-200'
-                            }`}
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : copy.status === 'ISSUED'
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              }`}
                           >
                             {copy.isReferenceOnly ? '🚫 REF COPY' : copy.status}
                           </span>
@@ -1897,15 +1898,14 @@ export default function InventoryManagement() {
                       </td>
                       <td className="py-4 px-4">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                            copy.condition === 'NEW'
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${copy.condition === 'NEW'
                               ? 'bg-cyan-100 text-cyan-800'
                               : copy.condition === 'GOOD'
-                              ? 'bg-slate-200 text-slate-800'
-                              : copy.condition === 'DAMAGED'
-                              ? 'bg-amber-100 text-amber-800'
-                              : 'bg-rose-100 text-rose-800'
-                          }`}
+                                ? 'bg-slate-200 text-slate-800'
+                                : copy.condition === 'DAMAGED'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-rose-100 text-rose-800'
+                            }`}
                         >
                           {copy.condition}
                         </span>
@@ -2006,21 +2006,6 @@ export default function InventoryManagement() {
                 <label className="block font-bold text-slate-700 mb-1">Target Academic Department Rack:</label>
                 <select
                   value={selectedMoveRack}
-                  onChange={(e) => setSelectedMoveRack(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                >
-                  {ACADEMIC_RACK_HIERARCHY.map((r) => (
-                    <option key={r.rackCode} value={r.rackCode}>
-                      [{r.program}] {r.rackName} ({r.rackCode})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Target Academic Department Rack:</label>
-                <select
-                  value={selectedMoveRack}
                   onChange={(e) => {
                     const newRack = e.target.value;
                     setSelectedMoveRack(newRack);
@@ -2033,7 +2018,7 @@ export default function InventoryManagement() {
                 >
                   {currentRacks.map((r) => (
                     <option key={r.rackCode} value={r.rackCode}>
-                      [{r.program}] {r.rackName} ({r.rackCode})
+                      {r.rackName}
                     </option>
                   ))}
                 </select>
@@ -2131,7 +2116,7 @@ export default function InventoryManagement() {
                   required
                   value={rackFormModal.rackCode || (rackFormModal.shortCode ? `RACK-${rackFormModal.program.toUpperCase()}-${rackFormModal.shortCode.toUpperCase()}-01` : '')}
                   onChange={(e) => setRackFormModal({ ...rackFormModal, rackCode: e.target.value.toUpperCase() })}
-                  placeholder="e.g. RACK-BTECH-CSE-01"
+                  placeholder="e.g. R01 or R25"
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white font-mono font-bold text-slate-900 focus:ring-2 focus:ring-teal-500 uppercase"
                 />
               </div>
@@ -2312,8 +2297,8 @@ export default function InventoryManagement() {
                   {deleteConfirmModal.type === 'RACK'
                     ? 'Delete Physical Rack'
                     : deleteConfirmModal.type === 'SHELF'
-                    ? 'Delete Physical Shelf Tier'
-                    : 'Reset Racks to University Defaults'}
+                      ? 'Delete Physical Shelf Tier'
+                      : 'Reset Racks to University Defaults'}
                 </h3>
                 <p className="text-xs text-slate-500">This action will modify physical stack allocation.</p>
               </div>

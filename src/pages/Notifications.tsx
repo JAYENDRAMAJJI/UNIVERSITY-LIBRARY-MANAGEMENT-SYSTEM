@@ -115,7 +115,7 @@ export default function Notifications() {
         timestamp: ext.requestedDate,
         urgency: ext.status === 'APPROVED' ? 'INFO' : ext.status === 'REJECTED' ? 'HIGH' : 'MEDIUM',
         actionUrl: userRole === 'FACULTY' ? '/faculty/dashboard' : '/student/dashboard',
-        actionText: 'View Loan Status',
+        actionText: 'View Borrowing Status',
         sender: 'Head Librarian',
       });
     });

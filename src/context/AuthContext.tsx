@@ -5,7 +5,7 @@ import { authService } from '../services/auth.service';
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, role?: Role) => Promise<User>;
+  login: (email: string, password?: string, role?: Role) => Promise<User>;
   logout: () => void;
 }
 
@@ -24,8 +24,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, role?: Role) => {
-    const { user } = await authService.login(email, role);
+  const login = async (email: string, password?: string, role?: Role) => {
+    // Support legacy calls login(email, role) where 2nd param is Role
+    let pass: string | undefined = password;
+    let r: Role | undefined = role;
+    if (password && ['ADMIN', 'LIBRARIAN', 'FACULTY', 'STUDENT', 'STAFF', 'GUEST', 'OTHER'].includes(password)) {
+      r = password as Role;
+      pass = undefined;
+    }
+
+    const { user } = await authService.login(email, pass, r);
     setUser(user);
     return user;
   };

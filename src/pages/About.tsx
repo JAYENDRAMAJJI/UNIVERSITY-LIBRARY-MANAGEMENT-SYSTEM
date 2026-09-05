@@ -1,7 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, Users, Building, Target, BookOpen, ShieldCheck, Sparkles, Award } from 'lucide-react';
+import { libraryStore, getLibraryOperatingStatus } from '../services/libraryStore.service';
 
 export default function About() {
+  const [storeState, setStoreState] = useState(libraryStore.snapshot);
+
+  useEffect(() => {
+    const sub = libraryStore.getObservable().subscribe(setStoreState);
+    return () => sub.unsubscribe();
+  }, []);
+
+  const operatingStatus = getLibraryOperatingStatus(new Date(), storeState.calendarEvents);
   return (
     <div className="space-y-10">
       {/* Header Banner */}
@@ -87,27 +96,41 @@ export default function About() {
       {/* Timings & Infrastructure */}
       <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm grid md:grid-cols-2 gap-8 items-center">
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold font-poppins text-slate-900">Library Operating Hours</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold font-poppins text-slate-900">Library Operating Hours</h2>
+            <span className={`text-[11px] font-extrabold uppercase tracking-wide px-3 py-1 rounded-full border ${
+              operatingStatus.isOpen
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-rose-50 text-rose-700 border-rose-200'
+            }`}>
+              {operatingStatus.isOpen ? '● Open Now' : '● Library Closed'}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 leading-relaxed font-medium">
+            {operatingStatus.isOpen
+              ? `Currently open • ${operatingStatus.nextOpenText}.`
+              : `Closed • ${operatingStatus.nextOpenText}.`}
+          </p>
           <div className="space-y-3 text-sm">
             <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
               <Clock className="w-5 h-5 text-blue-600 shrink-0" />
               <div>
                 <p className="font-bold text-slate-900">Monday – Friday</p>
-                <p className="text-xs text-slate-500">8:00 AM – 8:00 PM</p>
+                <p className="text-xs text-slate-500 font-medium">8:00 AM – 10:00 PM</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
               <Clock className="w-5 h-5 text-blue-600 shrink-0" />
               <div>
                 <p className="font-bold text-slate-900">Saturday</p>
-                <p className="text-xs text-slate-500">9:00 AM – 4:00 PM</p>
+                <p className="text-xs text-slate-500 font-medium">9:00 AM – 4:00 PM</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
               <Clock className="w-5 h-5 text-rose-600 shrink-0" />
               <div>
-                <p className="font-bold text-slate-900">Sunday & Holidays</p>
-                <p className="text-xs text-slate-500">Closed (24/7 Digital Portal Active)</p>
+                <p className="font-bold text-slate-900">Sunday & National Holidays</p>
+                <p className="text-xs text-slate-500 font-medium">Closed — Physical Library & Attendance System unavailable (Digital Library Portal: Available 24/7)</p>
               </div>
             </div>
           </div>

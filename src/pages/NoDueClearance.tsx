@@ -65,7 +65,7 @@ export default function NoDueClearance() {
     const found = apps.find(
       (a) =>
         a.studentId === memberProfile.id ||
-        a.libraryMembershipId.toLowerCase() === memberProfile.memberCardNo.toLowerCase()
+        (a.libraryMembershipId && memberProfile.memberCardNo && a.libraryMembershipId.toLowerCase() === memberProfile.memberCardNo.toLowerCase())
     );
     // If the student currently has unreturned loans or fines, an issued certificate cannot be active
     if (found && found.status === 'CERTIFICATE_ISSUED' && audit && !audit.isEligible) {
@@ -136,7 +136,7 @@ export default function NoDueClearance() {
               Apply for <span className="bg-gradient-to-r from-blue-300 via-indigo-200 to-sky-200 bg-clip-text text-transparent">No Due Certificate (NDC)</span>
             </h1>
             <p className="text-slate-300 text-xs sm:text-sm md:text-base max-w-2xl font-medium leading-relaxed">
-              Official institutional clearance proving zero outstanding book loans, returned library materials, and nil financial fines for degree completion, transfer, or relieving.
+              Official institutional clearance proving zero outstanding borrowed books, returned library materials, and nil financial fines for degree completion, transfer, or relieving.
             </p>
           </div>
 
@@ -211,7 +211,7 @@ export default function NoDueClearance() {
         >
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold uppercase tracking-wider">Book Loans Audit</span>
+              <span className="text-xs font-extrabold uppercase tracking-wider">Borrowed Books Audit</span>
               <BookOpen className="h-4 w-4" />
             </div>
             <p className="text-2xl font-black font-poppins mt-2">
@@ -309,7 +309,7 @@ export default function NoDueClearance() {
               },
               {
                 step: 2,
-                label: 'Dues & Loans Verified',
+                label: 'Dues & Returns Verified',
                 desc: 'Circulation & Book Audit',
                 isDone:
                   myApplication.status === 'UNDER_VERIFICATION' ||
@@ -445,7 +445,7 @@ export default function NoDueClearance() {
                         to="/borrow-history"
                         className="text-xs font-bold text-purple-700 hover:underline flex items-center gap-1"
                       >
-                        View My Loans <ExternalLink className="h-3 w-3" />
+                        View Borrowed Books <ExternalLink className="h-3 w-3" />
                       </Link>
                     </div>
 

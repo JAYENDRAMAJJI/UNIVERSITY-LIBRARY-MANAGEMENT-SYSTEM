@@ -74,8 +74,8 @@ export default function ReportsAnalytics() {
     const map: Record<string, string> = {
       ISSUE_BOOK: 'Issued Book',
       RETURN_BOOK: 'Returned Book',
-      RENEW_BOOK: 'Extended Loan Period',
-      REQUEST_EXTENSION: 'Requested Loan Extension',
+      RENEW_BOOK: 'Extended Borrowing Period',
+      REQUEST_EXTENSION: 'Requested Borrowing Extension',
       APPROVE_EXTENSION: 'Approved Extension',
       REJECT_EXTENSION: 'Rejected Extension',
       PLACE_RESERVATION_HOLD: 'Placed Book Hold',
@@ -104,7 +104,7 @@ export default function ReportsAnalytics() {
   // Convert module codes into friendly categories
   const getFriendlyModuleName = (mod: string) => {
     const map: Record<string, string> = {
-      CIRCULATION: 'Loans & Returns',
+      CIRCULATION: 'Circulation & Returns',
       CATALOG: 'Book Catalog',
       TAXONOMY: 'Categories & Authors',
       MEMBER_MANAGEMENT: 'Member Admin',
@@ -122,7 +122,7 @@ export default function ReportsAnalytics() {
   // Module filter options
   const moduleFilters = [
     { id: 'ALL', label: 'All Categories' },
-    { id: 'CIRCULATION', label: 'Loans & Returns' },
+    { id: 'CIRCULATION', label: 'Circulation & Returns' },
     { id: 'CATALOG', label: 'Book Catalog' },
     { id: 'FINANCE', label: 'Fines & Money' },
     { id: 'MEMBER_MANAGEMENT', label: 'Members & Users' },
@@ -284,7 +284,7 @@ export default function ReportsAnalytics() {
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               </div>
               <p className="text-3xl font-extrabold text-emerald-900">{returnedCount}</p>
-              <p className="text-[11px] text-emerald-600 font-medium">Successfully completed loans</p>
+              <p className="text-[11px] text-emerald-600 font-medium">Successfully completed returns</p>
             </div>
 
             <div className="bg-white p-5 rounded-2xl border border-purple-200 bg-purple-50/30 shadow-2xs space-y-1">

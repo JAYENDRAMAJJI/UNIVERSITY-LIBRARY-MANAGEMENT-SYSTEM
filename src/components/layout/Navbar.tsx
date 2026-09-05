@@ -13,10 +13,13 @@ import {
   HelpCircle,
   Check,
   CheckCheck,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { libraryStore, getRelevantNoticesForUser, isNoticeReadForUser } from '../../services/libraryStore.service';
 import { Notice } from '../../types/library';
+
+import BrandLogo from '../common/BrandLogo';
 
 interface NavbarProps {
   onToggleMobileSidebar?: () => void;
@@ -90,9 +93,9 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
   const navLinks = [
     { to: '/', label: 'Home' },
     { to: '/catalog', label: 'Books Catalog' },
-    { to: '/about', label: 'About' },
-    { to: '/collections', label: 'Collections' },
     { to: '/digital-resources', label: 'Digital Library' },
+    { to: '/collections', label: 'Collections' },
+    { to: '/about', label: 'About' },
     { to: '/feedback', label: 'Feedback' },
   ];
 
@@ -122,7 +125,7 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
   const displayAvatar = user?.avatarUrl || currentMember?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
 
   return (
-    <nav className="h-20 shrink-0 bg-white/95 shadow-2xs backdrop-blur-xl transition-all z-40 w-full relative">
+    <nav className="h-[84px] sm:h-[88px] shrink-0 bg-white/95 shadow-2xs backdrop-blur-xl transition-all z-40 w-full relative">
       <div className="w-full px-4 sm:px-6 lg:px-8 h-full">
         <div className="flex h-full justify-between items-center gap-4">
           {/* Brand Logo */}
@@ -130,16 +133,10 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
             <Link
               to={brandLink}
               onClick={handleLogoClick}
-              className="flex items-center gap-3 group cursor-pointer"
+              className="group cursor-pointer block"
               title="Click to refresh portal"
             >
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white shadow-md shadow-blue-200 group-hover:scale-105 transition-transform">
-                <BookOpen className="h-5.5 w-5.5" />
-              </span>
-              <div>
-                <span className="text-lg xl:text-xl font-bold font-poppins text-slate-900 block leading-tight">University Library</span>
-                <span className="text-[10px] xl:text-xs font-bold uppercase tracking-widest text-blue-600 block">Enterprise Portal</span>
-              </div>
+              <BrandLogo size="md" showTagline={true} />
             </Link>
           </div>
 
@@ -153,7 +150,7 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
                     <Link
                       key={link.to}
                       to={link.to}
-                      className={`px-3 py-2 rounded-xl text-xs xl:text-sm font-semibold transition-all whitespace-nowrap ${
+                      className={`px-3.5 py-2 rounded-full text-xs xl:text-sm font-semibold transition-all whitespace-nowrap ${
                         isActive ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                       }`}
                     >
@@ -161,124 +158,133 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
                     </Link>
                   );
                 })}
+                <Link
+                  to="/catalog"
+                  className="p-2 text-slate-500 hover:text-blue-600 hover:bg-slate-50 rounded-full transition-all ml-1"
+                  title="Search Books & Resources"
+                >
+                  <Search className="h-4.5 w-4.5" />
+                </Link>
                 <div className="h-6 w-px bg-slate-200 mx-1.5" />
               </>
             )}
 
             {/* Corner of the site: Notification Bell & User Profile Dropdown Pill */}
             <div className="flex items-center gap-3">
-              {/* Notification Bell Icon */}
-              <div className="relative" ref={notifRef}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsNotifOpen(!isNotifOpen);
-                    setIsUserMenuOpen(false);
-                  }}
-                  className="relative p-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 hover:bg-blue-50 hover:border-blue-200 text-slate-700 hover:text-blue-600 transition-all cursor-pointer shadow-2xs"
-                  title="Library Notifications & Circulars"
-                >
-                  <Bell className="h-5 w-5" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-extrabold text-white shadow-xs animate-pulse">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
-                </button>
+              {/* Notification Bell Icon - Only for Logged In Users */}
+              {user && (
+                <div className="relative" ref={notifRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNotifOpen(!isNotifOpen);
+                      setIsUserMenuOpen(false);
+                    }}
+                    className="relative p-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 hover:bg-blue-50 hover:border-blue-200 text-slate-700 hover:text-blue-600 transition-all cursor-pointer shadow-2xs"
+                    title="Library Notifications & Circulars"
+                  >
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-extrabold text-white shadow-xs animate-pulse">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
 
-                {/* Notification Dropdown Panel */}
-                {isNotifOpen && (
-                  <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden z-50 animate-fadeIn">
-                    <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 p-4 text-white flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <Bell className="h-4 w-4 text-blue-400" />
-                        <div>
-                          <h3 className="font-bold text-sm font-poppins text-white leading-tight">Notifications & Circulars</h3>
-                          <span className="text-[10px] text-blue-200 font-medium">
-                            {notices.length} notification{notices.length !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setIsNotifOpen(false)}
-                        className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    <div className="max-h-96 overflow-y-auto divide-y divide-slate-100 p-2 space-y-2">
-                      {notices.map((notice) => {
-                        const isRead = isNoticeReadForUser(notice, user, state);
-                        return (
-                          <div
-                            key={notice.id}
-                            onClick={() => {
-                              if (!isRead) libraryStore.markNoticeAsRead(notice.id, user);
-                            }}
-                            className={`p-3.5 rounded-2xl text-xs space-y-1.5 transition-all cursor-pointer ${
-                              !isRead
-                                ? notice.isUrgent
-                                  ? 'bg-rose-50/90 border border-rose-300 text-rose-950 shadow-2xs'
-                                  : 'bg-blue-50/70 border border-blue-200 text-slate-900 shadow-2xs'
-                                : 'bg-slate-50/50 border border-slate-200/50 text-slate-600 opacity-80 hover:opacity-100'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5">
-                                <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase ${
-                                  notice.isUrgent ? 'bg-rose-600 text-white' : 'bg-blue-100 text-blue-800'
-                                }`}>
-                                  {notice.isUrgent ? 'URGENT ALERT' : 'CIRCULAR'}
-                                </span>
-                                {!isRead && (
-                                  <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-blue-600 text-white animate-pulse">
-                                    NEW
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[10px] font-mono text-slate-400">{notice.createdDate}</span>
-                            </div>
-                            <h4 className={`text-xs leading-snug transition-colors ${
-                              !isRead ? 'font-black text-slate-950' : 'font-normal text-slate-600'
-                            }`}>
-                              {notice.title}
-                            </h4>
-                            <p className={`text-[11px] leading-relaxed transition-colors ${
-                              !isRead ? 'text-slate-700 font-medium' : 'text-slate-500 font-normal'
-                            }`}>
-                              {notice.content}
-                            </p>
-                            <div className="pt-1 text-[10px] text-slate-400 font-medium flex items-center justify-between border-t border-slate-200/40">
-                              <span>Issued: <strong className={!isRead ? 'text-slate-700 font-bold' : 'text-slate-500 font-normal'}>{notice.senderName || 'Circulation Desk'}</strong></span>
-                              {notice.recipientName && <span className="text-blue-700 font-bold">{notice.recipientName}</span>}
-                            </div>
+                  {/* Notification Dropdown Panel */}
+                  {isNotifOpen && (
+                    <div className="absolute right-0 sm:right-0 mt-3 w-80 sm:w-96 max-w-[calc(100vw-1.5rem)] rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden z-50 animate-fadeIn">
+                      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 p-4 text-white flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Bell className="h-4 w-4 text-blue-400 shrink-0" />
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-sm font-poppins text-white leading-tight truncate">Notifications & Circulars</h3>
+                            <span className="text-[10px] text-blue-200 font-medium">
+                              {notices.length} notification{notices.length !== 1 ? 's' : ''}
+                            </span>
                           </div>
-                        );
-                      })}
-
-                      {notices.length === 0 && (
-                        <div className="p-8 text-center text-slate-400 space-y-2">
-                          <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-500 opacity-60" />
-                          <p className="text-xs font-semibold text-slate-600">No Notifications</p>
-                          <p className="text-[11px] text-slate-400">All clear! Overdue alerts and announcements will appear here.</p>
                         </div>
-                      )}
-                    </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsNotifOpen(false)}
+                          className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
 
-                    <div className="p-2.5 bg-slate-50 border-t border-slate-100 text-center">
-                      <Link
-                        to="/notifications"
-                        onClick={() => setIsNotifOpen(false)}
-                        className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center gap-1"
-                      >
-                        Open Notification Center &rarr;
-                      </Link>
+                      <div className="max-h-96 overflow-y-auto divide-y divide-slate-100 p-2 space-y-2">
+                        {notices.map((notice) => {
+                          const isRead = isNoticeReadForUser(notice, user, state);
+                          return (
+                            <div
+                              key={notice.id}
+                              onClick={() => {
+                                if (!isRead) libraryStore.markNoticeAsRead(notice.id, user);
+                              }}
+                              className={`p-3.5 rounded-2xl text-xs space-y-1.5 transition-all cursor-pointer ${
+                                !isRead
+                                  ? notice.isUrgent
+                                    ? 'bg-rose-50/90 border border-rose-300 text-rose-950 shadow-2xs'
+                                    : 'bg-blue-50/70 border border-blue-200 text-slate-900 shadow-2xs'
+                                  : 'bg-slate-50/50 border border-slate-200/50 text-slate-600 opacity-80 hover:opacity-100'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase ${
+                                    notice.isUrgent ? 'bg-rose-600 text-white' : 'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {notice.isUrgent ? 'URGENT ALERT' : 'CIRCULAR'}
+                                  </span>
+                                  {!isRead && (
+                                    <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-blue-600 text-white animate-pulse">
+                                      NEW
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] font-mono text-slate-400">{notice.createdDate}</span>
+                              </div>
+                              <h4 className={`text-xs leading-snug transition-colors ${
+                                !isRead ? 'font-black text-slate-950' : 'font-normal text-slate-600'
+                              }`}>
+                                {notice.title}
+                              </h4>
+                              <p className={`text-[11px] leading-relaxed transition-colors ${
+                                !isRead ? 'text-slate-700 font-medium' : 'text-slate-500 font-normal'
+                              }`}>
+                                {notice.content}
+                              </p>
+                              <div className="pt-1 text-[10px] text-slate-400 font-medium flex items-center justify-between border-t border-slate-200/40">
+                                <span>Issued: <strong className={!isRead ? 'text-slate-700 font-bold' : 'text-slate-500 font-normal'}>{notice.senderName || 'Circulation Desk'}</strong></span>
+                                {notice.recipientName && <span className="text-blue-700 font-bold">{notice.recipientName}</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {notices.length === 0 && (
+                          <div className="p-8 text-center text-slate-400 space-y-2">
+                            <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-500 opacity-60" />
+                            <p className="text-xs font-semibold text-slate-600">No Notifications</p>
+                            <p className="text-[11px] text-slate-400">All clear! Overdue alerts and announcements will appear here.</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-2.5 bg-slate-50 border-t border-slate-100 text-center">
+                        <Link
+                          to="/notifications"
+                          onClick={() => setIsNotifOpen(false)}
+                          className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center gap-1"
+                        >
+                          Open Notification Center &rarr;
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
               {/* User Profile Pill & Interactive Dropdown Menu */}
               {user ? (
@@ -314,7 +320,7 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
 
                   {/* Dropdown Menu Card */}
                   {isUserMenuOpen && (
-                    <div className="absolute right-0 mt-3 w-72 sm:w-80 rounded-3xl bg-white border border-slate-200 shadow-2xl p-4 sm:p-5 z-50 animate-fadeIn text-left space-y-3">
+                    <div className="absolute right-0 mt-3 w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] rounded-3xl bg-white border border-slate-200 shadow-2xl p-4 sm:p-5 z-50 animate-fadeIn text-left space-y-3">
                       {/* Header Details */}
                       <div className="space-y-0.5">
                         <h3 className="font-extrabold text-base sm:text-lg font-poppins text-slate-900 leading-tight">
@@ -379,7 +385,7 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
               ) : (
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs xl:text-sm font-bold text-white shadow-md shadow-blue-200 hover:opacity-95 hover:shadow-lg transition-all whitespace-nowrap shrink-0 ml-1"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] hover:bg-blue-700 px-5 py-2.5 text-xs xl:text-sm font-bold text-white shadow-md shadow-blue-500/20 hover:shadow-lg transition-all whitespace-nowrap shrink-0 ml-1"
                 >
                   <UserIcon className="h-4 w-4" />
                   <span>Portal Login</span>
@@ -390,20 +396,22 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
 
           {/* Mobile Toggle */}
           <div className="flex items-center gap-2 lg:hidden">
-            <button
-              type="button"
-              onClick={() => {
-                setIsNotifOpen(!isNotifOpen);
-              }}
-              className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-            >
-              <Bell className="h-6 w-6" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[9px] font-bold text-white">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
+            {user && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsNotifOpen(!isNotifOpen);
+                }}
+                className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              >
+                <Bell className="h-6 w-6" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[9px] font-bold text-white">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            )}
             <button
               onClick={handleMobileMenuClick}
               className="p-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"

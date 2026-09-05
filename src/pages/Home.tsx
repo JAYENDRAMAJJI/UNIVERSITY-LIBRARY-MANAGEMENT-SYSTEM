@@ -4,7 +4,6 @@ import {
   BookOpen,
   LibraryBig,
   MonitorSmartphone,
-  Sparkles,
   ArrowRight,
   ShieldCheck,
   Users,
@@ -12,15 +11,14 @@ import {
   BookMarked,
   Award,
   ChevronRight,
-  Bookmark,
-  MapPin,
-  Download,
-  GraduationCap,
-  Briefcase,
   UserCheck,
   CheckCircle,
-  FileText,
+  GraduationCap,
+  Briefcase,
   Building2,
+  Layers,
+  HelpCircle,
+  Info,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -39,113 +37,210 @@ export default function Home() {
 
   const handleHeroSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      navigate('/login');
-      return;
-    }
     if (searchTerm.trim()) {
       navigate(`/book-search?query=${encodeURIComponent(searchTerm.trim())}`);
     } else {
-      navigate('/book-search');
+      navigate('/catalog');
     }
   };
+
+  const quickNavCards = [
+    {
+      title: 'Books Catalog',
+      subtitle: 'Search & Explore',
+      icon: BookOpen,
+      iconBg: 'bg-blue-50 text-blue-600 border-blue-100',
+      link: '/catalog',
+    },
+    {
+      title: 'Digital Library',
+      subtitle: 'e-Books & Journals',
+      icon: MonitorSmartphone,
+      iconBg: 'bg-purple-50 text-purple-600 border-purple-100',
+      link: '/digital-resources',
+    },
+    {
+      title: 'New Arrivals',
+      subtitle: 'Latest Additions',
+      icon: Layers,
+      iconBg: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+      link: '/catalog',
+    },
+    {
+      title: 'Research Resources',
+      subtitle: 'Thesis, Papers & More',
+      icon: Users,
+      iconBg: 'bg-amber-50 text-amber-600 border-amber-100',
+      link: '/digital-resources',
+    },
+    {
+      title: 'Library Guidelines',
+      subtitle: 'Rules & Support',
+      icon: HelpCircle,
+      iconBg: 'bg-rose-50 text-rose-600 border-rose-100',
+      link: '/about',
+    },
+    {
+      title: 'Contact Us',
+      subtitle: 'Get in Touch',
+      icon: Info,
+      iconBg: 'bg-sky-50 text-sky-600 border-sky-100',
+      link: '/feedback',
+    },
+  ];
 
   const highlights = [
     { icon: BookMarked, label: 'Catalog Copies & Accessions', value: `${state.books.reduce((s, b) => s + b.totalCopies, 0)}+`, color: 'bg-blue-50 text-blue-700 border-blue-200' },
     { icon: Users, label: 'Active Registered Members', value: `${state.members.length} Users`, color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
     { icon: Award, label: 'Digital Research Repositories', value: `${state.digitalResources.length} Papers`, color: 'bg-purple-50 text-purple-700 border-purple-200' },
-    { icon: Clock3, label: 'Central Library Hours', value: '8 AM - 10 PM', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    { icon: Clock3, label: 'Central Library Hours', value: '8 AM – 10 PM', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   ];
 
   const featuredBooks = state.books.slice(0, 4);
 
   return (
-    <div className="space-y-12 pb-16">
-      {/* Compact & Premium Hero Banner */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-950 text-white shadow-xl p-6 sm:p-8 lg:p-10 border border-slate-800/80">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:24px_24px] opacity-10 pointer-events-none" />
+    <div className="space-y-8 sm:space-y-10 pb-16">
+      {/* Modern Panoramic Library Hero Banner */}
+      <section className="relative overflow-hidden rounded-3xl shadow-2xl border border-slate-700/60 min-h-[420px] lg:min-h-[460px] flex items-center">
+        {/* Background Full Library Interior Photo */}
+        <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
+          <img
+            src="/images/hero-bg.jpg"
+            alt="University Central Library"
+            className="w-full h-full object-cover [object-position:78%_center] lg:[object-position:74%_center] select-none"
+          />
+        </div>
 
-        <div className="relative max-w-3xl mx-auto text-center space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-blue-300 shadow-xs backdrop-blur-md">
-            <Sparkles className="h-3.5 w-3.5 text-blue-400 animate-pulse" /> Official University Library Portal
-          </div>
+        {/* Deep Royal Blue Smooth Curved Wave SVG Overlay */}
+        <div className="absolute inset-0 w-full h-full pointer-events-none z-0">
+          <svg
+            className="w-full h-full"
+            viewBox="0 0 1000 500"
+            preserveAspectRatio="none"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              <linearGradient id="heroWaveGradient" x1="0%" y1="0%" x2="100%" y2="80%">
+                <stop offset="0%" stopColor="#003db3" />
+                <stop offset="35%" stopColor="#002d87" />
+                <stop offset="70%" stopColor="#001d5e" />
+                <stop offset="100%" stopColor="#001038" />
+              </linearGradient>
+            </defs>
+            {/* Ambient soft glow curve behind */}
+            <path
+              d="M 0 0 L 460 0 C 480 80, 450 190, 470 280 C 495 370, 540 440, 575 500 L 0 500 Z"
+              fill="#1d4ed8"
+              opacity="0.3"
+            />
+            {/* Main solid royal blue curve */}
+            <path
+              d="M 0 0 L 430 0 C 450 80, 420 190, 440 280 C 465 370, 510 440, 540 500 L 0 500 Z"
+              fill="url(#heroWaveGradient)"
+            />
+          </svg>
+        </div>
+        <div className="absolute -top-20 -left-20 w-[450px] h-[450px] bg-blue-500/25 rounded-full blur-3xl pointer-events-none z-0" />
 
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight font-poppins leading-tight text-white drop-shadow-sm">
-            Access Books, Research & Academic Learning in One Place.
-          </h1>
-
-          <p className="max-w-xl mx-auto text-slate-300 text-xs sm:text-sm leading-relaxed font-normal">
-            Search our central university catalog, inspect physical shelf locations, access peer-reviewed research papers, and manage book borrowings seamlessly.
-          </p>
-
-          {/* Compact Embedded OPAC Search Bar */}
-          <form onSubmit={handleHeroSearch} className="max-w-2xl mx-auto pt-2">
-            <div className="relative flex items-center bg-white rounded-2xl shadow-xl p-1.5 border border-slate-200">
-              <Search className="h-5 w-5 text-slate-400 ml-3 shrink-0" />
-              <input
-                type="text"
-                placeholder="Search catalog by title, author, or barcode (e.g. Algorithms, Cormen, BC-99201)..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2.5 text-slate-900 text-xs sm:text-sm font-medium focus:outline-none rounded-xl"
-              />
-              <button
-                type="submit"
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white font-bold text-xs shadow-md hover:opacity-95 transition-all whitespace-nowrap cursor-pointer"
-              >
-                Explore Library Catalog
-              </button>
+        <div className="relative z-10 w-full p-6 sm:p-8 lg:p-10 xl:p-12">
+          {/* Left Hero Content Area */}
+          <div className="max-w-2xl space-y-4 text-left">
+            {/* Top Category Tag */}
+            <div className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] text-sky-300 flex items-center gap-2">
+              <span>LEARN</span>
+              <span className="text-sky-400">•</span>
+              <span>RESEARCH</span>
+              <span className="text-sky-400">•</span>
+              <span>DISCOVER</span>
+              <span className="text-sky-400">•</span>
+              <span>GROW</span>
             </div>
-          </form>
 
-          {/* Quick Hero Subject Tags */}
-          <div className="flex flex-wrap justify-center items-center gap-2 pt-1 text-[11px] font-semibold text-slate-300">
-            <button
-              type="button"
-              onClick={() => navigate('/book-search?query=Computer%20Science')}
-              className="bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1 rounded-full transition-all cursor-pointer"
-            >
-              Computer Science
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/book-search?query=Electrical')}
-              className="bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1 rounded-full transition-all cursor-pointer"
-            >
-              Electrical Engineering
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/book-search?query=Math')}
-              className="bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1 rounded-full transition-all cursor-pointer"
-            >
-              Mathematics & Physics
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/digital-resources')}
-              className="bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1 rounded-full transition-all cursor-pointer"
-            >
-              Research Proceedings
-            </button>
+            {/* Headline */}
+            <h1 className="text-3xl sm:text-4xl lg:text-[42px] xl:text-[46px] font-extrabold font-poppins text-white tracking-tight leading-[1.14]">
+              Access Books, Research &<br />
+              <span className="text-[#38bdf8] font-extrabold">Academic Learning</span> in One Place.
+            </h1>
+
+            {/* Subtitle */}
+            <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed max-w-xl font-normal">
+              Search our central university catalog, inspect physical shelf locations, access peer-reviewed research papers, and manage book borrowings seamlessly.
+            </p>
+
+            {/* Real Search Form Bar */}
+            <form onSubmit={handleHeroSearch} className="max-w-2xl pt-2">
+              <div className="relative flex items-center bg-white rounded-2xl shadow-2xl p-1.5 focus-within:ring-2 focus-within:ring-blue-400 transition-all">
+                <Search className="w-5 h-5 text-slate-400 ml-4 shrink-0 stroke-[2.2]" />
+                <input
+                  type="text"
+                  placeholder="Search catalog by title, author, ISBN, subject, or keyword..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs sm:text-sm text-slate-800 font-medium placeholder:text-slate-400 focus:outline-none bg-transparent min-w-0"
+                />
+                <button
+                  type="submit"
+                  className="px-6 sm:px-8 py-3 rounded-xl bg-[#3b52f5] hover:bg-[#2f43e0] text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all whitespace-nowrap cursor-pointer shrink-0"
+                >
+                  Explore Library Catalog
+                </button>
+              </div>
+            </form>
+
+            {/* Real Popular Searches Pills */}
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <span className="text-blue-200/90 text-xs font-semibold mr-1">Popular searches:</span>
+              {['Artificial Intelligence', 'Data Science', 'Operating Systems', 'Research Methods'].map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => navigate(`/book-search?query=${encodeURIComponent(tag)}`)}
+                  className="px-4 py-1.5 rounded-full bg-[#0a1e4a]/60 hover:bg-[#0a1e4a]/90 text-white text-xs font-medium transition-all border border-white/15 backdrop-blur-xs cursor-pointer shadow-2xs"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
+      </section>
+
+      {/* 6 Quick Navigation Feature Cards Strip */}
+      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        {quickNavCards.map((card) => (
+          <Link
+            key={card.title}
+            to={card.link}
+            className="group bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-md hover:border-blue-300 transition-all flex items-center gap-3"
+          >
+            <div className={`p-2 rounded-xl border ${card.iconBg} shrink-0 group-hover:scale-105 transition-transform`}>
+              <card.icon className="w-4.5 h-4.5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xs font-bold font-poppins text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                {card.title}
+              </h3>
+              <p className="text-[10px] text-slate-500 font-medium truncate">
+                {card.subtitle}
+              </p>
+            </div>
+          </Link>
+        ))}
       </section>
 
       {/* Telemetry Highlights Grid */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
         {highlights.map((item) => (
-          <div key={item.label} className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4 sm:gap-5 transition-transform hover:-translate-y-1">
-            <div className={`p-3.5 sm:p-4 rounded-2xl border ${item.color} shrink-0`}>
-              <item.icon className="h-6 w-6 sm:h-7 sm:w-7" />
+          <div key={item.label} className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-3.5 sm:gap-4 transition-transform hover:-translate-y-1">
+            <div className={`p-3 sm:p-4 rounded-2xl border ${item.color} shrink-0`}>
+              <item.icon className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <div className="min-w-0">
-              <div className="text-lg sm:text-xl lg:text-2xl font-extrabold text-slate-950 font-poppins whitespace-nowrap leading-tight">
+            <div className="min-w-0 flex-1">
+              <div className="text-base sm:text-lg lg:text-xl xl:text-2xl font-extrabold text-slate-950 font-poppins leading-tight truncate" title={item.value}>
                 {item.value}
               </div>
-              <div className="text-xs sm:text-sm font-semibold text-slate-500 mt-0.5 truncate">{item.label}</div>
+              <div className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-0.5 truncate" title={item.label}>{item.label}</div>
             </div>
           </div>
         ))}
@@ -325,34 +420,31 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
           {featuredBooks.map((book) => (
-            <div key={book.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm hover:shadow-lg transition-all space-y-3 flex flex-col justify-between group">
+            <Link
+              key={book.id}
+              to={`/book-search?query=${encodeURIComponent(book.title)}`}
+              className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all flex flex-col justify-between group h-full block"
+            >
               <div>
-                <div className="relative overflow-hidden rounded-2xl mb-3 bg-slate-100">
+                <div className="relative w-full h-48 overflow-hidden rounded-2xl mb-3.5 bg-slate-100 shrink-0">
                   <img
                     src={book.coverUrl}
                     alt={book.title}
-                    className="w-full h-48 object-cover rounded-2xl group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                   />
-                  <span className="absolute top-3 left-3 text-[10px] font-extrabold uppercase tracking-wider text-white bg-slate-900/80 backdrop-blur-xs px-2.5 py-1 rounded-full border border-white/20">
+                  <span className="absolute top-2.5 left-2.5 text-[10px] font-extrabold uppercase tracking-wider text-white bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/20 shadow-xs max-w-[85%] truncate">
                     {book.categoryName}
                   </span>
                 </div>
-                <h3 className="font-bold text-slate-900 text-base line-clamp-1 group-hover:text-blue-700 transition-colors">{book.title}</h3>
-                <p className="text-xs text-slate-500 mt-0.5">By {book.authorName}</p>
-                <p className="text-[11px] font-mono text-slate-400 mt-1">ISBN: {book.isbn}</p>
+                <h3 className="font-bold text-slate-900 text-sm sm:text-base line-clamp-2 leading-snug group-hover:text-blue-700 transition-colors min-h-[2.5rem]">
+                  {book.title}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 line-clamp-1">By {book.authorName}</p>
+                <p className="text-[11px] font-mono text-slate-400 mt-0.5">ISBN: {book.isbn}</p>
               </div>
-
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl">
-                  {book.availableCopies} Copies Available
-                </span>
-                <Link to="/book-search" className="font-bold text-blue-600 hover:underline">
-                  View Details &rarr;
-                </Link>
-              </div>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
@@ -366,7 +458,7 @@ export default function Home() {
           <div>
             <h3 className="text-lg font-bold font-poppins text-white">Central University Library Building</h3>
             <p className="text-xs text-slate-400 mt-0.5">Academic Block A, Ground Floor | Circulation Desk & Reading Rooms</p>
-            <p className="text-xs text-slate-300 font-medium mt-1">Operating Hours: Mon – Sat (8:00 AM – 10:00 PM) | Closed on National Holidays</p>
+            <p className="text-xs text-slate-300 font-medium mt-1">Operating Hours: Mon – Fri (8:00 AM – 10:00 PM) | Sat (9:00 AM – 4:00 PM) | Closed on Sundays & Holidays (24/7 Digital Access)</p>
           </div>
         </div>
         <Link

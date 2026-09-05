@@ -47,7 +47,7 @@ export default function NoDueCertificateModal({
   const [storeState, setStoreState] = useState(libraryStore.snapshot);
   const [activeTab, setActiveTab] = useState<'CERTIFICATE' | 'AUDIT' | 'TIMELINE'>('CERTIFICATE');
   const [remarksInput, setRemarksInput] = useState(
-    'Cleared all library book loans, physical materials, and financial dues.'
+    'Cleared all borrowed library books, physical materials, and financial dues.'
   );
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
@@ -403,7 +403,7 @@ export default function NoDueCertificateModal({
               </table>
 
               <p class="cert-declaration">
-                This is to officially certify that <strong>${certificate.memberName}</strong>, bearing Roll No. <strong>${certificate.rollNo || member.rollNo || member.memberCardNo}</strong>, has surrendered all borrowed books, reference volumes, research documents, and digital devices to the University Central Library. As verified in the Central Library Catalog Database, there are <strong>NIL (0) active loan liabilities</strong> and <strong>NIL (₹0.00) overdue fines or damage penalties</strong> pending against the candidate. Clearance is hereby granted.
+                This is to officially certify that <strong>${certificate.memberName}</strong>, bearing Roll No. <strong>${certificate.rollNo || member.rollNo || member.memberCardNo}</strong>, has surrendered all borrowed books, reference volumes, research documents, and digital devices to the University Central Library. As verified in the Central Library Catalog Database, there are <strong>NIL (0) active borrowed book liabilities</strong> and <strong>NIL (₹0.00) overdue fines or damage penalties</strong> pending against the candidate. Clearance is hereby granted.
               </p>
 
               <div class="audit-box">
@@ -668,7 +668,7 @@ export default function NoDueCertificateModal({
                     <div>
                       <h4 className="text-sm font-bold">Candidate Meets All Clearance Criteria!</h4>
                       <p className="text-xs text-emerald-800">
-                        Zero active book loans and zero pending fines. The Head of Library can now approve and issue the official No Due Certificate.
+                        Zero active borrowed books and zero pending fines. The Head of Library can now approve and issue the official No Due Certificate.
                       </p>
                     </div>
                   </div>
@@ -703,7 +703,7 @@ export default function NoDueCertificateModal({
                             type="text"
                             value={remarksInput}
                             onChange={(e) => setRemarksInput(e.target.value)}
-                            placeholder="e.g. Cleared all library book loans and financial dues upon college course completion."
+                            placeholder="e.g. Cleared all borrowed library books and financial dues upon college course completion."
                             className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                           />
                         </div>
@@ -725,7 +725,7 @@ export default function NoDueCertificateModal({
                           <span>Student Has Not Requested No Due Clearance Yet</span>
                         </div>
                         <p className="text-xs text-slate-600">
-                          The student is eligible (0 loans & ₹0 fines), but has not yet submitted an official request from the Student Workspace.
+                          The student is eligible (0 borrowed books & ₹0 fines), but has not yet submitted an official request from the Student Workspace.
                         </p>
                         <button
                           type="button"
@@ -752,7 +752,7 @@ export default function NoDueCertificateModal({
                     )
                   ) : (
                     <div className="p-3 bg-white rounded-xl border border-emerald-200 text-xs text-emerald-800">
-                      Your clearance audit has passed (0 loans & 0 fines). Your application is awaiting final digital signature by the Head of the Library.
+                      Your clearance audit has passed (0 active borrowings & 0 fines). Your application is awaiting final digital signature by the Head of the Library.
                     </div>
                   )}
                 </div>
@@ -843,7 +843,7 @@ export default function NoDueCertificateModal({
               {/* Active Loans List */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-                  Active Loans Breakdown ({audit.activeLoans.length})
+                  Active Borrowings Breakdown ({audit.activeLoans.length})
                 </h4>
                 {audit.activeLoans.length > 0 ? (
                   <div className="space-y-2">
@@ -863,7 +863,7 @@ export default function NoDueCertificateModal({
                   </div>
                 ) : (
                   <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-xs text-emerald-800 font-semibold">
-                    ✓ No active book loans. All library copies surrendered.
+                    ✓ No active borrowed books. All library copies surrendered.
                   </div>
                 )}
               </div>

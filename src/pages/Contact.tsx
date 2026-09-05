@@ -101,7 +101,7 @@ export default function Contact() {
               </div>
               <div>
                 <h3 className="font-bold text-slate-900">Circulation Desk Hours</h3>
-                <p className="text-slate-600 text-xs mt-1">Mon–Fri: 8:00 AM – 8:00 PM | Sat: 9:00 AM – 4:00 PM</p>
+                <p className="text-slate-600 text-xs mt-1">Mon–Fri: 8:00 AM – 10:00 PM | Sat: 9:00 AM – 4:00 PM | Sun & Holidays: Closed</p>
               </div>
             </div>
           </div>

@@ -311,7 +311,7 @@ export default function SettingsManagement() {
                 onChange={(e) => setConfig({ ...config, studentMaxLoanDays: Number(e.target.value) })}
                 className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               />
-              <p className="text-[11px] text-slate-400">Standard loan period for students</p>
+              <p className="text-[11px] text-slate-400">Standard borrowing period for students</p>
             </div>
 
             <div className="space-y-1.5">
@@ -323,7 +323,7 @@ export default function SettingsManagement() {
                 onChange={(e) => setConfig({ ...config, facultyMaxLoanDays: Number(e.target.value) })}
                 className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               />
-              <p className="text-[11px] text-slate-400">Extended loan period for professors</p>
+              <p className="text-[11px] text-slate-400">Extended borrowing period for faculty</p>
             </div>
 
             <div className="space-y-1.5">
@@ -361,7 +361,7 @@ export default function SettingsManagement() {
                 </div>
                 <h3 className="font-bold text-slate-900 text-base font-poppins">Export Database Backup</h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Download a full snapshot of your library database (books, members, loan history, fines, and audit logs) as a timestamped JSON file.
+                  Download a full snapshot of your library database (books, members, borrowing history, fines, and audit logs) as a timestamped JSON file.
                 </p>
               </div>
 
@@ -473,7 +473,7 @@ export default function SettingsManagement() {
                 <span>Clear Historical Audit Logs</span>
               </div>
               <p className="text-xs text-amber-800 leading-relaxed">
-                Purge old system audit log records to free up browser storage. This will not delete any books, members, or loans.
+                Purge old system audit log records to free up browser storage. This will not delete any books, members, or circulation records.
               </p>
               <button
                 onClick={handleClearLogs}
@@ -520,7 +520,7 @@ export default function SettingsManagement() {
               <ul className="space-y-1 text-slate-600">
                 <li>• Books Catalog: <strong>{restoreFileData.books?.length || 0} Titles</strong></li>
                 <li>• Registered Members: <strong>{restoreFileData.members?.length || 0} Members</strong></li>
-                <li>• Active Issue Loans: <strong>{restoreFileData.transactions?.length || 0} Records</strong></li>
+                <li>• Active Borrowing Records: <strong>{restoreFileData.transactions?.length || 0} Records</strong></li>
                 <li>• Fine Ledger: <strong>{restoreFileData.fines?.length || 0} Entries</strong></li>
               </ul>
             </div>

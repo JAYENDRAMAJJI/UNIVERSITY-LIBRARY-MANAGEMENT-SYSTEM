@@ -27,11 +27,12 @@ import {
   QrCode,
   Printer,
   CheckCircle2,
+  Copy,
 } from 'lucide-react';
 import { libraryStore, formatOnlyTimeInBracket, getTransactionFineAmount, getLocalDateStr } from '../../services/libraryStore.service';
 import { CopyCondition, ExtensionRequest, IssueTransaction, MemberProfile } from '../../types/library';
 import BarcodeScannerModal from '../../components/common/BarcodeScannerModal';
-import { generateQrSvgString } from '../../utils/barcodeQrGenerator';
+import { generateQrSvgString, getUpiPaymentUrl } from '../../utils/barcodeQrGenerator';
 import AuthorizedCirculationSeal, { generateAuthorizedSealHtml } from '../../components/common/AuthorizedCirculationSeal';
 
 export default function ReturnBooks() {
@@ -336,7 +337,7 @@ export default function ReturnBooks() {
 
     setTerminalAlert({
       type: 'error',
-      message: `No active borrowed loan found for book barcode / accession "${code}". Please select from the list below.`,
+      message: `No active borrowed book found for barcode / accession "${code}". Please select from the list below.`,
     });
   };
 
@@ -689,8 +690,8 @@ export default function ReturnBooks() {
             </div>
 
             {/* Interactive Step Navigator Bar */}
-            <div className="bg-slate-50/90 px-6 py-3.5 border-b border-slate-200 flex items-center justify-between text-sm font-semibold shrink-0 overflow-x-auto gap-2">
-              <div className="flex items-center gap-3">
+            <div className="bg-slate-50/90 px-3.5 sm:px-6 py-3 border-b border-slate-200 flex items-center justify-between text-xs sm:text-sm font-semibold shrink-0 overflow-x-auto no-scrollbar gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-max">
                 {/* Step 1 Pill */}
                 <button
                   type="button"
@@ -700,7 +701,7 @@ export default function ReturnBooks() {
                       setTerminalAlert(null);
                     }
                   }}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold transition-all ${
+                  className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all ${
                     terminalStep === 1
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                       : terminalMember
@@ -708,11 +709,11 @@ export default function ReturnBooks() {
                       : 'bg-slate-200 text-slate-600'
                   }`}
                 >
-                  {terminalMember && <Check className="w-4 h-4 text-emerald-700 stroke-[2.5]" />}
-                  <span>{terminalMember ? `Member: ${terminalMember.name.split(' ')[0]}` : 'Scan Member ID'}</span>
+                  {terminalMember && <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-700 stroke-[2.5]" />}
+                  <span className="truncate max-w-[120px] sm:max-w-none">{terminalMember ? `Member: ${terminalMember.name.split(' ')[0]}` : 'Scan Member ID'}</span>
                 </button>
 
-                <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 shrink-0" />
 
                 {/* Step 2 Pill */}
                 <button
@@ -723,7 +724,7 @@ export default function ReturnBooks() {
                       setTerminalAlert(null);
                     }
                   }}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold transition-all ${
+                  className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all ${
                     terminalStep === 2
                       ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
                       : terminalTx
@@ -732,15 +733,15 @@ export default function ReturnBooks() {
                   }`}
                   disabled={!terminalMember}
                 >
-                  {terminalTx && <Check className="w-4 h-4 text-emerald-700 stroke-[2.5]" />}
-                  <span>{terminalTx ? `Book: ${terminalTx.accessionNo}` : 'Scan Book Barcode'}</span>
+                  {terminalTx && <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-700 stroke-[2.5]" />}
+                  <span className="truncate max-w-[120px] sm:max-w-none">{terminalTx ? `Book: ${terminalTx.accessionNo}` : 'Scan Book Barcode'}</span>
                 </button>
 
-                <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 shrink-0" />
 
                 {/* Step 3 Pill */}
                 <span
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold transition-all ${
+                  className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all ${
                     terminalStep === 3
                       ? 'bg-emerald-700 text-white shadow-md shadow-emerald-600/20'
                       : terminalStep === 4
@@ -748,7 +749,7 @@ export default function ReturnBooks() {
                       : 'bg-slate-100 text-slate-400'
                   }`}
                 >
-                  {terminalStep === 4 && <Check className="w-4 h-4 text-emerald-700 stroke-[2.5]" />}
+                  {terminalStep === 4 && <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-700 stroke-[2.5]" />}
                   <span>Confirm Check-in</span>
                 </span>
               </div>
@@ -914,7 +915,7 @@ export default function ReturnBooks() {
                   {/* Book Barcode Input & Camera Scanner Button */}
                   <div className="space-y-1">
                     <label className="block text-sm font-bold text-slate-800 uppercase tracking-wider">
-                      Scan Book Barcode or Select from Issued Loans Below
+                      Scan Book Barcode or Select from Issued Books Below
                     </label>
                     <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
                       <div className="relative flex-1 w-full">
@@ -954,7 +955,7 @@ export default function ReturnBooks() {
                   {/* List of Books Currently Borrowed by This Member */}
                   <div className="space-y-2 pt-2">
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Active Loans for {terminalMember.name} ({currentMemberRemainingLoans.length})
+                      Active Borrowings for {terminalMember.name} ({currentMemberRemainingLoans.length})
                     </span>
 
                     <div className="space-y-2.5">
@@ -1363,7 +1364,7 @@ export default function ReturnBooks() {
                 </div>
                 <div>
                   <h3 className="font-bold font-poppins text-lg text-white">Process Book Return</h3>
-                  <p className="text-xs text-emerald-100">Review loan summary & log optional remarks</p>
+                  <p className="text-xs text-emerald-100">Review borrowing summary & log optional remarks</p>
                 </div>
               </div>
               <button
@@ -1556,38 +1557,58 @@ export default function ReturnBooks() {
               </div>
 
               {/* Payment Mode Interactive Area */}
-              {paymentMethod === 'UPI_QR' && (
-                <div className="bg-purple-50/60 border border-purple-200 rounded-2xl p-4 text-center space-y-3 animate-fadeIn">
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-[11px] font-bold text-purple-900">Scan & Pay with Any UPI App</span>
-                    <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
-                      Instant Verification
-                    </span>
-                  </div>
+              {paymentMethod === 'UPI_QR' && (() => {
+                const upiUrl = getUpiPaymentUrl({
+                  vpa: 'centralunivlibrary@bank',
+                  name: 'University Central Library',
+                  amount: finePaymentModalTx.fineAmount,
+                  note: `Overdue Fine ${finePaymentModalTx.tx.accessionNo} ${finePaymentModalTx.tx.memberCardNo}`,
+                });
+                return (
+                  <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-4 text-center space-y-3 animate-fadeIn">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[11px] font-bold text-purple-900 flex items-center gap-1.5">
+                        <QrCode className="w-3.5 h-3.5 text-purple-600" /> Scan & Pay with Any UPI App
+                      </span>
+                      <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                        Instant Verification
+                      </span>
+                    </div>
 
-                  {/* QR Code Container */}
-                  <div className="relative w-40 h-40 mx-auto bg-white p-2.5 rounded-2xl border-2 border-purple-300 shadow-md flex items-center justify-center overflow-hidden">
-                    <div
-                      dangerouslySetInnerHTML={{
-                        __html: generateQrSvgString(
-                          `upi://pay?pa=centralunivlibrary@bank&pn=University+Central+Library&am=${finePaymentModalTx.fineAmount.toFixed(
-                            2
-                          )}&tn=Overdue+Fine+${finePaymentModalTx.tx.accessionNo}&cu=INR`,
-                          140
-                        ),
-                      }}
-                    />
-                    <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-purple-500 to-transparent animate-pulse" />
-                  </div>
+                    {/* QR Code Container */}
+                    <div className="relative w-44 h-44 mx-auto bg-white p-2.5 rounded-2xl border-2 border-purple-300 shadow-md flex items-center justify-center overflow-hidden">
+                      <div
+                        className="w-full h-full flex items-center justify-center"
+                        dangerouslySetInnerHTML={{
+                          __html: generateQrSvgString(upiUrl, 160),
+                        }}
+                      />
+                      <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-purple-500 to-transparent animate-pulse" />
+                    </div>
 
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-bold text-slate-800">
-                      Amount: <span className="font-mono text-purple-700 font-extrabold text-sm">₹{finePaymentModalTx.fineAmount.toFixed(2)}</span>
-                    </p>
-                    <p className="text-[10px] text-slate-500">Google Pay • PhonePe • Paytm • BHIM • Cred • Any Banking UPI</p>
+                    <div className="space-y-1.5">
+                      <p className="text-[12px] font-bold text-slate-800">
+                        Amount Payable: <span className="font-mono text-purple-700 font-extrabold text-base">₹{finePaymentModalTx.fineAmount.toFixed(2)}</span>
+                      </p>
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-[10px] font-mono bg-white px-2 py-1 rounded-lg border border-purple-200 text-slate-700 select-all">
+                          UPI ID: centralunivlibrary@bank
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard?.writeText('centralunivlibrary@bank');
+                          }}
+                          className="text-[10px] font-bold text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 px-2 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Copy className="w-3 h-3" /> Copy
+                        </button>
+                      </div>
+                      <p className="text-[9.5px] text-slate-500 font-medium">Google Pay • PhonePe • Paytm • BHIM • Cred • Any Banking UPI</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {paymentMethod === 'CASH' && (
                 <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-4 text-center space-y-2 animate-fadeIn">
@@ -1794,7 +1815,7 @@ export default function ReturnBooks() {
                 onClick={() => setExtensionWarningModal(null)}
                 className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer text-center"
               >
-                Keep Loan Active
+                Keep Book Borrowed
               </button>
 
               <div className="flex items-center gap-2">

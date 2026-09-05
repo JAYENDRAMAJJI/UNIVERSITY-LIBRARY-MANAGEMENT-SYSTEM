@@ -200,7 +200,7 @@ export default function NoDueClearanceDesk() {
       'Purpose',
       'Application Date',
       'Status',
-      'Active Book Loans',
+      'Active Borrowed Books',
       'Pending Fines (INR)',
       'Certificate Ref No',
       'Verified By',
@@ -323,7 +323,7 @@ export default function NoDueClearanceDesk() {
             </div>
           </div>
           <p className="text-2xl font-extrabold font-poppins text-blue-900">{telemetry.studentEligible}</p>
-          <p className="text-xs text-blue-600 font-medium">0 Loans & ₹0 Fines verified</p>
+          <p className="text-xs text-blue-600 font-medium">0 Borrowings & ₹0 Fines verified</p>
         </div>
       </div>
 
@@ -614,7 +614,7 @@ export default function NoDueClearanceDesk() {
                 <tr className="bg-gradient-to-r from-indigo-50 via-slate-100 to-indigo-50 border-b border-slate-200 text-slate-700 font-extrabold uppercase tracking-wider text-[11px]">
                   <th className="py-3.5 px-4">Student Candidate</th>
                   <th className="py-3.5 px-4">Department & Batch</th>
-                  <th className="py-3.5 px-4">Active Loans</th>
+                  <th className="py-3.5 px-4">Active Borrowings</th>
                   <th className="py-3.5 px-4">Fine Dues</th>
                   <th className="py-3.5 px-4">Clearance Status</th>
                   <th className="py-3.5 px-4 text-right">Actions (Head of Library)</th>
