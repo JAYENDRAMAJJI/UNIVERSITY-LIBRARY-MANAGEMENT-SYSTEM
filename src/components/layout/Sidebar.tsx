@@ -64,6 +64,8 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
     }
   };
 
+  const pendingApprovalsCount = (state.members || []).filter((m) => m.status === 'PENDING_APPROVAL').length;
+
   const getAdminSections = () => [
     {
       title: 'MAIN CONTROL',
@@ -77,7 +79,7 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
         { to: '/admin/issue-books', icon: ScanBarcode, label: 'Issue Books' },
         { to: '/admin/return-books', icon: RotateCcw, label: 'Return Books' },
         { to: '/admin/renew-books', icon: RefreshCw, label: 'Extend Book Time' },
-        { to: '/attendance', icon: UserCheck, label: 'Library Attendance' },
+        { to: '/admin/attendance', icon: UserCheck, label: 'Library Attendance Desk' },
         { to: '/admin/borrow-history', icon: History, label: 'Book Borrow History' },
         { to: '/admin/reservations', icon: Bell, label: 'Reservations Queue' },
         { to: '/admin/fines', icon: IndianRupee, label: 'Fine Management' },
@@ -98,6 +100,7 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
     {
       title: 'MEMBER & USER ADMIN',
       links: [
+        { to: '/admin/approvals', icon: UserCheck, label: 'Account Approvals', badgeCount: pendingApprovalsCount },
         { to: '/admin/members', icon: Users, label: 'Student & Faculty Members' },
         { to: '/admin/users', icon: ShieldCheck, label: 'User Roles & Permissions' },
         { to: '/notifications', icon: Bell, label: 'Notifications & Alerts' },
@@ -115,7 +118,6 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
         { to: '/fines', icon: IndianRupee, label: 'My Fines & Dues' },
         { to: '/no-due', icon: Award, label: 'Apply for No Due' },
         { to: '/borrow-history', icon: History, label: 'My Borrowed Books' },
-        { to: '/attendance', icon: UserCheck, label: 'Library Attendance' },
       ],
     },
     {
@@ -144,7 +146,6 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
         { to: '/fines', icon: IndianRupee, label: 'My Fines & Dues' },
         { to: '/no-due', icon: Award, label: 'Apply for No Due' },
         { to: '/borrow-history', icon: History, label: 'My Borrowed Books' },
-        { to: '/attendance', icon: UserCheck, label: 'Library Attendance' },
       ],
     },
     {
@@ -201,6 +202,17 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
+                {(link as any).badgeCount !== undefined && (link as any).badgeCount > 0 && (
+                  <span
+                    className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-xs shrink-0 ${
+                      active
+                        ? 'bg-white text-amber-800'
+                        : 'bg-amber-500 text-white animate-pulse'
+                    }`}
+                  >
+                    {(link as any).badgeCount}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -212,17 +224,17 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
   return (
     <>
       {/* Fixed Desktop Sidebar */}
-      <aside className="w-72 sm:w-80 hidden md:flex flex-col shrink-0 bg-white border-r border-slate-200 h-full overflow-y-auto z-30 select-none">
+      <aside className="w-64 lg:w-72 xl:w-80 hidden md:flex flex-col shrink-0 bg-white border-r border-slate-200 h-full overflow-y-auto z-30 select-none">
         {renderNavContent()}
       </aside>
 
       {/* Mobile Drawer Overlay */}
       {isOpenMobile && (
         <div className="md:hidden fixed inset-0 z-50 flex bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-80 max-w-[80vw] bg-white h-full overflow-y-auto flex flex-col shadow-2xl">
+          <div className="w-72 sm:w-80 max-w-[85vw] bg-white h-full overflow-y-auto flex flex-col shadow-2xl">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
               <span className="font-bold text-slate-900 text-sm font-poppins">{user?.role || 'Portal'} Menu</span>
-              <button onClick={onCloseMobile} className="p-2 text-slate-500 hover:text-slate-900">
+              <button onClick={onCloseMobile} className="p-2 text-slate-500 hover:text-slate-900 cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>

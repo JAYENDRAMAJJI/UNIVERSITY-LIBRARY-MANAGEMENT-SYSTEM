@@ -663,8 +663,8 @@ export default function BooksManagement() {
           accessionNo: c.accessionNo,
           barcode: c.barcode,
           qrCode: c.qrCode || `QR-${c.barcode}`,
-          rackNumber: c.rackNumber || book.rackNumber || 'RACK-BTECH-CSE-01',
-          shelfNumber: c.shelfNumber || book.shelfNumber || 'SHELF-1',
+          rackNumber: c.rackNumber || book.rackNumber || 'R01',
+          shelfNumber: c.shelfNumber || book.shelfNumber || 'S01',
           department: book.department || 'ACADEMIC',
         });
       });
@@ -2170,7 +2170,7 @@ export default function BooksManagement() {
                     >
                       {ACADEMIC_RACK_HIERARCHY.map((r) => (
                         <option key={r.rackCode} value={r.rackCode}>
-                          {r.rackCode} — {r.rackName}
+                          {r.rackName}
                         </option>
                       ))}
                     </select>
@@ -2360,7 +2360,7 @@ export default function BooksManagement() {
                   >
                     {ACADEMIC_RACK_HIERARCHY.map((r) => (
                       <option key={r.rackCode} value={r.rackCode}>
-                        {r.rackCode} — {r.rackName}
+                        {r.rackName}
                       </option>
                     ))}
                   </select>

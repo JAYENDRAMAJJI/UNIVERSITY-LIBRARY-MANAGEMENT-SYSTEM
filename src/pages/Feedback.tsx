@@ -130,7 +130,7 @@ export default function Feedback() {
               <option value="Book Collections">Book Collections & Catalog</option>
               <option value="Digital Resources">Digital E-Books & Research Papers</option>
               <option value="Facilities & Infrastructure">Study Spaces & Reading Halls</option>
-              <option value="Circulation & Loan Services">Issue, Return & Fine Services</option>
+              <option value="Circulation & Borrowing Services">Issue, Return & Fine Services</option>
               <option value="Other Suggestions">General Suggestions & Feedback</option>
             </select>
           </div>

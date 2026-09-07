@@ -16,6 +16,9 @@ import {
   Check,
   X,
   RotateCcw,
+  QrCode,
+  Copy,
+  Banknote,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -28,6 +31,7 @@ import {
 import { FineRecord, IssueTransaction, MemberProfile } from '../types/library';
 import { Link } from 'react-router-dom';
 import AuthorizedCirculationSeal from '../components/common/AuthorizedCirculationSeal';
+import { generateQrSvgString, getUpiPaymentUrl } from '../utils/barcodeQrGenerator';
 
 export default function MyFines() {
   const { user } = useAuth();
@@ -91,8 +95,8 @@ export default function MyFines() {
     return (state.transactions || []).filter((tx) => {
       const isMember =
         tx.memberId === memberId ||
-        tx.memberCardNo.toLowerCase() === memberCardNo ||
-        (user?.name && tx.memberName.toLowerCase() === user.name.toLowerCase());
+        (tx.memberCardNo && memberCardNo && tx.memberCardNo.toLowerCase() === memberCardNo) ||
+        (user?.name && tx.memberName && tx.memberName.toLowerCase() === user.name.toLowerCase());
       if (!isMember) return false;
       if (tx.status === 'OVERDUE') return true;
       if (tx.status === 'ISSUED' && tx.dueDate && tx.dueDate < todayStr) return true;
@@ -185,7 +189,7 @@ export default function MyFines() {
             My Fines & Penalties
           </h1>
           <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-            Real-time tracking of late book return penalties, overdue loan daily charges, and official settlement receipts for{' '}
+            Real-time tracking of late book return penalties, daily overdue charges, and official settlement receipts for{' '}
             <strong className="text-white">{currentMember?.name || user?.name}</strong> ({currentMember?.memberCardNo}).
           </p>
           <div className="pt-2 flex flex-wrap items-center gap-3 text-xs text-slate-300">
@@ -231,7 +235,7 @@ export default function MyFines() {
             </div>
             <div>
               <h3 className="text-base font-bold text-rose-950 font-poppins">
-                Action Required: Outstanding Library Fines & Overdue Loans
+                Action Required: Outstanding Library Fines & Overdue Books
               </h3>
               <p className="text-xs text-rose-800 mt-1 leading-relaxed">
                 You have <strong>₹{totalPendingFines.toFixed(2)}</strong> in pending fines for late book returns.
@@ -412,17 +416,17 @@ export default function MyFines() {
           </div>
         </div>
 
-        {/* View: Active Overdue Loans Tab */}
+        {/* View: Active Overdue Books Tab */}
         {filterTab === 'OVERDUE_LOANS' && (
           <div className="space-y-4">
             <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-900 text-xs leading-relaxed">
-              <strong className="font-bold">Active Overdue Loans:</strong> These borrowed books have passed their official due dates and are actively accumulating overdue penalty at ₹{(state.config?.fineRatePerDay || 5).toFixed(2)}/day until returned at the library desk.
+              <strong className="font-bold">Active Overdue Books:</strong> These borrowed books have passed their official due dates and are actively accumulating overdue penalty at ₹{(state.config?.fineRatePerDay || 5).toFixed(2)}/day until returned at the library desk.
             </div>
 
             {activeOverdueLoans.length === 0 ? (
               <div className="text-center py-12 bg-slate-50 rounded-2xl border border-slate-100">
                 <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-                <h4 className="text-sm font-bold text-slate-800">No Currently Overdue Loans</h4>
+                <h4 className="text-sm font-bold text-slate-800">No Currently Overdue Books</h4>
                 <p className="text-xs text-slate-500 mt-1">All your active borrowed books are well within their allowed due dates.</p>
               </div>
             ) : (
@@ -752,6 +756,81 @@ export default function MyFines() {
               </div>
             </div>
 
+            {/* Payment Method Details Panel */}
+            {payMethod === 'UPI' && (() => {
+              const upiUrl = getUpiPaymentUrl({
+                vpa: 'centralunivlibrary@bank',
+                name: 'University Central Library',
+                amount: payingFine.amount,
+                note: `Member Fine ${payingFine.memberCardNo} ${payingFine.id}`,
+              });
+              return (
+                <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-4 text-center space-y-3 animate-fadeIn">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[11px] font-bold text-purple-900 flex items-center gap-1.5">
+                      <QrCode className="w-3.5 h-3.5 text-purple-600" /> Scan & Pay with Any UPI App
+                    </span>
+                    <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                      Instant Settlement
+                    </span>
+                  </div>
+
+                  <div className="relative w-44 h-44 mx-auto bg-white p-2.5 rounded-2xl border-2 border-purple-300 shadow-md flex items-center justify-center overflow-hidden">
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      dangerouslySetInnerHTML={{
+                        __html: generateQrSvgString(upiUrl, 160),
+                      }}
+                    />
+                    <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-purple-500 to-transparent animate-pulse" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[12px] font-bold text-slate-800">
+                      Amount: <span className="font-mono text-purple-700 font-extrabold text-base">₹{payingFine.amount.toFixed(2)}</span>
+                    </p>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-[10px] font-mono bg-white px-2 py-1 rounded-lg border border-purple-200 text-slate-700 select-all">
+                        UPI ID: centralunivlibrary@bank
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard?.writeText('centralunivlibrary@bank');
+                          setToastMessage('UPI ID copied to clipboard: centralunivlibrary@bank');
+                          setTimeout(() => setToastMessage(null), 3000);
+                        }}
+                        className="text-[10px] font-bold text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 px-2 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <Copy className="w-3 h-3" /> Copy
+                      </button>
+                    </div>
+                    <p className="text-[9.5px] text-slate-500 font-medium">Google Pay • PhonePe • Paytm • BHIM • Cred • Any UPI App</p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {payMethod === 'CARD' && (
+              <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 text-center space-y-2 animate-fadeIn">
+                <CreditCard className="w-6 h-6 text-blue-600 mx-auto" />
+                <h4 className="text-xs font-bold text-slate-900">Online Gateway (Debit / Credit / Net Banking)</h4>
+                <p className="text-[11px] text-slate-600">
+                  You will be securely redirected to the University Payment Gateway to complete payment of <strong className="text-blue-700 font-mono">₹{payingFine.amount.toFixed(2)}</strong>.
+                </p>
+              </div>
+            )}
+
+            {payMethod === 'CASH_DESK' && (
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 text-center space-y-2 animate-fadeIn">
+                <Banknote className="w-6 h-6 text-emerald-600 mx-auto" />
+                <h4 className="text-xs font-bold text-slate-900">Pay at Central Circulation Counter</h4>
+                <p className="text-[11px] text-slate-600">
+                  Visit the library circulation counter with cash <strong className="text-emerald-700 font-mono">₹{payingFine.amount.toFixed(2)}</strong> and present your ID card ({payingFine.memberCardNo}).
+                </p>
+              </div>
+            )}
+
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
@@ -765,7 +844,7 @@ export default function MyFines() {
                 onClick={handleConfirmPayment}
                 className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-emerald-200 transition-all cursor-pointer flex items-center gap-1.5"
               >
-                <Check className="w-4 h-4" /> Confirm & Pay ₹{payingFine.amount.toFixed(2)}
+                <Check className="w-4 h-4" /> Confirm & Settle ₹{payingFine.amount.toFixed(2)}
               </button>
             </div>
           </div>

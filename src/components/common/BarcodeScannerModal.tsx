@@ -23,32 +23,82 @@ const SAMPLE_ISBN_PRESETS = [
   { barcode: '978-1449373320', title: 'Designing Data-Intensive Applications', author: 'Martin Kleppmann' },
 ];
 
+const playScanBeep = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioContextClass) {
+      const audioCtx = new AudioContextClass();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Note A5
+      osc.frequency.exponentialRampToValueAtTime(1320, audioCtx.currentTime + 0.12); // Note E6
+      gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.15);
+    }
+  } catch {}
+};
+
 const cleanScannedCode = (raw: string): string => {
   let str = (raw || '').trim();
   if (str.startsWith('http://') || str.startsWith('https://')) {
     try {
       const url = new URL(str);
-      const pathnameParts = url.pathname.split('/').filter(Boolean);
-      if (pathnameParts.length > 0) {
-        str = pathnameParts[pathnameParts.length - 1];
+      const queryCode =
+        url.searchParams.get('barcode') ||
+        url.searchParams.get('isbn') ||
+        url.searchParams.get('code') ||
+        url.searchParams.get('id') ||
+        url.searchParams.get('acc');
+      if (queryCode) {
+        str = queryCode;
+      } else {
+        const pathnameParts = url.pathname.split('/').filter(Boolean);
+        if (pathnameParts.length > 0) {
+          str = pathnameParts[pathnameParts.length - 1];
+        }
       }
     } catch {}
   }
-  if (str.toUpperCase().startsWith('RACK:')) {
-    str = str.substring(5).trim();
-  } else if (str.toUpperCase().startsWith('SHELF:')) {
-    str = str.substring(6).trim();
-  }
+
   if ((str.startsWith('{') && str.endsWith('}')) || (str.startsWith('[') && str.endsWith(']'))) {
     try {
       const obj = JSON.parse(str);
-      str = obj.rackNumber || obj.shelfNumber || obj.rack || obj.shelf || obj.memberCardNo || obj.id || obj.cardNo || obj.barcode || obj.isbn || obj.studentId || obj.qrCode || obj.code || str;
+      str =
+        obj.barcode ||
+        obj.accessionNo ||
+        obj.isbn ||
+        obj.qrCode ||
+        obj.memberCardNo ||
+        obj.studentId ||
+        obj.id ||
+        obj.rackNumber ||
+        obj.shelfNumber ||
+        obj.rack ||
+        obj.shelf ||
+        obj.cardNo ||
+        obj.code ||
+        str;
     } catch {
       // ignore
     }
   }
+
   // Strip control characters, quotes, or trailing newlines from physical scanners
   str = str.replace(/[\r\n"']/g, '').trim();
+
+  // If prefixed with QR- or QR: check if payload has an inner standard prefix (BC-, ACC-, STU-, etc.)
+  if (/^QR[-:]/i.test(str)) {
+    const withoutQr = str.replace(/^QR[-:]/i, '').trim();
+    if (withoutQr.length > 0) {
+      str = withoutQr;
+    }
+  }
+
   return str;
 };
 
@@ -75,12 +125,11 @@ function decodeCode128Scanline(runLengths: number[]): string | null {
     if (symbolWidth <= 0) continue;
 
     const moduleWidth = symbolWidth / 11;
-    if (moduleWidth < 0.4) continue;
+    if (moduleWidth < 0.3) continue;
 
     let patternStr = '';
     for (let k = 0; k < 6; k++) {
-      const units = Math.round(runLengths[startIdx + k] / moduleWidth);
-      if (units < 1 || units > 4) break;
+      const units = Math.max(1, Math.min(4, Math.round(runLengths[startIdx + k] / moduleWidth)));
       patternStr += units.toString();
     }
 
@@ -97,8 +146,7 @@ function decodeCode128Scanline(runLengths: number[]): string | null {
         const stopModuleWidth = stopSymbolWidth / 13;
         let stopPatternStr = '';
         for (let k = 0; k < 7; k++) {
-          const units = Math.round(runLengths[currIdx + k] / stopModuleWidth);
-          if (units < 1 || units > 4) break;
+          const units = Math.max(1, Math.min(4, Math.round(runLengths[currIdx + k] / stopModuleWidth)));
           stopPatternStr += units.toString();
         }
         if (stopPatternStr === '2331112') {
@@ -130,8 +178,7 @@ function decodeCode128Scanline(runLengths: number[]): string | null {
       const currModuleWidth = currSymbolWidth / 11;
       let currPatternStr = '';
       for (let k = 0; k < 6; k++) {
-        const units = Math.round(runLengths[currIdx + k] / currModuleWidth);
-        if (units < 1 || units > 4) break;
+        const units = Math.max(1, Math.min(4, Math.round(runLengths[currIdx + k] / currModuleWidth)));
         currPatternStr += units.toString();
       }
 
@@ -148,7 +195,9 @@ function decodeCode128Scanline(runLengths: number[]): string | null {
 }
 
 function scanCode128FromCanvas(ctx: CanvasRenderingContext2D, width: number, height: number): string | null {
-  const ySteps = [0.25, 0.35, 0.45, 0.5, 0.55, 0.65, 0.75];
+  const ySteps = [0.15, 0.25, 0.32, 0.4, 0.48, 0.52, 0.6, 0.68, 0.75, 0.85];
+  const thresholdFactors = [0.75, 0.85, 1.0, 1.15];
+
   for (const yRatio of ySteps) {
     const y = Math.floor(height * yRatio);
     const imgData = ctx.getImageData(0, y, width, 1);
@@ -159,33 +208,78 @@ function scanCode128FromCanvas(ctx: CanvasRenderingContext2D, width: number, hei
       totalLuma += 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
     }
     const avgLuma = totalLuma / (pixels.length / 4);
-    const threshold = avgLuma * 0.85;
 
-    const runLengths: number[] = [];
-    let currentIsBlack = (0.299 * pixels[0] + 0.587 * pixels[1] + 0.114 * pixels[2]) < threshold;
-    let currentRun = 0;
+    for (const factor of thresholdFactors) {
+      const threshold = avgLuma * factor;
+      const runLengths: number[] = [];
+      let currentIsBlack = (0.299 * pixels[0] + 0.587 * pixels[1] + 0.114 * pixels[2]) < threshold;
+      let currentRun = 0;
 
-    for (let x = 0; x < width; x++) {
-      const idx = x * 4;
-      const luma = 0.299 * pixels[idx] + 0.587 * pixels[idx + 1] + 0.114 * pixels[idx + 2];
-      const isBlack = luma < threshold;
+      for (let x = 0; x < width; x++) {
+        const idx = x * 4;
+        const luma = 0.299 * pixels[idx] + 0.587 * pixels[idx + 1] + 0.114 * pixels[idx + 2];
+        const isBlack = luma < threshold;
 
-      if (isBlack === currentIsBlack) {
-        currentRun++;
-      } else {
-        runLengths.push(currentRun);
-        currentIsBlack = isBlack;
-        currentRun = 1;
+        if (isBlack === currentIsBlack) {
+          currentRun++;
+        } else {
+          runLengths.push(currentRun);
+          currentIsBlack = isBlack;
+          currentRun = 1;
+        }
       }
+      runLengths.push(currentRun);
+
+      const firstIsBlack = (0.299 * pixels[0] + 0.587 * pixels[1] + 0.114 * pixels[2]) < threshold;
+      const startIdx = firstIsBlack ? 0 : 1;
+      const cleanRuns = runLengths.slice(startIdx);
+
+      const decoded = decodeCode128Scanline(cleanRuns);
+      if (decoded) return decoded;
     }
-    runLengths.push(currentRun);
+  }
 
-    const firstIsBlack = (0.299 * pixels[0] + 0.587 * pixels[1] + 0.114 * pixels[2]) < threshold;
-    const startIdx = firstIsBlack ? 0 : 1;
-    const cleanRuns = runLengths.slice(startIdx);
+  // Vertical scanlines for 90° rotated barcodes
+  const xSteps = [0.25, 0.35, 0.5, 0.65, 0.75];
+  for (const xRatio of xSteps) {
+    const x = Math.floor(width * xRatio);
+    const imgData = ctx.getImageData(x, 0, 1, height);
+    const pixels = imgData.data;
 
-    const decoded = decodeCode128Scanline(cleanRuns);
-    if (decoded) return decoded;
+    let totalLuma = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      totalLuma += 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
+    }
+    const avgLuma = totalLuma / (pixels.length / 4);
+
+    for (const factor of [0.85, 1.0]) {
+      const threshold = avgLuma * factor;
+      const runLengths: number[] = [];
+      let currentIsBlack = (0.299 * pixels[0] + 0.587 * pixels[1] + 0.114 * pixels[2]) < threshold;
+      let currentRun = 0;
+
+      for (let y = 0; y < height; y++) {
+        const idx = y * 4;
+        const luma = 0.299 * pixels[idx] + 0.587 * pixels[idx + 1] + 0.114 * pixels[idx + 2];
+        const isBlack = luma < threshold;
+
+        if (isBlack === currentIsBlack) {
+          currentRun++;
+        } else {
+          runLengths.push(currentRun);
+          currentIsBlack = isBlack;
+          currentRun = 1;
+        }
+      }
+      runLengths.push(currentRun);
+
+      const firstIsBlack = (0.299 * pixels[0] + 0.587 * pixels[1] + 0.114 * pixels[2]) < threshold;
+      const startIdx = firstIsBlack ? 0 : 1;
+      const cleanRuns = runLengths.slice(startIdx);
+
+      const decoded = decodeCode128Scanline(cleanRuns);
+      if (decoded) return decoded;
+    }
   }
 
   return null;
@@ -422,6 +516,98 @@ export default function BarcodeScannerModal({
     const startScanner = async () => {
       setCameraError(null);
 
+      const runParallelFrameProcessor = (videoEl: HTMLVideoElement) => {
+        if (scanInterval) clearInterval(scanInterval);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        scanInterval = setInterval(async () => {
+          if (!videoEl || videoEl.readyState < 2 || isScanning || isStopped) return;
+
+          // 1. Native BarcodeDetector (fastest hardware-accelerated 1D barcode & QR scanner)
+          if ('BarcodeDetector' in window) {
+            try {
+              const detector = new (window as any).BarcodeDetector({
+                formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'qr_code', 'data_matrix'],
+              });
+              const detected = await detector.detect(videoEl);
+              if (detected && detected.length > 0) {
+                const raw = detected[0].rawValue?.trim();
+                const format = (detected[0].format || '').toLowerCase();
+                if (raw) {
+                  const cleaned = cleanScannedCode(raw);
+                  isStopped = true;
+                  const isQr =
+                    format.includes('qr') ||
+                    format.includes('matrix') ||
+                    raw.toLowerCase().startsWith('qr-') ||
+                    raw.startsWith('http://') ||
+                    raw.startsWith('https://');
+                  const method = isQr ? 'QR_CODE' : 'BARCODE';
+                  handleExecuteScan(cleaned, method);
+                  return;
+                }
+              }
+            } catch {}
+          }
+
+          const w = videoEl.videoWidth || 640;
+          const h = videoEl.videoHeight || 480;
+          if (w === 0 || h === 0) return;
+          canvas.width = w;
+          canvas.height = h;
+
+          if (ctx) {
+            ctx.drawImage(videoEl, 0, 0, w, h);
+
+            // 2. Full canvas jsQR (QR Code detection)
+            try {
+              const imgData = ctx.getImageData(0, 0, w, h);
+              const qrResult = jsQR(imgData.data, w, h, { inversionAttempts: 'attemptBoth' });
+              if (qrResult && qrResult.data) {
+                const decoded = cleanScannedCode(qrResult.data);
+                if (decoded) {
+                  isStopped = true;
+                  handleExecuteScan(decoded, 'QR_CODE');
+                  return;
+                }
+              }
+            } catch {}
+
+            // 3. Center reticle crop jsQR (boosted accuracy for close-up ID cards)
+            try {
+              const cropW = Math.floor(w * 0.7);
+              const cropH = Math.floor(h * 0.7);
+              const cropX = Math.floor(w * 0.15);
+              const cropY = Math.floor(h * 0.15);
+              const croppedData = ctx.getImageData(cropX, cropY, cropW, cropH);
+              const cropResult = jsQR(croppedData.data, cropW, cropH, { inversionAttempts: 'attemptBoth' });
+              if (cropResult && cropResult.data) {
+                const decoded = cleanScannedCode(cropResult.data);
+                if (decoded) {
+                  isStopped = true;
+                  handleExecuteScan(decoded, 'QR_CODE');
+                  return;
+                }
+              }
+            } catch {}
+
+            // 4. Direct 1D Code128 Scanline Engine (scans 1D barcodes directly from canvas at 60 FPS)
+            try {
+              const code128Result = scanCode128FromCanvas(ctx, w, h);
+              if (code128Result) {
+                const cleaned = cleanScannedCode(code128Result);
+                if (cleaned) {
+                  isStopped = true;
+                  handleExecuteScan(cleaned, 'BARCODE');
+                  return;
+                }
+              }
+            } catch {}
+          }
+        }, 80);
+      };
+
       // 1. Try Html5Qrcode on container element (decodes Code 128, Code 39, EAN-13, QR, Data Matrix)
       try {
         const container = document.getElementById('live-camera-reader-element');
@@ -448,12 +634,17 @@ export default function BarcodeScannerModal({
           await html5Qrcode.start(
             { facingMode: 'environment' },
             {
-              fps: 20,
+              fps: 30,
               qrbox: (viewfinderWidth, viewfinderHeight) => {
-                return {
-                  width: Math.floor(viewfinderWidth * 0.9),
-                  height: Math.floor(viewfinderHeight * 0.55),
-                };
+                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                const edgeSize = Math.max(200, Math.floor(minEdge * 0.85));
+                return { width: edgeSize, height: edgeSize };
+              },
+              aspectRatio: 1.0,
+              videoConstraints: {
+                facingMode: 'environment',
+                width: { ideal: 1280, min: 640 },
+                height: { ideal: 720, min: 480 },
               },
             },
             (decodedText, decodedResult) => {
@@ -479,6 +670,12 @@ export default function BarcodeScannerModal({
               // Frame scanning...
             }
           );
+
+          // Concurrently attach parallel frame processor to Html5Qrcode video
+          const videoEl = container.querySelector('video');
+          if (videoEl) {
+            runParallelFrameProcessor(videoEl);
+          }
           return;
         }
       } catch (e) {
@@ -495,96 +692,8 @@ export default function BarcodeScannerModal({
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
             videoRef.current.play();
+            runParallelFrameProcessor(videoRef.current);
           }
-
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-          scanInterval = setInterval(async () => {
-            const video = videoRef.current;
-            if (!video || video.readyState !== 4 || isScanning || isStopped) return;
-
-            // 2a. Native BarcodeDetector (fastest hardware-accelerated 1D barcode & QR scanner)
-            if ('BarcodeDetector' in window) {
-              try {
-                const detector = new (window as any).BarcodeDetector({
-                  formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'qr_code', 'data_matrix'],
-                });
-                const detected = await detector.detect(video);
-                if (detected && detected.length > 0) {
-                  const raw = detected[0].rawValue?.trim();
-                  const format = (detected[0].format || '').toLowerCase();
-                  if (raw) {
-                    const cleaned = cleanScannedCode(raw);
-                    isStopped = true;
-                    const isQr =
-                      format.includes('qr') ||
-                      format.includes('matrix') ||
-                      raw.toLowerCase().startsWith('qr-') ||
-                      raw.startsWith('http://') ||
-                      raw.startsWith('https://');
-                    const method = isQr ? 'QR_CODE' : 'BARCODE';
-                    handleExecuteScan(cleaned, method);
-                    return;
-                  }
-                }
-              } catch {}
-            }
-
-            const w = video.videoWidth || 640;
-            const h = video.videoHeight || 480;
-            canvas.width = w;
-            canvas.height = h;
-
-            if (ctx) {
-              ctx.drawImage(video, 0, 0, w, h);
-
-              // 2b. Full canvas jsQR (QR Code detection)
-              try {
-                const imgData = ctx.getImageData(0, 0, w, h);
-                const qrResult = jsQR(imgData.data, w, h, { inversionAttempts: 'attemptBoth' });
-                if (qrResult && qrResult.data) {
-                  const decoded = cleanScannedCode(qrResult.data);
-                  if (decoded) {
-                    isStopped = true;
-                    handleExecuteScan(decoded, 'QR_CODE');
-                    return;
-                  }
-                }
-              } catch {}
-
-              // 2c. Center reticle crop jsQR (boosted accuracy for close-up ID cards)
-              try {
-                const cropW = Math.floor(w * 0.7);
-                const cropH = Math.floor(h * 0.7);
-                const cropX = Math.floor(w * 0.15);
-                const cropY = Math.floor(h * 0.15);
-                const croppedData = ctx.getImageData(cropX, cropY, cropW, cropH);
-                const cropResult = jsQR(croppedData.data, cropW, cropH, { inversionAttempts: 'attemptBoth' });
-                if (cropResult && cropResult.data) {
-                  const decoded = cleanScannedCode(cropResult.data);
-                  if (decoded) {
-                    isStopped = true;
-                    handleExecuteScan(decoded, 'QR_CODE');
-                    return;
-                  }
-                }
-              } catch {}
-
-              // 2d. Direct 1D Code128 Scanline Engine (scans 1D barcodes directly from canvas at 60 FPS)
-              try {
-                const code128Result = scanCode128FromCanvas(ctx, w, h);
-                if (code128Result) {
-                  const cleaned = cleanScannedCode(code128Result);
-                  if (cleaned) {
-                    isStopped = true;
-                    handleExecuteScan(cleaned, 'BARCODE');
-                    return;
-                  }
-                }
-              } catch {}
-            }
-          }, 100);
         } else {
           setCameraError('Webcam / Camera access is not supported on this device/browser.');
         }
@@ -766,47 +875,8 @@ export default function BarcodeScannerModal({
     const code = cleanScannedCode(rawCode);
     if (!code) return;
 
-    const cLower = code.toLowerCase();
-    const cNorm = cLower.replace(/[^a-z0-9]/g, '');
-    const cNoPrefix = cLower.replace(/^(qr-|bc-|barcode-|bar-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
-
-    const isMemberCode = memberCards.some((m) => {
-      const cardLower = m.barcode.toLowerCase();
-      const idLower = m.id.toLowerCase();
-      const cardNorm = cardLower.replace(/[^a-z0-9]/g, '');
-      const idNorm = idLower.replace(/[^a-z0-9]/g, '');
-      const cardNoPrefix = cardLower.replace(/^(qr-|bc-|barcode-|bar-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
-      return (
-        cardLower === cLower ||
-        idLower === cLower ||
-        (cNorm.length > 0 && (cardNorm === cNorm || idNorm === cNorm)) ||
-        (cNoPrefix.length > 0 && (cardNoPrefix === cNoPrefix || cardNorm === cNoPrefix))
-      );
-    }) || cLower.startsWith('stu-') || cLower.startsWith('fac-') || cLower.startsWith('adm-') || cLower.startsWith('mem-') || cLower.startsWith('card-');
-
-    const isBookCode = availableCopies.some((ac) => {
-      const bLower = ac.barcode.toLowerCase();
-      const aLower = ac.accessionNo.toLowerCase();
-      const bNorm = bLower.replace(/[^a-z0-9]/g, '');
-      const aNorm = aLower.replace(/[^a-z0-9]/g, '');
-      const bNoPrefix = bLower.replace(/^(qr-|bc-|acc-|card-|id-)/i, '').replace(/[^a-z0-9]/g, '');
-      return (
-        bLower === cLower ||
-        aLower === cLower ||
-        (cNorm.length > 0 && (bNorm === cNorm || aNorm === cNorm)) ||
-        (cNoPrefix.length > 0 && bNoPrefix === cNoPrefix)
-      );
-    }) || cLower.startsWith('bc-') || cLower.startsWith('acc-') || cLower.startsWith('isbn');
-
-    if (!isStudentOrMemberScan && isMemberCode && !isBookCode) {
-      setCameraError('Invalid Code: Please scan a Book Barcode.');
-      return;
-    }
-
-    if (isStudentOrMemberScan && isBookCode && !isMemberCode) {
-      setCameraError('Invalid Code: Please scan a Member ID Card.');
-      return;
-    }
+    // Optional subtle audio beep confirmation on scan
+    playScanBeep();
 
     let detectedMethod: 'BARCODE' | 'QR_CODE' | 'CARD_SCAN' | 'MANUAL_ID' = explicitMethod || 'BARCODE';
     if (!explicitMethod) {
@@ -1164,12 +1234,12 @@ export default function BarcodeScannerModal({
 
               {/* Live Camera Feed */}
               <div
-                className="relative h-64 rounded-2xl bg-slate-950 overflow-hidden flex flex-col items-center justify-center border-2 border-slate-800 shadow-inner group transition-all"
+                className="relative w-full h-80 sm:h-96 min-h-[300px] rounded-3xl bg-slate-950 overflow-hidden flex flex-col items-center justify-center border-2 border-slate-800 shadow-inner group transition-all"
               >
                 {/* HTML5 QRCODE CONTAINER */}
-                <div id="live-camera-reader-element" className="w-full h-full object-cover overflow-hidden rounded-2xl" />
+                <div id="live-camera-reader-element" className="absolute inset-0 w-full h-full object-cover overflow-hidden rounded-3xl" />
                 <div id="live-camera-reader-element-file-temp" className="hidden" />
-                <video ref={videoRef} className="w-full h-full object-cover hidden" autoPlay playsInline muted />
+                <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover rounded-3xl hidden" autoPlay playsInline muted />
 
                 {/* Scan Feedback Overlay */}
                 {isScanning && (
@@ -1181,15 +1251,15 @@ export default function BarcodeScannerModal({
                 )}
 
                 {/* Reticle Target Corners */}
-                <div className="absolute top-4 left-4 w-8 h-8 border-t-4 border-l-4 border-emerald-400 pointer-events-none z-10" />
-                <div className="absolute top-4 right-4 w-8 h-8 border-t-4 border-r-4 border-emerald-400 pointer-events-none z-10" />
-                <div className="absolute bottom-4 left-4 w-8 h-8 border-b-4 border-l-4 border-emerald-400 pointer-events-none z-10" />
-                <div className="absolute bottom-4 right-4 w-8 h-8 border-b-4 border-r-4 border-emerald-400 pointer-events-none z-10" />
+                <div className="absolute top-5 left-5 w-10 h-10 border-t-4 border-l-4 border-emerald-400 pointer-events-none z-10" />
+                <div className="absolute top-5 right-5 w-10 h-10 border-t-4 border-r-4 border-emerald-400 pointer-events-none z-10" />
+                <div className="absolute bottom-5 left-5 w-10 h-10 border-b-4 border-l-4 border-emerald-400 pointer-events-none z-10" />
+                <div className="absolute bottom-5 right-5 w-10 h-10 border-b-4 border-r-4 border-emerald-400 pointer-events-none z-10" />
 
                 {/* Laser Line */}
                 <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_15px_#34d399] animate-pulse my-auto z-10 pointer-events-none" />
 
-                <div className="absolute bottom-3 flex items-center gap-2 text-xs font-bold text-slate-200 bg-slate-900/90 px-4 py-2 rounded-full border border-slate-700 shadow-md backdrop-blur-xs z-10">
+                <div className="absolute bottom-4 flex items-center gap-2 text-xs font-bold text-slate-200 bg-slate-900/90 px-4 py-2 rounded-full border border-slate-700 shadow-md backdrop-blur-xs z-10">
                   <Camera className="h-4 w-4 text-emerald-400 animate-spin" />
                   <span>
                     {isScanning
@@ -1216,30 +1286,95 @@ export default function BarcodeScannerModal({
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
+                      setCameraError(null);
                       try {
+                        // 1. Try Html5Qrcode image file scanner
+                        try {
+                          const html5Qr = new Html5Qrcode('live-camera-reader-element-file-temp', {
+                            formatsToSupport: [
+                              Html5QrcodeSupportedFormats.CODE_128,
+                              Html5QrcodeSupportedFormats.CODE_39,
+                              Html5QrcodeSupportedFormats.EAN_13,
+                              Html5QrcodeSupportedFormats.EAN_8,
+                              Html5QrcodeSupportedFormats.UPC_A,
+                              Html5QrcodeSupportedFormats.UPC_E,
+                              Html5QrcodeSupportedFormats.QR_CODE,
+                              Html5QrcodeSupportedFormats.DATA_MATRIX,
+                            ],
+                            verbose: false,
+                          });
+                          const decodedString = await html5Qr.scanFile(file, true);
+                          try { html5Qr.clear(); } catch {}
+                          if (decodedString) {
+                            const cleaned = cleanScannedCode(decodedString);
+                            if (cleaned) {
+                              const isQr =
+                                decodedString.toLowerCase().startsWith('qr-') ||
+                                decodedString.startsWith('http') ||
+                                decodedString.startsWith('{');
+                              handleExecuteScan(cleaned, isQr ? 'QR_CODE' : 'BARCODE');
+                              return;
+                            }
+                          }
+                        } catch {}
+
+                        // 2. Fallback to Canvas + BarcodeDetector + jsQR + Code128 Scanline
                         const reader = new FileReader();
                         reader.onload = (event) => {
                           const img = new Image();
-                          img.onload = () => {
+                          img.onload = async () => {
+                            // 2a. BarcodeDetector on Image element
+                            if ('BarcodeDetector' in window) {
+                              try {
+                                const detector = new (window as any).BarcodeDetector({
+                                  formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'qr_code', 'data_matrix'],
+                                });
+                                const detected = await detector.detect(img);
+                                if (detected && detected.length > 0 && detected[0].rawValue) {
+                                  const cleaned = cleanScannedCode(detected[0].rawValue);
+                                  if (cleaned) {
+                                    const format = (detected[0].format || '').toLowerCase();
+                                    const isQr = format.includes('qr') || format.includes('matrix');
+                                    handleExecuteScan(cleaned, isQr ? 'QR_CODE' : 'BARCODE');
+                                    return;
+                                  }
+                                }
+                              } catch {}
+                            }
+
                             const canvas = document.createElement('canvas');
                             canvas.width = img.width;
                             canvas.height = img.height;
-                            const ctx = canvas.getContext('2d');
+                            const ctx = canvas.getContext('2d', { willReadFrequently: true });
                             if (ctx) {
                               ctx.drawImage(img, 0, 0);
                               const imgData = ctx.getImageData(0, 0, img.width, img.height);
-                              const qrResult = jsQR(imgData.data, img.width, img.height);
-                              if (qrResult && qrResult.data) {
-                                handleExecuteScan(cleanScannedCode(qrResult.data), 'QR_CODE');
-                                return;
-                              }
-                              const code128 = scanCode128FromCanvas(ctx, img.width, img.height);
-                              if (code128) {
-                                handleExecuteScan(cleanScannedCode(code128), 'BARCODE');
-                                return;
-                              }
+
+                              // 2b. jsQR
+                              try {
+                                const qrResult = jsQR(imgData.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+                                if (qrResult && qrResult.data) {
+                                  const cleaned = cleanScannedCode(qrResult.data);
+                                  if (cleaned) {
+                                    handleExecuteScan(cleaned, 'QR_CODE');
+                                    return;
+                                  }
+                                }
+                              } catch {}
+
+                              // 2c. Code 128 Scanlines
+                              try {
+                                const code128 = scanCode128FromCanvas(ctx, img.width, img.height);
+                                if (code128) {
+                                  const cleaned = cleanScannedCode(code128);
+                                  if (cleaned) {
+                                    handleExecuteScan(cleaned, 'BARCODE');
+                                    return;
+                                  }
+                                }
+                              } catch {}
                             }
-                            setCameraError('Could not detect a clear Barcode or QR Code in the uploaded image.');
+                            setCameraError('Could not detect a clear Barcode or QR Code in the uploaded image. Please ensure the code is centered and clear.');
                           };
                           img.src = event.target?.result as string;
                         };

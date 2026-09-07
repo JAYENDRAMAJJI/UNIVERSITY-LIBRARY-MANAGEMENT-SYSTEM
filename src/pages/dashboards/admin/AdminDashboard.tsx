@@ -168,14 +168,17 @@ export default function AdminDashboard() {
     return Math.round(totalDl / 8 + (idx + 1) * 3);
   });
 
+  const pendingApprovalsCount = (state.members || []).filter((m) => m.status === 'PENDING_APPROVAL').length;
+
   const quickActionsList = [
+    { label: 'Account Approvals', to: '/admin/approvals', icon: UserCheck, color: 'bg-amber-50 text-amber-900 hover:bg-amber-100 border-amber-300 font-bold' },
     { label: 'My Admin Profile', to: '/profile', icon: User, color: 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100 border-indigo-200' },
     { label: 'Library Attendance Desk', to: '/admin/attendance', icon: UserCheck, color: 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border-emerald-200' },
     { label: 'Add Catalog Book', to: '/admin/books', icon: PlusCircle, color: 'bg-blue-50 text-blue-800 hover:bg-blue-100 border-blue-200' },
     { label: 'Book Borrow History Log', to: '/admin/borrow-history', icon: History, color: 'bg-purple-50 text-purple-800 hover:bg-purple-100 border-purple-200' },
     { label: 'Issue Circulation', to: '/admin/issue-books', icon: ScanBarcode, color: 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100 border-indigo-200' },
     { label: 'Return Desk', to: '/admin/return-books', icon: RotateCcw, color: 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border-emerald-200' },
-    { label: 'Register Member', to: '/admin/members', icon: Users, color: 'bg-purple-50 text-purple-800 hover:bg-purple-100 border-purple-200' },
+    { label: 'Student & Faculty Members', to: '/admin/members', icon: Users, color: 'bg-purple-50 text-purple-800 hover:bg-purple-100 border-purple-200' },
     { label: 'Issue No Due Certificate', to: '/admin/no-due', icon: Award, color: 'bg-amber-50 text-amber-900 hover:bg-amber-100 border-amber-300 font-bold' },
     { label: 'Official Forms & Downloads', to: '/admin/downloads', icon: FileDown, color: 'bg-purple-50 text-purple-800 hover:bg-purple-100 border-purple-200' },
     { label: 'Fines & Receipts', to: '/admin/fines', icon: TrendingUp, color: 'bg-rose-50 text-rose-800 hover:bg-rose-100 border-rose-200' },
@@ -183,6 +186,7 @@ export default function AdminDashboard() {
   ];
 
   const statCards = [
+    { label: 'Pending Approvals', value: pendingApprovalsCount, suffix: 'Requests', to: '/admin/approvals', delta: pendingApprovalsCount > 0 ? 'Needs Action' : 'All Clear', icon: UserCheck, accent: 'from-amber-600 to-orange-500' },
     { label: 'Total Books (Copies)', value: totalCopies, suffix: 'Copies', to: '/admin/books', delta: '+4.8%', icon: BookOpen, accent: 'from-blue-600 to-indigo-600' },
     { label: 'Available Copies', value: availableCopies, suffix: 'Available', to: '/admin/inventory', delta: '+3.1%', icon: LibraryBig, accent: 'from-emerald-600 to-teal-500' },
     { label: 'Active Issued Books', value: issuedTx, suffix: 'Checked Out', to: '/admin/issue-books', delta: '+1.8%', icon: ScanBarcode, accent: 'from-indigo-600 to-purple-600' },
@@ -190,7 +194,6 @@ export default function AdminDashboard() {
     { label: 'Registered Members', value: state?.members?.length || 0, suffix: 'Members', to: '/admin/members', delta: '+8.2%', icon: Users, accent: 'from-sky-600 to-blue-500' },
     { label: 'Digital Repositories', value: state?.digitalResources?.length || 0, suffix: 'Documents', to: '/admin/digital-library', delta: '+5.7%', icon: Download, accent: 'from-purple-600 to-fuchsia-500' },
     { label: 'Total Fine Assessments', value: `₹${fineSummary.totalFineAssessments.toFixed(2)}`, suffix: '', to: '/admin/fines', delta: '+4.3%', icon: TrendingUp, accent: 'from-rose-500 to-pink-600' },
-    { label: 'Unpaid Pending Fines', value: `₹${fineSummary.totalPendingFines.toFixed(2)}`, suffix: '', to: '/admin/fines', delta: '-3.2%', icon: Bell, accent: 'from-yellow-600 to-amber-500' },
   ];
 
   const handleExportReport = () => {

@@ -693,19 +693,19 @@ export default function BookBorrowHistory() {
             <p className="text-xs font-semibold">Loading book borrowing transaction log...</p>
           </div>
         ) : (
-          <div>
-            <table className="w-full text-left border-collapse table-auto">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[1020px]">
               <thead>
                 <tr className="bg-gradient-to-r from-purple-100/90 via-indigo-50/80 to-purple-100/80 border-b border-purple-200/90 text-xs font-bold uppercase tracking-wider text-purple-950">
-                  <th className="py-3.5 px-3 text-purple-950 font-bold">Borrower Details</th>
-                  <th className="py-3.5 px-3 text-purple-950 font-bold">Book & Copy Info</th>
-                  <th className="py-3.5 px-3 text-indigo-950 font-bold">Borrow Date</th>
-                  <th className="py-3.5 px-3 text-purple-950 font-bold">Due Date</th>
-                  <th className="py-3.5 px-3 text-emerald-950 font-bold">Return Date</th>
-                  <th className="py-3.5 px-2 text-center text-purple-950 font-bold">Duration</th>
-                  <th className="py-3.5 px-2 text-center text-rose-950 font-bold">Fine Status</th>
-                  <th className="py-3.5 px-3 text-right text-purple-950 font-bold">Status</th>
-                  {isAdminOrStaff && <th className="py-3.5 px-3 text-right text-indigo-950 font-bold">Action</th>}
+                  <th className="py-3.5 px-4 text-left text-purple-950 font-bold w-[18%]">Borrower Details</th>
+                  <th className="py-3.5 px-4 text-left text-purple-950 font-bold w-[22%]">Book & Copy Info</th>
+                  <th className="py-3.5 px-3 text-left text-indigo-950 font-bold w-[11%]">Borrow Date</th>
+                  <th className="py-3.5 px-3 text-left text-purple-950 font-bold w-[10%]">Due Date</th>
+                  <th className="py-3.5 px-3 text-left text-emerald-950 font-bold w-[12%]">Return Date</th>
+                  <th className="py-3.5 px-2 text-center text-purple-950 font-bold w-[7%]">Duration</th>
+                  <th className="py-3.5 px-2 text-center text-rose-950 font-bold w-[9%]">Fine Status</th>
+                  <th className="py-3.5 px-3 text-center text-purple-950 font-bold w-[9%]">Status</th>
+                  {isAdminOrStaff && <th className="py-3.5 px-4 text-right text-indigo-950 font-bold w-[9%]">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -714,7 +714,7 @@ export default function BookBorrowHistory() {
                   return (
                     <tr key={record.id} className="hover:bg-slate-50/80 transition-colors">
                       {/* User Details */}
-                      <td className="py-3 px-3 align-middle">
+                      <td className="py-3.5 px-4 align-middle">
                         <div className="space-y-0.5">
                           <p className="font-bold text-slate-900 leading-tight" title={record.memberName}>{record.memberName}</p>
                           <div className="flex items-center gap-1.5 flex-wrap">
@@ -727,7 +727,7 @@ export default function BookBorrowHistory() {
                       </td>
 
                       {/* Book & Copy */}
-                      <td className="py-3 px-3 align-middle">
+                      <td className="py-3.5 px-4 align-middle">
                         <div className="space-y-1">
                           <p className="font-bold text-slate-900 leading-tight line-clamp-1" title={record.bookTitle}>
                             {record.bookTitle}
@@ -882,7 +882,7 @@ export default function BookBorrowHistory() {
                       </td>
 
                       {/* Status Badge */}
-                      <td className="py-3 px-3 align-middle text-right whitespace-nowrap">
+                      <td className="py-3.5 px-3 align-middle text-center whitespace-nowrap">
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase ${
                             record.status === 'RETURNED'
@@ -903,7 +903,7 @@ export default function BookBorrowHistory() {
 
                       {/* Action: Send Reminder / Alert */}
                       {isAdminOrStaff && (
-                        <td className="py-3 px-3 align-middle text-right whitespace-nowrap">
+                        <td className="py-3.5 px-4 align-middle text-right whitespace-nowrap">
                           {record.status === 'RETURNED' ? (
                             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400">
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />

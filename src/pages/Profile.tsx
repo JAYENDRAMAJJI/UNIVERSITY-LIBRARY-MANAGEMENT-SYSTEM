@@ -471,16 +471,16 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="relative z-10 hidden sm:flex items-center gap-3">
+        <div className="relative z-10 flex flex-wrap items-center gap-2.5">
           <button
             onClick={handlePrintProfileReport}
-            className="px-4 py-2.5 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold transition-all flex items-center gap-2 shadow-md cursor-pointer"
+            className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold transition-all flex items-center gap-2 shadow-md cursor-pointer"
           >
             <Printer className="w-4 h-4 text-blue-600" /> Print Profile Report (PDF)
           </button>
           <button
             onClick={handlePrintLibraryCard}
-            className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white backdrop-blur-md transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+            className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white backdrop-blur-md transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
             <CreditCard className="w-4 h-4 text-emerald-300" /> Print Pass
           </button>
@@ -616,7 +616,7 @@ export default function Profile() {
                 </div>
 
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-slate-600 font-bold">Standard Loan Period</span>
+                  <span className="text-slate-600 font-bold">Standard Borrowing Period</span>
                   <span className="font-bold text-slate-900 font-mono">30 Days / Issue</span>
                 </div>
 

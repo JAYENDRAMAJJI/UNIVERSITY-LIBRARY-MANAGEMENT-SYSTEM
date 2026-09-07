@@ -1,3 +1,6 @@
+import JsBarcode from 'jsbarcode';
+import QRCode from 'qrcode';
+
 // Code128 Barcode Pattern Table (107 patterns: 6 bars/spaces widths each, stop pattern has 7)
 const CODE128_PATTERNS: string[] = [
   '212222', '222122', '222221', '121223', '121322', '131222', '122213', '122312', '132212', '221213',
@@ -46,14 +49,39 @@ export function encodeCode128(text: string): number[] {
 }
 
 /**
- * Generates an SVG string for a Code128 Barcode with proper quiet zones (min 10x module width) and pure black contrast
+ * Generates an SVG string for a Code128 Barcode with proper quiet zones and pure black contrast
  */
 export function generateBarcodeSvgString(text: string, options?: { height?: number; quietZone?: number }): string {
+  const clean = (text || 'BC-00000').trim();
   const height = options?.height || 50;
+  const quietZone = Math.max(options?.quietZone || 15, 10);
+
+  if (typeof document !== 'undefined') {
+    try {
+      const svgNode = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      JsBarcode(svgNode, clean, {
+        format: 'CODE128',
+        height: height,
+        width: 2,
+        margin: quietZone,
+        displayValue: true,
+        fontSize: 13,
+        font: 'monospace',
+        fontOptions: 'bold',
+        textMargin: 5,
+        background: '#ffffff',
+        lineColor: '#000000',
+        flat: true,
+      });
+      svgNode.setAttribute('style', 'max-width: 100%; height: auto; display: block; margin: 0 auto; background-color: #ffffff; shape-rendering: crispEdges;');
+      return svgNode.outerHTML;
+    } catch {
+      // fallback
+    }
+  }
+
   const barWidth = 2;
-  // Code 128 standard requires quiet zone of at least 10x module width (10 * 2 = 20px)
-  const quietZone = Math.max(options?.quietZone || 20, 20);
-  const widths = encodeCode128(text);
+  const widths = encodeCode128(clean);
 
   let totalWidth = quietZone * 2;
   for (const w of widths) {
@@ -80,7 +108,7 @@ export function generateBarcodeSvgString(text: string, options?: { height?: numb
     </style>
     <rect width="${totalWidth}" height="${totalHeight}" fill="#ffffff" />
     ${barsSvg}
-    <text x="${totalWidth / 2}" y="${height + 25}" class="barcode-text">${text}</text>
+    <text x="${totalWidth / 2}" y="${height + 25}" class="barcode-text">${clean}</text>
   </svg>`;
 
   return svg;
@@ -610,12 +638,53 @@ export function generateQrMatrix(dataStr: string): boolean[][] {
 }
 
 /**
- * Generates SVG string for QR Code with 100% pure black contrast and crisp pixel alignment
+ * Builds a standardized NPCI-compliant UPI Payment URL for instant scan & pay apps (GPay, PhonePe, Paytm, BHIM, etc.)
+ */
+export function getUpiPaymentUrl(params: {
+  vpa?: string;
+  name?: string;
+  amount: number;
+  note?: string;
+}): string {
+  const pa = (params.vpa || 'centralunivlibrary@bank').trim();
+  const pn = encodeURIComponent(params.name || 'University Central Library');
+  const am = Math.max(0, params.amount).toFixed(2);
+  const tn = encodeURIComponent(params.note || 'Library Fine Settlement');
+  return `upi://pay?pa=${pa}&pn=${pn}&am=${am}&tn=${tn}&cu=INR`;
+}
+
+/**
+ * Generates an SVG string for a QR Code with ISO/IEC 18004 compliance, standard 4-module quiet zones, and crisp pixel alignment
  */
 export function generateQrSvgString(text: string, sizePx: number = 160): string {
-  const matrix = generateQrMatrix(text);
+  const clean = (text || 'LIB-0000').trim();
+
+  try {
+    const qrData = QRCode.create(clean, { errorCorrectionLevel: 'M' });
+    const size = qrData.modules.size;
+    const margin = 4; // ISO/IEC 18004 standard 4-module quiet zone
+    const totalSize = size + margin * 2;
+
+    let pathData = '';
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (qrData.modules.get(r, c)) {
+          pathData += `M${c + margin},${r + margin}h1v1h-1z `;
+        }
+      }
+    }
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalSize} ${totalSize}" width="${sizePx}" height="${sizePx}" style="max-width: 100%; height: auto; display: block; margin: 0 auto; background-color: #ffffff; shape-rendering: crispEdges;">
+      <rect width="${totalSize}" height="${totalSize}" fill="#ffffff" />
+      <path d="${pathData}" fill="#000000" shape-rendering="crispEdges" />
+    </svg>`;
+  } catch (err) {
+    console.warn('QRCode.create failed, falling back to manual matrix generator:', err);
+  }
+
+  const matrix = generateQrMatrix(clean);
   const matrixSize = matrix.length || 21;
-  const padding = 2; // quiet zone in module count
+  const padding = 4;
   const totalModules = matrixSize + padding * 2;
 
   let pathData = '';
@@ -629,10 +698,25 @@ export function generateQrSvgString(text: string, sizePx: number = 160): string 
     }
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalModules} ${totalModules}" width="${sizePx}" height="${sizePx}" style="background-color: #ffffff; shape-rendering: crispEdges;">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalModules} ${totalModules}" width="${sizePx}" height="${sizePx}" style="max-width: 100%; height: auto; display: block; margin: 0 auto; background-color: #ffffff; shape-rendering: crispEdges;">
     <rect width="${totalModules}" height="${totalModules}" fill="#ffffff" />
     <path d="${pathData}" fill="#000000" shape-rendering="crispEdges" />
   </svg>`;
+}
+
+/**
+ * Generates an SVG string for a UPI Fine Payment QR Code
+ */
+export function generateUpiPaymentQrSvg(params: {
+  vpa?: string;
+  name?: string;
+  amount: number;
+  note?: string;
+  sizePx?: number;
+}): { upiUrl: string; qrSvg: string } {
+  const upiUrl = getUpiPaymentUrl(params);
+  const qrSvg = generateQrSvgString(upiUrl, params.sizePx || 160);
+  return { upiUrl, qrSvg };
 }
 
 /**

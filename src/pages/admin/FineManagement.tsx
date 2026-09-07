@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { IndianRupee, CheckCircle, Printer, Bell, Send, Search, X, Download, FileSpreadsheet, Calendar, Users, Trash2, Smartphone, Banknote, AlertTriangle, RotateCcw, CheckCircle2, RefreshCw, Edit2, FileText, ShieldAlert, Check } from 'lucide-react';
+import { IndianRupee, CheckCircle, Printer, Bell, Send, Search, X, Download, FileSpreadsheet, Calendar, Users, Trash2, Smartphone, Banknote, AlertTriangle, RotateCcw, CheckCircle2, RefreshCw, Edit2, FileText, ShieldAlert, Check, Copy, QrCode } from 'lucide-react';
 import { libraryStore, getSystemFineSummary, getTransactionFineAmount, getLocalDateStr, getAllUnifiedFines } from '../../services/libraryStore.service';
 import { exportStyledExcelFile } from '../../utils/excelExport';
 import { FineRecord, CopyCondition, IssueTransaction } from '../../types/library';
-import { generateQrSvgString } from '../../utils/barcodeQrGenerator';
+import { generateQrSvgString, getUpiPaymentUrl } from '../../utils/barcodeQrGenerator';
 import SendNotificationModal from '../../components/common/SendNotificationModal';
 import AuthorizedCirculationSeal, { generateAuthorizedSealHtml } from '../../components/common/AuthorizedCirculationSeal';
 
@@ -817,33 +817,59 @@ export default function FineManagement() {
               </div>
 
               {/* Payment Method Details Panel */}
-              {collectFineModalData.paymentMethod === 'UPI_QR' && (
-                <div className="bg-purple-50/60 border border-purple-200 rounded-2xl p-4 text-center space-y-3 animate-fadeIn">
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-[11px] font-bold text-purple-900">Scan & Pay with Any UPI App</span>
-                    <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
-                      Instant Settlement
-                    </span>
-                  </div>
+              {collectFineModalData.paymentMethod === 'UPI_QR' && (() => {
+                const upiUrl = getUpiPaymentUrl({
+                  vpa: 'centralunivlibrary@bank',
+                  name: 'University Central Library',
+                  amount: collectFineModalData.fine.amount,
+                  note: `Fine ${collectFineModalData.fine.memberCardNo} ${collectFineModalData.fine.receiptNo || collectFineModalData.fine.id}`,
+                });
+                return (
+                  <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-4 text-center space-y-3 animate-fadeIn">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[11px] font-bold text-purple-900 flex items-center gap-1.5">
+                        <QrCode className="w-3.5 h-3.5 text-purple-600" /> Scan & Pay with Any UPI App
+                      </span>
+                      <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                        Instant Settlement
+                      </span>
+                    </div>
 
-                  <div className="relative w-36 h-36 mx-auto bg-white p-2 rounded-2xl border-2 border-purple-300 shadow-md flex items-center justify-center overflow-hidden">
-                    <div
-                      dangerouslySetInnerHTML={{
-                        __html: generateQrSvgString(
-                          `upi://pay?pa=centralunivlibrary@bank&pn=University+Central+Library&am=${collectFineModalData.fine.amount.toFixed(
-                            2
-                          )}&tn=Fine+Settlement+${collectFineModalData.fine.memberCardNo}&cu=INR`,
-                          130
-                        ),
-                      }}
-                    />
-                  </div>
+                    <div className="relative w-44 h-44 mx-auto bg-white p-2.5 rounded-2xl border-2 border-purple-300 shadow-md flex items-center justify-center overflow-hidden">
+                      <div
+                        className="w-full h-full flex items-center justify-center"
+                        dangerouslySetInnerHTML={{
+                          __html: generateQrSvgString(upiUrl, 160),
+                        }}
+                      />
+                    </div>
 
-                  <p className="text-[11px] font-bold text-slate-800">
-                    Amount: <span className="font-mono text-purple-700 font-extrabold text-sm">₹{collectFineModalData.fine.amount.toFixed(2)}</span>
-                  </p>
-                </div>
-              )}
+                    <div className="space-y-1.5">
+                      <p className="text-[12px] font-bold text-slate-800">
+                        Payable Amount: <span className="font-mono text-purple-700 font-extrabold text-base">₹{collectFineModalData.fine.amount.toFixed(2)}</span>
+                      </p>
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-[10px] font-mono bg-white px-2 py-1 rounded-lg border border-purple-200 text-slate-700 select-all">
+                          UPI ID: centralunivlibrary@bank
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard?.writeText('centralunivlibrary@bank');
+                            triggerToast('UPI ID copied to clipboard: centralunivlibrary@bank');
+                          }}
+                          className="text-[10px] font-bold text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 px-2 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Copy className="w-3 h-3" /> Copy
+                        </button>
+                      </div>
+                      <p className="text-[9.5px] text-slate-500 font-medium">
+                        Supported: Google Pay • PhonePe • Paytm • BHIM • Cred • Any UPI App
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {collectFineModalData.paymentMethod === 'CASH' && (
                 <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-3 text-center space-y-1 animate-fadeIn text-xs">

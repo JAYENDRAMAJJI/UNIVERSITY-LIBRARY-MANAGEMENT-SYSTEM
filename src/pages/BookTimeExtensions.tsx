@@ -135,10 +135,10 @@ export default function BookTimeExtensions() {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-300 text-[11px] font-bold uppercase tracking-wider">
-              <Clock className="w-3.5 h-3.5" /> Book Loan Renewal & Extension Desk
+              <Clock className="w-3.5 h-3.5" /> Book Borrowing Renewal & Extension Desk
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold font-poppins tracking-tight text-white">
-              Extend Book Loan Time
+              Extend Borrowing Period
             </h1>
             <p className="text-slate-300 text-xs md:text-sm leading-relaxed">
               Request due date extensions for your borrowed library books with valid academic reasons. Librarians review and approve extensions before the due date to keep your borrowing clean without late fines.
@@ -252,7 +252,7 @@ export default function BookTimeExtensions() {
                           isOverdue ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800'
                         }`}
                       >
-                        {isOverdue ? 'Overdue' : 'Active Loan'}
+                        {isOverdue ? 'Overdue' : 'Active Borrowing'}
                       </span>
                     </div>
                     <p className="font-bold text-slate-900 text-sm line-clamp-1">{tx.bookTitle}</p>
@@ -263,33 +263,33 @@ export default function BookTimeExtensions() {
 
                   <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-2">
                     <span className="text-[11px] font-mono text-slate-500">
-                      Renewals: {tx.renewalCount || 0}/{tx.maxRenewals || 2}
+                      Issued: {tx.issueDate}
                     </span>
-
-                    {existingReq?.status === 'PENDING' ? (
-                      <span className="px-3 py-1.5 rounded-xl bg-amber-100 text-amber-800 text-[11px] font-bold inline-flex items-center gap-1 animate-pulse">
-                        <Clock className="w-3 h-3 text-amber-600" /> Pending Approval
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setExtensionModalTx(tx);
-                          setExtensionReason('');
-                        }}
-                        className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-2xs transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
-                      >
-                        <Clock className="w-3.5 h-3.5" /> Extend Time
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      disabled={!!existingReq || isOverdue}
+                      onClick={() => setExtensionModalTx(tx)}
+                      className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+                        existingReq
+                          ? 'bg-amber-100 text-amber-800 cursor-not-allowed'
+                          : isOverdue
+                          ? 'bg-rose-100 text-rose-700 cursor-not-allowed'
+                          : 'bg-purple-600 hover:bg-purple-700 text-white cursor-pointer shadow-xs active:scale-95'
+                      }`}
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{existingReq ? 'Request Pending' : isOverdue ? 'Overdue (Pay Fine)' : 'Extend Time'}</span>
+                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="p-8 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-            No active borrowed books checked out. Visit the Library Catalog to search and borrow books.
+          <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+            <BookOpen className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm font-bold text-slate-700">No Active Borrowed Books Found</p>
+            <p className="text-xs text-slate-400 mt-1">You do not currently have any checked-out books eligible for return extensions.</p>
           </div>
         )}
       </div>

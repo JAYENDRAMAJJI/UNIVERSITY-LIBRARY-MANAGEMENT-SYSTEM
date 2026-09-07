@@ -16,9 +16,9 @@ export default function ReservationsManagement() {
     const q = searchTerm.toLowerCase().trim();
     const matchesSearch =
       !q ||
-      r.bookTitle.toLowerCase().includes(q) ||
-      r.memberName.toLowerCase().includes(q) ||
-      r.memberCardNo.toLowerCase().includes(q);
+      (r.bookTitle && r.bookTitle.toLowerCase().includes(q)) ||
+      (r.memberName && r.memberName.toLowerCase().includes(q)) ||
+      (r.memberCardNo && r.memberCardNo.toLowerCase().includes(q));
 
     const matchesStatus = statusFilter === 'ALL' || r.status === statusFilter;
     return matchesSearch && matchesStatus;

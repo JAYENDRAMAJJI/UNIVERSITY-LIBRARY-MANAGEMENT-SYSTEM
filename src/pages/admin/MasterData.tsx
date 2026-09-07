@@ -179,9 +179,9 @@ export default function MasterData() {
           </div>
         )}
 
-        {/* Clean Non-Sliding Table */}
-        <div className="w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
-          <table className="w-full table-fixed text-left border-collapse">
+        {/* Clean Responsive Catalog Table */}
+        <div className="w-full overflow-x-auto rounded-2xl border border-slate-200/80 bg-white">
+          <table className="w-full min-w-[580px] md:min-w-0 md:table-fixed text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/90 text-[11px] font-extrabold uppercase text-slate-500 border-b border-slate-200 tracking-wider">
                 <th className="w-[40%] px-4 py-3.5">Book Details</th>

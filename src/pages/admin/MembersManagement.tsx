@@ -33,9 +33,9 @@ export default function MembersManagement() {
 
   const filteredMembers = state.members.filter((m) => {
     const matchesSearch =
-      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.memberCardNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.department.toLowerCase().includes(searchTerm.toLowerCase());
+      (m.name && m.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (m.memberCardNo && m.memberCardNo.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (m.department && m.department.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesRole = filterRole === 'ALL' || m.role === filterRole;
     return matchesSearch && matchesRole;
   });
@@ -81,7 +81,7 @@ export default function MembersManagement() {
       'Department',
       'Status',
       'Max Allowed Books',
-      'Active Loans',
+      'Active Borrowings',
       'Pending Fines (INR)',
       'Registered Date',
       'Address',
@@ -274,7 +274,7 @@ export default function MembersManagement() {
       'Department',
       'Status',
       'Max Allowed Books',
-      'Active Loans',
+      'Active Borrowings',
       'Pending Fines (INR)',
       'Registered Date',
       'Address',
@@ -396,7 +396,7 @@ export default function MembersManagement() {
                 <span className="font-semibold text-slate-800">{member.department}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Active Borrowed Loans:</span>
+                <span className="text-slate-400">Active Borrowed Books:</span>
                 <span className="font-bold text-slate-900">
                   {member.currentActiveLoans} / {member.maxAllowedBooks} Max
                 </span>
@@ -645,7 +645,7 @@ export default function MembersManagement() {
                   className="w-full p-2.5 rounded-xl border border-slate-200 font-medium text-slate-800 bg-slate-50"
                 >
                   <option value="ALL">All Members</option>
-                  <option value="HAS_LOANS">Members with Active Loans</option>
+                  <option value="HAS_LOANS">Members with Active Borrowings</option>
                   <option value="HAS_FINES">Members with Overdue Fines</option>
                 </select>
               </div>
