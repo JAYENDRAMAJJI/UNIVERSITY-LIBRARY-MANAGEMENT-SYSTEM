@@ -199,7 +199,7 @@ export default function Login() {
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Top Bar Back Link */}
-      <div className="absolute top-6 left-6 z-20">
+      <div className="w-full max-w-xl sm:absolute sm:top-6 sm:left-6 z-20 mb-3 sm:mb-0 flex justify-start">
         <Link
           to="/"
           className="inline-flex items-center gap-2 text-xs font-bold text-slate-300 hover:text-white bg-slate-900/60 hover:bg-slate-800/80 px-4 py-2 rounded-2xl border border-slate-800 backdrop-blur-md transition-all shadow-sm group cursor-pointer"

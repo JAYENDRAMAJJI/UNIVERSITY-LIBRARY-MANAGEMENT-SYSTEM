@@ -31,7 +31,7 @@ import {
   Printer,
   FileText,
 } from 'lucide-react';
-import { libraryStore, getLocalDateStr } from '../../services/libraryStore.service';
+import { libraryStore, getLocalDateStr, generateLibraryCardId } from '../../services/libraryStore.service';
 import { MemberProfile, Role, UserStatus } from '../../types/library';
 import { exportStyledExcelFile } from '../../utils/excelExport';
 import { generateAuthorizedSealHtml } from '../../components/common/AuthorizedCirculationSeal';
@@ -115,8 +115,7 @@ export default function AccountApprovals() {
 
   // Approve Handler
   const handleOpenApproveModal = (member: MemberProfile) => {
-    const prefix = member.role === 'STUDENT' ? 'STU' : member.role === 'FACULTY' ? 'FAC' : member.role === 'STAFF' ? 'STF' : 'LIB';
-    const autoCard = `${prefix}-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const autoCard = generateLibraryCardId(member.role);
     setAssignedCardInput(member.memberCardNo && !member.memberCardNo.startsWith('APP-') ? member.memberCardNo : autoCard);
     setApprovingMember(member);
   };
@@ -517,7 +516,7 @@ export default function AccountApprovals() {
               onChange={(e) => setRoleFilter(e.target.value)}
               className="w-full px-3 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
-              <option value="ALL">All Roles (Student, Faculty, Staff)</option>
+              <option value="ALL">All Roles</option>
               <option value="STUDENT">Students Only</option>
               <option value="FACULTY">Faculty Only</option>
               <option value="STAFF">Library Staff</option>

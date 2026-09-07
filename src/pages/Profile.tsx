@@ -1462,39 +1462,39 @@ export default function Profile() {
                 </div>
 
                 {/* Body Content */}
-                <div className="relative z-10 flex items-center gap-3.5 py-2">
+                <div className="relative z-10 flex items-center gap-2.5 sm:gap-3.5 py-2">
                   <img
                     src={formData.avatarUrl}
                     alt={formData.name}
-                    className="w-18 h-18 sm:w-20 sm:h-20 rounded-xl object-cover border-2 border-amber-400/60 shadow-md shrink-0"
+                    className="w-14 h-14 min-[380px]:w-16 min-[380px]:h-16 sm:w-20 sm:h-20 rounded-xl object-cover border-2 border-amber-400/60 shadow-md shrink-0"
                   />
 
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <div className="inline-block px-2 py-0.5 rounded-md bg-blue-500/30 border border-blue-400/20 text-[9px] font-extrabold text-blue-200 uppercase tracking-wide">
+                  <div className="space-y-0.5 sm:space-y-1 min-w-0 flex-1">
+                    <div className="inline-block px-1.5 sm:px-2 py-0.5 rounded-md bg-blue-500/30 border border-blue-400/20 text-[9px] font-extrabold text-blue-200 uppercase tracking-wide">
                       {user?.role || 'MEMBER'}
                     </div>
-                    <h4 className="text-base font-extrabold font-poppins truncate text-white tracking-tight leading-snug">{formData.name}</h4>
+                    <h4 className="text-sm sm:text-base font-extrabold font-poppins truncate text-white tracking-tight leading-snug">{formData.name}</h4>
 
-                    <div className="flex items-center gap-1.5 text-xs text-amber-300 font-mono font-extrabold">
-                      <span>{cardNo}</span>
+                    <div className="flex items-center gap-1 sm:gap-1.5 text-xs text-amber-300 font-mono font-extrabold truncate">
+                      <span className="truncate">{cardNo}</span>
                       <button
                         type="button"
                         onClick={handleCopyCardNumber}
-                        className="p-0.5 hover:bg-white/10 rounded transition-all text-slate-300 hover:text-white cursor-pointer"
+                        className="p-0.5 hover:bg-white/10 rounded transition-all text-slate-300 hover:text-white cursor-pointer shrink-0"
                         title="Copy Card Number"
                       >
                         {copiedCard ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
                     </div>
 
-                    <p className="text-[11px] text-slate-300 truncate">Dept: <strong>{formData.department}</strong></p>
+                    <p className="text-[10px] sm:text-[11px] text-slate-300 truncate">Dept: <strong>{formData.department}</strong></p>
                   </div>
 
                   {/* QR Code */}
                   <div
-                    className="bg-white p-2 rounded-2xl shadow-lg shrink-0 w-20 h-20 flex items-center justify-center overflow-hidden border border-white/40 ring-2 ring-white/10"
+                    className="bg-white p-1.5 sm:p-2 rounded-2xl shadow-lg shrink-0 w-14 h-14 min-[380px]:w-16 min-[380px]:h-16 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden border border-white/40 ring-2 ring-white/10"
                     dangerouslySetInnerHTML={{
-                      __html: generateQrSvgString(cardNo, 72),
+                      __html: generateQrSvgString(cardNo, 64),
                     }}
                   />
                 </div>

@@ -23,7 +23,7 @@ import {
   Briefcase,
   Layers,
 } from 'lucide-react';
-import { libraryStore } from '../../services/libraryStore.service';
+import { libraryStore, generateLibraryCardId } from '../../services/libraryStore.service';
 import { Role } from '../../types';
 
 interface RegisterAccountModalProps {
@@ -111,7 +111,7 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
       if (result.success && result.member) {
         setSubmissionResult({
           success: true,
-          appRef: result.member.memberCardNo || `APP-${Date.now().toString().slice(-6)}`,
+          appRef: result.member.memberCardNo || generateLibraryCardId(formData.role),
           message: result.message,
           submittedName: result.member.name,
           submittedEmail: result.member.email,
@@ -314,7 +314,7 @@ export default function RegisterAccountModal({ isOpen, onClose, onSuccess }: Reg
                         ? 'e.g. 2026-CS-042'
                         : formData.role === 'FACULTY'
                         ? 'e.g. FAC-2026-881'
-                        : 'e.g. STF-2026-104'
+                        : 'e.g. STA-2026-104'
                     }
                     value={formData.rollNo}
                     onChange={(e) => setFormData({ ...formData, rollNo: e.target.value })}

@@ -58,6 +58,48 @@ export const parseMonthNumFromDate = (dateStr?: string): number => {
   return -1;
 };
 
+/**
+ * Generates role-based 3-letter prefix:
+ * - Student -> STU
+ * - Faculty -> FAC
+ * - Library Staff -> STA
+ * - Admin -> ADM
+ * - Librarian -> LIB
+ * - Guest / Other -> GUE / OTH
+ */
+export const getRoleCardPrefix = (role?: string): string => {
+  if (!role) return 'STU';
+  const r = role.toUpperCase().trim();
+  switch (r) {
+    case 'STUDENT':
+      return 'STU';
+    case 'FACULTY':
+      return 'FAC';
+    case 'STAFF':
+    case 'LIBRARY_STAFF':
+    case 'LIBRARY STAFF':
+      return 'STA';
+    case 'ADMIN':
+    case 'ADMINISTRATOR':
+      return 'ADM';
+    case 'LIBRARIAN':
+      return 'LIB';
+    case 'GUEST':
+      return 'GUE';
+    case 'OTHER':
+      return 'OTH';
+    default:
+      return r.slice(0, 3).toUpperCase();
+  }
+};
+
+export const generateLibraryCardId = (role?: string, year?: number | string): string => {
+  const prefix = getRoleCardPrefix(role);
+  const yr = year || new Date().getFullYear();
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+  return `${prefix}-${yr}-${randomSuffix}`;
+};
+
 export const getLocalDateStr = (d: Date = new Date()): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -1658,7 +1700,7 @@ const DEFAULT_MEMBERS: MemberProfile[] = [
     name: 'Rohan Sharma',
     email: 'rohan.sharma@college.edu',
     role: 'STUDENT',
-    memberCardNo: 'APP-2026-8841',
+    memberCardNo: 'STU-2026-8841',
     department: 'Computer Science & Engineering',
     program: 'B.Tech CSE (Hons)',
     rollNo: '24CS089',
@@ -1681,7 +1723,7 @@ const DEFAULT_MEMBERS: MemberProfile[] = [
     name: 'Dr. Anita Desai',
     email: 'anita.desai@college.edu',
     role: 'FACULTY',
-    memberCardNo: 'APP-2026-8821',
+    memberCardNo: 'FAC-2026-8821',
     department: 'Mechanical Engineering',
     phone: '+91 91234 56789',
     idProofType: 'COLLEGE_ID',
@@ -1701,7 +1743,7 @@ const DEFAULT_MEMBERS: MemberProfile[] = [
     name: 'Vikram Malhotra',
     email: 'vikram.m@college.edu',
     role: 'STUDENT',
-    memberCardNo: 'APP-2026-4512',
+    memberCardNo: 'STU-2026-4512',
     department: 'Civil Engineering',
     program: 'B.Tech Civil',
     rollNo: '23CE044',
@@ -3391,13 +3433,12 @@ class LibraryStoreService {
               initialState.members.push(dm);
             }
           });
-          // Auto-repair any member missing memberCardNo
+          // Auto-repair any member missing memberCardNo or having legacy APP- prefix
           initialState.members = initialState.members.map((m) => {
-            if (!m.memberCardNo) {
-              const prefix = m.role === 'STUDENT' ? 'STU' : m.role === 'FACULTY' ? 'FAC' : m.role === 'STAFF' ? 'STF' : 'ADM';
+            if (!m.memberCardNo || m.memberCardNo.startsWith('APP-') || m.memberCardNo.startsWith('APP')) {
               return {
                 ...m,
-                memberCardNo: m.status === 'PENDING_APPROVAL' ? `APP-${m.id.slice(-6)}` : `${prefix}-2024-${Math.floor(1000 + Math.random() * 9000)}`,
+                memberCardNo: generateLibraryCardId(m.role, 2026),
               };
             }
             return m;
@@ -5585,8 +5626,7 @@ class LibraryStoreService {
       return existing;
     }
 
-    const prefix = data.role === 'STUDENT' ? 'STU' : data.role === 'FACULTY' ? 'FAC' : data.role === 'STAFF' ? 'STF' : 'ADM';
-    const cardNo = `${prefix}-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const cardNo = generateLibraryCardId(data.role);
     const maxBooks = data.role === 'FACULTY' ? 10 : data.role === 'STUDENT' ? 5 : 15;
 
     const newMember: MemberProfile = {
@@ -5668,7 +5708,7 @@ class LibraryStoreService {
     }
 
     const todayStr = getLocalDateStr(new Date());
-    const tempAppId = `APP-${Date.now().toString().slice(-6)}`;
+    const roleCardId = generateLibraryCardId(data.role);
     const maxBooks = data.role === 'FACULTY' ? 10 : data.role === 'STAFF' ? 8 : data.role === 'STUDENT' ? 5 : 3;
 
     const newApplicant: MemberProfile = {
@@ -5678,7 +5718,7 @@ class LibraryStoreService {
       email: cleanEmail,
       password: data.password || 'password123',
       role: data.role,
-      memberCardNo: tempAppId, // Temporary Application ID until approved
+      memberCardNo: roleCardId, // Assigned role-based card ID (e.g. STU-2026-XXXX, FAC-2026-XXXX)
       department: data.department || 'General Academic',
       status: 'PENDING_APPROVAL',
       maxAllowedBooks: maxBooks,
@@ -5702,7 +5742,7 @@ class LibraryStoreService {
     const adminNotice: Notice = {
       id: `notice-app-${Date.now()}`,
       title: `New ${data.role} Account Registration Request`,
-      content: `Applicant "${newApplicant.name}" (${newApplicant.role}, Dept: ${newApplicant.department}) has submitted a library membership application (Ref: ${tempAppId}). Please review and approve/reject in Account Approvals.`,
+      content: `Applicant "${newApplicant.name}" (${newApplicant.role}, Dept: ${newApplicant.department}) has submitted a library membership application (Card ID: ${roleCardId}). Please review and approve/reject in Account Approvals.`,
       targetAudience: 'ADMIN',
       createdDate: todayStr,
       isUrgent: true,
@@ -5722,12 +5762,12 @@ class LibraryStoreService {
       newApplicant.role,
       'SUBMIT_REGISTRATION',
       'ACCOUNT_APPROVALS',
-      `Submitted membership application for ${newApplicant.role} (${newApplicant.department}). Status set to PENDING_APPROVAL.`
+      `Submitted membership application for ${newApplicant.role} (${newApplicant.department}). Card ID: ${roleCardId}. Status set to PENDING_APPROVAL.`
     );
 
     return {
       success: true,
-      message: `Registration submitted successfully! Application Ref: ${tempAppId}. Your account is waiting for Admin approval before you can log in.`,
+      message: `Registration submitted successfully! Library Card ID: ${roleCardId}. Your account is waiting for Admin approval before you can log in.`,
       member: newApplicant,
     };
   }
@@ -5747,13 +5787,17 @@ class LibraryStoreService {
     }
 
     const todayStr = getLocalDateStr(new Date());
-    const prefix = target.role === 'STUDENT' ? 'STU' : target.role === 'FACULTY' ? 'FAC' : target.role === 'STAFF' ? 'STF' : 'LIB';
-    const generatedCardNo = options?.memberCardNo?.trim() || `${prefix}-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const generatedCardNo =
+      options?.memberCardNo?.trim() && !options.memberCardNo.startsWith('APP-')
+        ? options.memberCardNo.trim()
+        : target.memberCardNo && !target.memberCardNo.startsWith('APP-')
+        ? target.memberCardNo
+        : generateLibraryCardId(target.role);
 
     const updatedMember: MemberProfile = {
       ...target,
       status: 'ACTIVE',
-      memberCardNo: target.memberCardNo.startsWith('APP-') ? generatedCardNo : target.memberCardNo || generatedCardNo,
+      memberCardNo: generatedCardNo,
       approvedDate: todayStr,
       approvedBy: options?.reviewerName || 'Chief Admin Librarian',
       rejectionReason: undefined,

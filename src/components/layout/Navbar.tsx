@@ -78,15 +78,18 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
     }
   };
 
-  const brandLink = user ? getDashboardLink() : '/';
-
   const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey) return;
     e.preventDefault();
-    if (location.pathname === brandLink) {
+    if (user) {
+      // When logged in, clicking the logo refreshes and updates the current page without redirecting
       window.location.reload();
     } else {
-      window.location.href = brandLink;
+      if (location.pathname === '/') {
+        window.location.reload();
+      } else {
+        navigate('/');
+      }
     }
   };
 
@@ -131,10 +134,10 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
           {/* Brand Logo */}
           <div className="flex items-center shrink-0">
             <Link
-              to={brandLink}
+              to={user ? location.pathname + location.search : '/'}
               onClick={handleLogoClick}
               className="group cursor-pointer block"
-              title="Click to refresh portal"
+              title={user ? 'Click to refresh and update current page' : 'University Library Home'}
             >
               <BrandLogo size="md" showTagline={true} />
             </Link>
@@ -193,7 +196,7 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
 
                   {/* Notification Dropdown Panel */}
                   {isNotifOpen && (
-                    <div className="absolute right-0 sm:right-0 mt-3 w-80 sm:w-96 max-w-[calc(100vw-1.5rem)] rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden z-50 animate-fadeIn">
+                    <div className="fixed inset-x-3 top-[88px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-3 w-auto sm:w-96 max-w-full sm:max-w-sm rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden z-50 animate-fadeIn">
                       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 p-4 text-white flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <Bell className="h-4 w-4 text-blue-400 shrink-0" />
@@ -207,13 +210,13 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
                         <button
                           type="button"
                           onClick={() => setIsNotifOpen(false)}
-                          className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                          className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
                         >
                           <X className="h-4 w-4" />
                         </button>
                       </div>
 
-                      <div className="max-h-96 overflow-y-auto divide-y divide-slate-100 p-2 space-y-2">
+                      <div className="max-h-80 sm:max-h-96 overflow-y-auto divide-y divide-slate-100 p-2 space-y-2">
                         {notices.map((notice) => {
                           const isRead = isNoticeReadForUser(notice, user, state);
                           return (
@@ -320,7 +323,7 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
 
                   {/* Dropdown Menu Card */}
                   {isUserMenuOpen && (
-                    <div className="absolute right-0 mt-3 w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] rounded-3xl bg-white border border-slate-200 shadow-2xl p-4 sm:p-5 z-50 animate-fadeIn text-left space-y-3">
+                    <div className="fixed inset-x-3 top-[88px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-3 w-auto sm:w-80 max-w-full sm:max-w-sm rounded-3xl bg-white border border-slate-200 shadow-2xl p-4 sm:p-5 z-50 animate-fadeIn text-left space-y-3 max-h-[80vh] overflow-y-auto">
                       {/* Header Details */}
                       <div className="space-y-0.5">
                         <h3 className="font-extrabold text-base sm:text-lg font-poppins text-slate-900 leading-tight">
@@ -374,12 +377,12 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
                           setIsUserMenuOpen(false);
                           handleLogout();
                         }}
-                          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer text-left"
-                        >
-                          <LogOut className="h-4.5 w-4.5 text-rose-600 shrink-0 stroke-[2.5]" />
-                          <span>Sign Out</span>
-                        </button>
-                      </div>
+                        className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer text-left"
+                      >
+                        <LogOut className="h-4.5 w-4.5 text-rose-600 shrink-0 stroke-[2.5]" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -395,26 +398,28 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
           </div>
 
           {/* Mobile Toggle */}
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className={`flex items-center gap-2 ${onToggleMobileSidebar ? 'md:hidden' : 'lg:hidden'}`}>
             {user && (
               <button
                 type="button"
                 onClick={() => {
                   setIsNotifOpen(!isNotifOpen);
+                  setIsUserMenuOpen(false);
                 }}
-                className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+                title="Notifications"
               >
                 <Bell className="h-6 w-6" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[9px] font-bold text-white">
-                    {unreadCount}
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
               </button>
             )}
             <button
               onClick={handleMobileMenuClick}
-              className="p-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              className="p-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               {isOpen ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" />}
             </button>
@@ -424,7 +429,7 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
 
       {/* Mobile Drawer */}
       {isOpen && !onToggleMobileSidebar && (
-        <div className="md:hidden border-b border-slate-200 bg-white/95 backdrop-blur-xl px-4 pb-4 pt-2 space-y-2">
+        <div className="lg:hidden border-b border-slate-200 bg-white/95 backdrop-blur-xl px-4 pb-4 pt-2 space-y-2 max-h-[80vh] overflow-y-auto shadow-xl">
           {!user &&
             navLinks.map((link) => (
               <Link

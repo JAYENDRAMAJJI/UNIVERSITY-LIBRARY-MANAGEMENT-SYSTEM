@@ -1111,7 +1111,7 @@ export default function AttendanceManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-2">
                 <div className="space-y-1.5 min-w-0">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-700 truncate">
@@ -2138,7 +2138,7 @@ export default function AttendanceManagement() {
                     }}
                     className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
                   >
-                    <option value="ALL">All Roles (Students, Faculty, Staff, Guests)</option>
+                    <option value="ALL">All Roles</option>
                     <option value="STUDENT">Student Only</option>
                     <option value="FACULTY">Faculty Only</option>
                     <option value="STAFF">Staff Only</option>

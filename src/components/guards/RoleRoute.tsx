@@ -7,7 +7,7 @@ interface RoleRouteProps {
 }
 
 export default function RoleRoute({ allowedRoles }: RoleRouteProps) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -16,6 +16,27 @@ export default function RoleRoute({ allowedRoles }: RoleRouteProps) {
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Strict status verification: Only allow ACTIVE or APPROVED accounts
+  const normalizedStatus = (user.status || '').toUpperCase();
+  const isApprovedAndActive = normalizedStatus === 'ACTIVE' || normalizedStatus === 'APPROVED';
+
+  if (!isApprovedAndActive) {
+    logout();
+    return (
+      <Navigate
+        to="/login"
+        state={{
+          from: location,
+          accountStatusNotice: {
+            status: user.status || 'PENDING_APPROVAL',
+            message: 'Your account must be Approved & Active to perform library operations.',
+          },
+        }}
+        replace
+      />
+    );
   }
 
   const userRoleUpper = (user.role || 'STUDENT').toUpperCase();

@@ -872,15 +872,18 @@ export default function ProcurementManagement() {
               padding-top: 20px;
             }
             .sign-line {
-              border-top: 1px solid #94a3b8;
+              border-top: 1.5px solid #0f172a;
+              min-height: 22px;
               padding-top: 6px;
-              font-size: 11px;
+              font-size: 11.5px;
               font-weight: 700;
-              color: #1e293b;
+              color: #0f172a;
             }
             .sign-role {
               font-size: 10px;
-              color: #64748b;
+              color: #475569;
+              font-style: italic;
+              margin-top: 2px;
             }
           </style>
         </head>
@@ -987,20 +990,18 @@ export default function ProcurementManagement() {
             <div class="signatures-grid">
               <div>
                 <div style="height: 40px;"></div>
-                <div class="sign-line">Procurement Officer</div>
-                <div class="sign-role">Acquisition Section</div>
+                <div class="sign-line">&nbsp;</div>
+                <div class="sign-role">Procurement Officer</div>
               </div>
               <div>
                 <div style="height: 40px;"></div>
-                <div class="sign-line">Finance & Accounts Officer</div>
-                <div class="sign-role">Budget Clearance</div>
+                <div class="sign-line">&nbsp;</div>
+                <div class="sign-role">Finance & Accounts Officer</div>
               </div>
               <div>
-                <div style="height: 40px; display: flex; align-items: flex-end; justify-content: center;">
-                  <span style="font-family: serif; font-style: italic; font-weight: bold; color: #6d28d9;">${user?.name || 'Chief University Librarian'}</span>
-                </div>
-                <div class="sign-line">Chief University Librarian</div>
-                <div class="sign-role">Authorized Signatory & Seal</div>
+                <div style="height: 40px;"></div>
+                <div class="sign-line">${user?.name ? user.name : '&nbsp;'}</div>
+                <div class="sign-role">Chief University Librarian</div>
               </div>
             </div>
           </div>
@@ -2416,13 +2417,12 @@ export default function ProcurementManagement() {
                 <p>3. Defective / damaged copies must be replaced within 7 days.</p>
               </div>
 
-              <div className="text-right space-y-2">
-                <div className="h-12 flex items-end justify-end">
-                  <span className="font-serif italic font-bold text-purple-900 border-b border-slate-400 pb-1">
-                    {user?.name || 'Chief University Librarian'}
-                  </span>
+              <div className="text-right space-y-1">
+                <div className="h-10"></div>
+                <div className="w-48 ml-auto border-t-2 border-slate-800 pt-1.5 min-h-[22px] text-xs font-bold text-slate-900">
+                  {user?.name ? user.name : <span className="inline-block h-3.5 w-24"></span>}
                 </div>
-                <p className="text-[10px] text-slate-400 uppercase font-extrabold">Authorized University Signatory</p>
+                <p className="text-[11px] text-slate-500 italic">Chief University Librarian</p>
               </div>
             </div>
 

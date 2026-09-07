@@ -37,7 +37,7 @@ const MOCK_USERS: User[] = [
     role: 'STAFF',
     status: 'ACTIVE',
     department: 'Circulation & Desk Operations',
-    memberCardNo: 'STF-2024-0012',
+    memberCardNo: 'STA-2024-0012',
   },
 ];
 
@@ -61,16 +61,17 @@ export const authService = {
 
         // 2. Strict Account Status Verification per University Security Policies
         if (matchedMember) {
-          if (matchedMember.status === 'PENDING_APPROVAL') {
+          const memberStatus = (matchedMember.status || '').toUpperCase();
+          if (memberStatus === 'PENDING_APPROVAL') {
             const dateStr = matchedMember.appliedDate || matchedMember.registeredDate || 'recently';
             return reject(
               new Error(
-                `Your library account is waiting for Admin approval. Application submitted on ${dateStr}. Please check back once verified.`
+                `Your library account is waiting for Admin approval (submitted on ${dateStr}). Access to system features and library operations is restricted until your account status is Approved & Active.`
               )
             );
           }
 
-          if (matchedMember.status === 'REJECTED') {
+          if (memberStatus === 'REJECTED') {
             const reason = matchedMember.rejectionReason || 'Application details could not be verified by Library Administration.';
             return reject(
               new Error(
@@ -79,7 +80,7 @@ export const authService = {
             );
           }
 
-          if (matchedMember.status === 'SUSPENDED') {
+          if (memberStatus === 'SUSPENDED') {
             const reason = matchedMember.suspendedReason ? ` (Reason: ${matchedMember.suspendedReason})` : '';
             return reject(
               new Error(
@@ -88,9 +89,15 @@ export const authService = {
             );
           }
 
-          if (matchedMember.status === 'INACTIVE') {
+          if (memberStatus === 'INACTIVE') {
             return reject(
-              new Error(`Your library account is currently inactive. Please contact the Library Administration.`)
+              new Error(`Your library account is currently inactive. Please contact the Library Administration to activate your account.`)
+            );
+          }
+
+          if (memberStatus !== 'ACTIVE' && memberStatus !== 'APPROVED') {
+            return reject(
+              new Error(`Your library account status is "${matchedMember.status}". Only accounts that are Approved & Active are permitted to access the system.`)
             );
           }
 
@@ -127,6 +134,8 @@ export const authService = {
           );
           sessionStorage.setItem('library_token', token);
           sessionStorage.setItem('library_user', JSON.stringify(user));
+          localStorage.setItem('library_token', token);
+          localStorage.setItem('library_user', JSON.stringify(user));
           return resolve({ token, user });
         }
 
@@ -154,6 +163,8 @@ export const authService = {
           );
           sessionStorage.setItem('library_token', token);
           sessionStorage.setItem('library_user', JSON.stringify(user));
+          localStorage.setItem('library_token', token);
+          localStorage.setItem('library_user', JSON.stringify(user));
           return resolve({ token, user });
         }
 
@@ -175,13 +186,8 @@ export const authService = {
   },
 
   getCurrentUser(): User | null {
-    if (localStorage.getItem('library_token') || localStorage.getItem('library_user')) {
-      localStorage.removeItem('library_token');
-      localStorage.removeItem('library_user');
-    }
-
-    const token = sessionStorage.getItem('library_token');
-    const storedUser = sessionStorage.getItem('library_user');
+    const token = sessionStorage.getItem('library_token') || localStorage.getItem('library_token');
+    const storedUser = sessionStorage.getItem('library_user') || localStorage.getItem('library_user');
 
     if (storedUser) {
       try {
@@ -191,7 +197,8 @@ export const authService = {
 
         // Security check: If member status is no longer ACTIVE/APPROVED in libraryStore, invalidate session immediately
         if (matched) {
-          if (matched.status === 'PENDING_APPROVAL' || matched.status === 'REJECTED' || matched.status === 'SUSPENDED' || matched.status === 'INACTIVE') {
+          const matchedStatus = (matched.status || '').toUpperCase();
+          if (matchedStatus !== 'ACTIVE' && matchedStatus !== 'APPROVED') {
             this.logout();
             return null;
           }
@@ -208,6 +215,7 @@ export const authService = {
             rollNo: matched.rollNo,
           };
           sessionStorage.setItem('library_user', JSON.stringify(updatedUser));
+          localStorage.setItem('library_user', JSON.stringify(updatedUser));
           return updatedUser;
         }
 
@@ -225,9 +233,12 @@ export const authService = {
           const storeMembers = libraryStore.snapshot.members;
           const matched = storeMembers.find((m) => m.email.toLowerCase() === payload.email?.toLowerCase());
 
-          if (matched && (matched.status === 'PENDING_APPROVAL' || matched.status === 'REJECTED' || matched.status === 'SUSPENDED')) {
-            this.logout();
-            return null;
+          if (matched) {
+            const matchedStatus = (matched.status || '').toUpperCase();
+            if (matchedStatus !== 'ACTIVE' && matchedStatus !== 'APPROVED') {
+              this.logout();
+              return null;
+            }
           }
 
           const mock = MOCK_USERS.find((m) => m.email.toLowerCase() === payload.email?.toLowerCase());

@@ -14,8 +14,11 @@ export default function ProtectedRoute() {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Strict backend status verification: Block unapproved, suspended, or rejected users
-  if (user.status && user.status !== 'ACTIVE' && user.status !== 'APPROVED') {
+  // Strict backend status verification: Only allow ACTIVE or APPROVED accounts
+  const normalizedStatus = (user.status || '').toUpperCase();
+  const isApprovedAndActive = normalizedStatus === 'ACTIVE' || normalizedStatus === 'APPROVED';
+
+  if (!isApprovedAndActive) {
     logout();
     return (
       <Navigate
@@ -23,13 +26,15 @@ export default function ProtectedRoute() {
         state={{
           from: location,
           accountStatusNotice: {
-            status: user.status,
+            status: user.status || 'PENDING_APPROVAL',
             message:
               user.status === 'PENDING_APPROVAL'
-                ? 'Your library account is waiting for Admin approval before you can access portal services.'
+                ? 'Your library account is waiting for Admin approval. Access to system features and modules is restricted until your account status is Approved & Active.'
                 : user.status === 'REJECTED'
                 ? `Your library account registration was rejected (${user.rejectionReason || 'Details unverified'}).`
-                : 'Your library account has been suspended. Please contact the Library Administration.',
+                : user.status === 'SUSPENDED'
+                ? `Your library account has been suspended (${user.suspendedReason || 'Contact administration'}).`
+                : 'Your library account is currently inactive. Please contact Library Administration to activate your account.',
           },
         }}
         replace

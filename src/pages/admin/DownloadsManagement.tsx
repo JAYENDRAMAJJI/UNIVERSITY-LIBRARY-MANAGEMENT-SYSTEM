@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, ChangeEvent, FormEvent } from 'react';
+import React, { useState, useEffect, useMemo, ChangeEvent, FormEvent, MouseEvent } from 'react';
 import {
   FileDown,
   FileText,
@@ -283,15 +283,24 @@ export default function DownloadsManagement() {
             placeholder="Search by document title, keyword, or description..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 bg-slate-50/50"
+            className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 bg-slate-50/50"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/70 focus:outline-none cursor-pointer"
+            className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/70 hover:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer transition-all"
           >
             <option value="ALL">All Categories</option>
             <option value="Forms & Membership Applications">Forms & Applications</option>
@@ -544,7 +553,6 @@ export default function DownloadsManagement() {
                 </button>
                 <button
                   type="submit"
-                  onClick={(e) => handleSave(e)}
                   className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-500/20 cursor-pointer active:scale-95"
                 >
                   {editingDoc ? 'Update Official Form' : 'Publish Document'}

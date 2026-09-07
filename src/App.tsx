@@ -141,7 +141,6 @@ export default function App() {
               <Route path="profile" element={<Profile />} />
               <Route path="catalog" element={<BookSearch />} />
               <Route path="book-search" element={<BookSearch />} />
-              <Route path="attendance" element={<AttendanceManagement />} />
               <Route path="borrow-history" element={<BookBorrowHistory />} />
               <Route path="fines" element={<MyFines />} />
               <Route path="my-fines" element={<Navigate to="/fines" replace />} />
@@ -157,8 +156,8 @@ export default function App() {
               <Route path="renew-books" element={<Navigate to="/extensions" replace />} />
               <Route path="extend-time" element={<Navigate to="/extensions" replace />} />
 
-              {/* Admin & Staff Exclusive Modules */}
-              <Route element={<RoleRoute allowedRoles={['ADMIN', 'STAFF']} />}>
+              {/* Admin & Staff Exclusive Operations Modules */}
+              <Route element={<RoleRoute allowedRoles={['ADMIN', 'STAFF', 'LIBRARIAN']} />}>
                 <Route path="admin" element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="admin/dashboard" element={<AdminDashboard />} />
                 <Route path="admin/approvals" element={<AccountApprovals />} />
@@ -169,6 +168,7 @@ export default function App() {
                 <Route path="admin/return-books" element={<ReturnBooks />} />
                 <Route path="admin/renew-books" element={<RenewBooks />} />
                 <Route path="admin/attendance" element={<AttendanceManagement />} />
+                <Route path="attendance" element={<AttendanceManagement />} />
                 <Route path="admin/borrow-history" element={<BookBorrowHistory />} />
                 <Route path="admin/reservations" element={<ReservationsManagement />} />
                 <Route path="admin/fines" element={<FineManagement />} />
@@ -186,12 +186,12 @@ export default function App() {
               </Route>
 
               {/* Faculty Exclusive Workspace */}
-              <Route element={<RoleRoute allowedRoles={['FACULTY', 'ADMIN', 'STAFF']} />}>
+              <Route element={<RoleRoute allowedRoles={['FACULTY', 'ADMIN', 'STAFF', 'LIBRARIAN']} />}>
                 <Route path="faculty/dashboard" element={<FacultyDashboard />} />
               </Route>
 
               {/* Student Exclusive Workspace */}
-              <Route element={<RoleRoute allowedRoles={['STUDENT', 'ADMIN', 'STAFF']} />}>
+              <Route element={<RoleRoute allowedRoles={['STUDENT', 'ADMIN', 'STAFF', 'LIBRARIAN']} />}>
                 <Route path="student/dashboard" element={<StudentDashboard />} />
               </Route>
             </Route>

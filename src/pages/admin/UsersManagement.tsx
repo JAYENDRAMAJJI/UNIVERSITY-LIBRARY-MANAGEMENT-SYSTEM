@@ -25,7 +25,7 @@ import {
   QrCode,
   Barcode,
 } from 'lucide-react';
-import { libraryStore } from '../../services/libraryStore.service';
+import { libraryStore, generateLibraryCardId } from '../../services/libraryStore.service';
 import { Role, UserStatus, MemberProfile } from '../../types/library';
 import RegisterAccountModal from '../../components/common/RegisterAccountModal';
 import { generateBarcodeSvgString, generateQrSvgString } from '../../utils/barcodeQrGenerator';
@@ -111,7 +111,7 @@ export default function UsersManagement() {
     const printWindow = window.open('', '_blank', 'width=850,height=700');
     if (!printWindow) return;
 
-    const cardNo = member.memberCardNo || `LIB-${member.id}`;
+    const cardNo = member.memberCardNo || generateLibraryCardId(member.role);
     const qrSvg = generateQrSvgString(cardNo, 75);
     const barcodeSvg = generateBarcodeSvgString(cardNo, { height: 45 });
 

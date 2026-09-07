@@ -328,13 +328,13 @@ export default function NoDueClearanceDesk() {
       </div>
 
       {/* Main Control Panel: Mode Toggle, Tabs & Filters */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          {/* View Mode Toggle */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl shrink-0">
+      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        {/* Row 1: View Mode Tabs & Reset */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl w-fit">
             <button
               onClick={() => setViewMode('APPLICATIONS')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'APPLICATIONS'
                   ? 'bg-white text-purple-700 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -344,24 +344,65 @@ export default function NoDueClearanceDesk() {
             </button>
             <button
               onClick={() => setViewMode('STUDENTS')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'STUDENTS'
                   ? 'bg-white text-purple-700 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              All Graduating Students Registry ({studentMembers.length})
+              Graduating Students Registry ({studentMembers.length})
             </button>
           </div>
 
-          {/* Filters on Right */}
-          <div className="flex flex-wrap items-center gap-2">
+          {(statusFilter !== 'ALL' || purposeFilter !== 'ALL' || selectedDept !== 'ALL' || searchTerm) && (
+            <button
+              onClick={() => {
+                setStatusFilter('ALL');
+                setPurposeFilter('ALL');
+                setSelectedDept('ALL');
+                setSearchTerm('');
+              }}
+              className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-xl transition-colors cursor-pointer w-fit"
+            >
+              ✕ Reset All Filters
+            </button>
+          )}
+        </div>
+
+        {/* Row 2: Search Bar & Filters */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          {/* Search Bar */}
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder={
+                viewMode === 'APPLICATIONS'
+                  ? 'Search application ref, student name, roll no, card ID, or certificate ID...'
+                  : 'Search student candidate by name, roll no, card ID, or department...'
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 bg-slate-50/50 focus:bg-white transition-all"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Filter Dropdowns */}
+          <div className="flex flex-wrap items-center gap-2.5">
             {/* Status Filter */}
             {viewMode === 'APPLICATIONS' && (
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-slate-50 focus:bg-white cursor-pointer"
+                className="px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-purple-500/20 cursor-pointer shadow-2xs transition-all"
               >
                 <option value="ALL">All Statuses ({applications.length})</option>
                 <option value="SUBMITTED">Submitted ({applications.filter((a) => a.status === 'SUBMITTED').length})</option>
@@ -377,7 +418,7 @@ export default function NoDueClearanceDesk() {
               <select
                 value={purposeFilter}
                 onChange={(e) => setPurposeFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-slate-50 focus:bg-white cursor-pointer max-w-[180px] truncate"
+                className="px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-purple-500/20 cursor-pointer shadow-2xs transition-all"
               >
                 <option value="ALL">All Clearance Purposes</option>
                 <option value="COURSE_COMPLETION">Course Completion</option>
@@ -393,7 +434,7 @@ export default function NoDueClearanceDesk() {
             <select
               value={selectedDept}
               onChange={(e) => setSelectedDept(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-slate-50 focus:bg-white cursor-pointer max-w-[170px] truncate"
+              className="px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-purple-500/20 cursor-pointer shadow-2xs transition-all"
             >
               <option value="ALL">All Academic Departments</option>
               {departments.map((d) => (
@@ -403,30 +444,6 @@ export default function NoDueClearanceDesk() {
               ))}
             </select>
           </div>
-        </div>
-
-        {/* Search Bar */}
-        <div className="relative pt-1">
-          <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder={
-              viewMode === 'APPLICATIONS'
-                ? 'Search application ref, student name, roll no, card ID, or certificate ID...'
-                : 'Search student candidate by name, roll no, card ID, or department...'
-            }
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
         </div>
       </div>
 

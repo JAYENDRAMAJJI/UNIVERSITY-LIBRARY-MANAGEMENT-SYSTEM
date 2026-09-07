@@ -71,7 +71,6 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'MAIN CONTROL',
       links: [
         { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Admin Dashboard' },
-        { to: '/admin/approvals', icon: UserCheck, label: 'Account Approvals', badgeCount: pendingApprovalsCount },
       ],
     },
     {
@@ -80,7 +79,7 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
         { to: '/admin/issue-books', icon: ScanBarcode, label: 'Issue Books' },
         { to: '/admin/return-books', icon: RotateCcw, label: 'Return Books' },
         { to: '/admin/renew-books', icon: RefreshCw, label: 'Extend Book Time' },
-        { to: '/attendance', icon: UserCheck, label: 'Library Attendance' },
+        { to: '/admin/attendance', icon: UserCheck, label: 'Library Attendance Desk' },
         { to: '/admin/borrow-history', icon: History, label: 'Book Borrow History' },
         { to: '/admin/reservations', icon: Bell, label: 'Reservations Queue' },
         { to: '/admin/fines', icon: IndianRupee, label: 'Fine Management' },
@@ -119,7 +118,6 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
         { to: '/fines', icon: IndianRupee, label: 'My Fines & Dues' },
         { to: '/no-due', icon: Award, label: 'Apply for No Due' },
         { to: '/borrow-history', icon: History, label: 'My Borrowed Books' },
-        { to: '/attendance', icon: UserCheck, label: 'Library Attendance' },
       ],
     },
     {
@@ -148,7 +146,6 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
         { to: '/fines', icon: IndianRupee, label: 'My Fines & Dues' },
         { to: '/no-due', icon: Award, label: 'Apply for No Due' },
         { to: '/borrow-history', icon: History, label: 'My Borrowed Books' },
-        { to: '/attendance', icon: UserCheck, label: 'Library Attendance' },
       ],
     },
     {

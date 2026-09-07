@@ -1314,8 +1314,8 @@ export default function BooksManagement() {
       {/* CATALOG DATA TABLE */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-5 space-y-4">
         {filteredBooks.length > 0 ? (
-          <div className="w-full">
-            <table className="w-full text-left border-collapse table-auto">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse table-auto min-w-[760px]">
               <thead>
                 <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
                   <th className="py-3 px-2.5 align-middle w-[32%]">Book Details</th>

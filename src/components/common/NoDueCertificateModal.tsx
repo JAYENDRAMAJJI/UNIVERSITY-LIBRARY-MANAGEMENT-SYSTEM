@@ -319,6 +319,7 @@ export default function NoDueCertificateModal({
             }
             .sign-line {
               border-top: 1.5px solid #0f172a;
+              min-height: 22px;
               padding-top: 5px;
               font-size: 11.5px;
               font-weight: 700;
@@ -434,11 +435,9 @@ export default function NoDueCertificateModal({
                 </div>
 
                 <div class="sign-box">
-                  <div style="height: 30px; font-family: 'Cinzel', serif; font-size: 13px; font-style: italic; color: #1e3a8a; font-weight: bold; margin-bottom: 2px;">
-                    ${certificate.issuedBy.split('(')[0].trim()}
-                  </div>
-                  <div class="sign-line">${certificate.issuedBy}</div>
-                  <div class="sign-desig">${certificate.issuedByRole || 'Chief Admin Librarian & Head of Library'}</div>
+                  <div style="height: 35px;"></div>
+                  <div class="sign-line">${certificate.issuedBy ? certificate.issuedBy : '&nbsp;'}</div>
+                  <div class="sign-desig" style="font-style: italic; margin-top: 2px;">${certificate.issuedByRole || 'Chief University Librarian'}</div>
                 </div>
               </div>
             </div>
