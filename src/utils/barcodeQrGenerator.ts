@@ -991,7 +991,7 @@ export function printRackShelfPlacards(items: RackShelfPlacard[]) {
 
           <div class="placard-body">
             <div class="barcode-pane">
-              <div class="pane-title">SCAN CODE128 BARCODE</div>
+              <div class="pane-title">SCAN BARCODE</div>
               <div class="svg-container">
                 ${barcodeSvg}
               </div>
@@ -1004,21 +1004,6 @@ export function printRackShelfPlacards(items: RackShelfPlacard[]) {
                 ${qrSvg}
               </div>
               <div class="qr-caption">Payload: <strong>${item.qrPayload}</strong></div>
-            </div>
-          </div>
-
-          <div class="placard-footer">
-            <div class="meta-item">
-              <span class="meta-label">Stored Titles:</span>
-              <span class="meta-val">${item.totalBooksCount} Unique Books</span>
-            </div>
-            <div class="meta-item">
-              <span class="meta-label">Physical Copies:</span>
-              <span class="meta-val">${item.totalCopiesCount} Asset Volumes</span>
-            </div>
-            <div class="meta-item">
-              <span class="meta-label">Scan Action:</span>
-              <span class="meta-val highlight">Instant Catalog Inventory List</span>
             </div>
           </div>
         </div>

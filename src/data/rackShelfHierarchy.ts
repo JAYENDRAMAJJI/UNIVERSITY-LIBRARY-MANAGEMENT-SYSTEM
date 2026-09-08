@@ -95,6 +95,129 @@ export function generateLocationCode(
 }
 
 /**
+ * Reconciles stored racks against the full ACADEMIC_RACK_HIERARCHY (R01 to R24).
+ * - Ensures all 24 Academic Racks and their exact canonical shelves are present.
+ * - Completely purges old legacy 10-rack mock data (RACK-BTECH-*, RACK-BSC-*, etc.).
+ * - Retains custom user changes on valid racks without duplicate data.
+ * - Upgrades older rack structures seamlessly.
+ */
+export function reconcileAcademicRacks(existingRacks?: RackDefinition[]): RackDefinition[] {
+  if (!existingRacks || !Array.isArray(existingRacks) || existingRacks.length === 0) {
+    return JSON.parse(JSON.stringify(ACADEMIC_RACK_HIERARCHY));
+  }
+
+  // Filter out any legacy mock racks (e.g. RACK-BTECH-CSE-01, RACK-BSC-*, RACK-CS-*, etc.)
+  const cleanExisting = existingRacks.filter((r) => {
+    if (!r || !r.rackCode) return false;
+    const c = r.rackCode.trim().toUpperCase();
+    if (
+      c.startsWith('RACK-BTECH-') ||
+      c.startsWith('RACK-BSC-') ||
+      c.startsWith('RACK-CS') ||
+      c.startsWith('RACK-ECE') ||
+      c.startsWith('RACK-ME') ||
+      c.startsWith('RACK-MATH') ||
+      c.startsWith('RACK-REF') ||
+      c.startsWith('RACK-MBA') ||
+      c.startsWith('RACK-MED') ||
+      c.startsWith('RACK-FIN') ||
+      c.startsWith('RACK-LAW') ||
+      c.startsWith('RACK-PHARM') ||
+      c.startsWith('RACK-ARCH') ||
+      c.startsWith('RACK-AGRI') ||
+      c.startsWith('RACK-HUM') ||
+      c.startsWith('RACK-NURS') ||
+      c.startsWith('RACK-JMC') ||
+      c.startsWith('RACK-SOC') ||
+      c.startsWith('RACK-PHD') ||
+      c.startsWith('RACK-EXAM') ||
+      c.startsWith('RACK-') ||
+      c.includes('-01') ||
+      c.includes('-02')
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  const existingMap = new Map<string, RackDefinition>();
+  for (const r of cleanExisting) {
+    if (r && r.rackCode) {
+      existingMap.set(r.rackCode.trim().toUpperCase(), r);
+    }
+  }
+
+  // Iterate over canonical 24 academic racks
+  const result: RackDefinition[] = ACADEMIC_RACK_HIERARCHY.map((canonicalRack) => {
+    const existing = existingMap.get(canonicalRack.rackCode.toUpperCase());
+    if (!existing) {
+      return JSON.parse(JSON.stringify(canonicalRack));
+    }
+
+    const canonicalShelves = canonicalRack.shelves || [];
+    const existingShelves = existing.shelves || [];
+
+    // Map existing shelves by canonical shelfId
+    const existingShelfMap = new Map<string, ShelfDefinition>();
+    for (const s of existingShelves) {
+      if (s && s.shelfId) {
+        existingShelfMap.set(s.shelfId.trim().toUpperCase(), s);
+      }
+    }
+
+    // Merge canonical shelves ensuring none are missing
+    const mergedShelves: ShelfDefinition[] = canonicalShelves.map((cShelf) => {
+      const existingShelf = existingShelfMap.get(cShelf.shelfId.toUpperCase());
+      if (existingShelf) {
+        return {
+          ...cShelf,
+          ...existingShelf,
+          shelfId: cShelf.shelfId,
+          shelfNumber: cShelf.shelfNumber,
+          shelfName: existingShelf.shelfName || cShelf.shelfName,
+          focus: existingShelf.focus || cShelf.focus,
+          maxCapacity: existingShelf.maxCapacity || cShelf.maxCapacity || 50,
+        };
+      }
+      return { ...cShelf };
+    });
+
+    // Also include any user-created custom shelves on this rack (exclude generic SHELF-1..5 if not matched)
+    const canonicalShelfIds = new Set(canonicalShelves.map((s) => s.shelfId.toUpperCase()));
+    for (const s of existingShelves) {
+      if (s && s.shelfId && !canonicalShelfIds.has(s.shelfId.trim().toUpperCase()) && !s.shelfId.toUpperCase().startsWith('SHELF-')) {
+        mergedShelves.push(s);
+      }
+    }
+
+    return {
+      ...canonicalRack,
+      ...existing,
+      rackCode: canonicalRack.rackCode,
+      degreeName: canonicalRack.degreeName,
+      rackName: existing.rackName || canonicalRack.rackName,
+      program: canonicalRack.program,
+      department: canonicalRack.department,
+      domain: canonicalRack.domain,
+      shortCode: canonicalRack.shortCode,
+      description: existing.description || canonicalRack.description,
+      colorTheme: canonicalRack.colorTheme,
+      shelves: mergedShelves,
+    };
+  });
+
+  // Preserve any genuine extra custom racks (e.g. R25, R26) created by user
+  const canonicalCodes = new Set(ACADEMIC_RACK_HIERARCHY.map((r) => r.rackCode.toUpperCase()));
+  for (const r of cleanExisting) {
+    if (r && r.rackCode && !canonicalCodes.has(r.rackCode.trim().toUpperCase())) {
+      result.push(r);
+    }
+  }
+
+  return result;
+}
+
+/**
  * ══════════════════════════════════════════════════════════════════════════════
  *                    📚 UNIVERSITY LIBRARY MASTER STRUCTURE (R01 - R24)
  * ══════════════════════════════════════════════════════════════════════════════

@@ -2168,7 +2168,7 @@ export default function BooksManagement() {
                       onChange={(e) => setAddFormData({ ...addFormData, rackNumber: e.target.value })}
                       className="px-2.5 py-2 border rounded-xl font-semibold text-slate-800 text-xs"
                     >
-                      {ACADEMIC_RACK_HIERARCHY.map((r) => (
+                      {(state.racks || ACADEMIC_RACK_HIERARCHY).map((r) => (
                         <option key={r.rackCode} value={r.rackCode}>
                           {r.rackName}
                         </option>
@@ -2180,7 +2180,7 @@ export default function BooksManagement() {
                       onChange={(e) => setAddFormData({ ...addFormData, shelfNumber: e.target.value })}
                       className="px-2.5 py-2 border rounded-xl font-semibold text-slate-800 text-xs"
                     >
-                      {((ACADEMIC_RACK_HIERARCHY.find((r) => r.rackCode === addFormData.rackNumber || r.rackId === addFormData.rackNumber) || ACADEMIC_RACK_HIERARCHY[0]).shelves || []).map((s) => (
+                      {(((state.racks || ACADEMIC_RACK_HIERARCHY).find((r) => r.rackCode === addFormData.rackNumber || r.rackId === addFormData.rackNumber) || (state.racks || ACADEMIC_RACK_HIERARCHY)[0]).shelves || []).map((s) => (
                         <option key={s.shelfId} value={s.shelfId}>
                           {s.shelfId} — {s.shelfName}
                         </option>
@@ -2358,7 +2358,7 @@ export default function BooksManagement() {
                     onChange={(e) => setEditFormData({ ...editFormData, rackNumber: e.target.value })}
                     className="w-full px-3 py-2 border rounded-xl font-semibold text-slate-800 text-xs"
                   >
-                    {ACADEMIC_RACK_HIERARCHY.map((r) => (
+                    {(state.racks || ACADEMIC_RACK_HIERARCHY).map((r) => (
                       <option key={r.rackCode} value={r.rackCode}>
                         {r.rackName}
                       </option>
@@ -2366,13 +2366,13 @@ export default function BooksManagement() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Shelf Tier Level (1 of 5)</label>
+                  <label className="block font-bold text-slate-700 mb-1">Shelf Tier Level</label>
                   <select
                     value={editFormData.shelfNumber}
                     onChange={(e) => setEditFormData({ ...editFormData, shelfNumber: e.target.value })}
                     className="w-full px-3 py-2 border rounded-xl font-semibold text-slate-800 text-xs"
                   >
-                    {((ACADEMIC_RACK_HIERARCHY.find((r) => r.rackCode === editFormData.rackNumber || r.rackId === editFormData.rackNumber) || ACADEMIC_RACK_HIERARCHY[0]).shelves || []).map((s) => (
+                    {(((state.racks || ACADEMIC_RACK_HIERARCHY).find((r) => r.rackCode === editFormData.rackNumber || r.rackId === editFormData.rackNumber) || (state.racks || ACADEMIC_RACK_HIERARCHY)[0]).shelves || []).map((s) => (
                       <option key={s.shelfId} value={s.shelfId}>
                         {s.shelfId} — {s.shelfName}
                       </option>

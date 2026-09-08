@@ -5,7 +5,7 @@ export interface ExcelExportOptions {
   sheetName?: string;
   headers: string[];
   data: (string | number | null | undefined)[][];
-  themeColor?: string; // 6-char hex RGB without # (e.g. "4F46E5", "7C3AED", "059669")
+  themeColor?: string; // 6-char hex RGB without # (e.g. "4F46E5", "7C3AED", "059669", "0284C7")
 }
 
 /**
@@ -14,13 +14,14 @@ export interface ExcelExportOptions {
  * - Automatic dynamic column width calculation with auto-fit padding
  * - Alternating zebra row backgrounds
  * - Cell borders and alignment formatting
+ * - Safe binary ArrayBuffer blob generation (prevents Excel corrupt file format errors)
  */
 export function exportStyledExcelFile({
   filename,
   sheetName = 'Report Data',
   headers,
   data,
-  themeColor = '4F46E5', // Default Indigo/Purple
+  themeColor = '0284C7',
 }: ExcelExportOptions) {
   // 1. Prepare raw table array
   const wsData = [headers, ...data];
@@ -52,7 +53,6 @@ export function exportStyledExcelFile({
     if (ws[cellAddress]) {
       ws[cellAddress].s = {
         fill: {
-          patternType: 'solid',
           fgColor: { rgb: headerBgColor },
         },
         font: {
@@ -84,8 +84,8 @@ export function exportStyledExcelFile({
       if (ws[cellAddress]) {
         const val = ws[cellAddress].v;
         const isNum = typeof val === 'number';
-        ws[cellAddress].s = {
-          fill: isEven ? { patternType: 'solid', fgColor: { rgb: 'F8FAFC' } } : undefined,
+
+        const cellStyle: any = {
           font: {
             name: 'Calibri',
             sz: 10,
@@ -102,14 +102,39 @@ export function exportStyledExcelFile({
             right: { style: 'thin', color: { rgb: 'E2E8F0' } },
           },
         };
+
+        if (isEven) {
+          cellStyle.fill = { fgColor: { rgb: 'F8FAFC' } };
+        }
+
+        ws[cellAddress].s = cellStyle;
       }
     }
   }
 
-  // 6. Create Workbook and Export
+  // 6. Create Workbook
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31));
 
   const cleanFilename = filename.endsWith('.xlsx') ? filename : `${filename.replace(/\.csv$/, '')}.xlsx`;
-  XLSX.writeFile(wb, cleanFilename);
+
+  // 7. Write Workbook as binary ArrayBuffer to avoid UTF-8 string encoding corruption in browser
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+
+  // 8. Trigger Browser File Download
+  if (typeof window !== 'undefined') {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', cleanFilename);
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 150);
+  }
 }

@@ -101,25 +101,10 @@ export default function BookBorrowHistory() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [notificationModalData, setNotificationModalData] = useState<{ member: any; context: any } | null>(null);
 
-  // Searchable Book Select Dropdown State
-  const [isBookSelectOpen, setIsBookSelectOpen] = useState(false);
-  const [bookSelectSearchTerm, setBookSelectSearchTerm] = useState('');
-  const bookSelectRef = useRef<HTMLDivElement>(null);
-
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
   };
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (bookSelectRef.current && !bookSelectRef.current.contains(event.target as Node)) {
-        setIsBookSelectOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   useEffect(() => {
     const sub = libraryStore.getObservable().subscribe(setStoreState);
@@ -185,18 +170,6 @@ export default function BookBorrowHistory() {
     return storeState.books.find((b) => b.id === selectedBookId);
   }, [storeState.books, selectedBookId]);
 
-  const filteredBookOptions = useMemo(() => {
-    const term = bookSelectSearchTerm.toLowerCase().trim();
-    if (!term) return storeState.books;
-    return storeState.books.filter(
-      (b) =>
-        b.title.toLowerCase().includes(term) ||
-        b.isbn.toLowerCase().includes(term) ||
-        b.authorName.toLowerCase().includes(term) ||
-        b.categoryName.toLowerCase().includes(term)
-    );
-  }, [storeState.books, bookSelectSearchTerm]);
-
   // Target Transactions (filtered by selected book if one is chosen)
   const baseTransactions: IssueTransaction[] = useMemo(() => {
     if (currentBook) {
@@ -223,7 +196,6 @@ export default function BookBorrowHistory() {
   const handleResetAllFilters = () => {
     setSearchTerm('');
     setSelectedBookId('');
-    setBookSelectSearchTerm('');
     setStatusFilter('ALL');
     setRoleFilter('ALL');
     setStartDate('');
@@ -516,7 +488,7 @@ export default function BookBorrowHistory() {
       <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
           {/* Member Name, Book Title, Card No, Accession Search */}
-          <div className="relative lg:col-span-5">
+          <div className={`relative ${isAdminOrStaff ? 'lg:col-span-8 sm:col-span-2' : 'lg:col-span-8 sm:col-span-2'}`}>
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
@@ -543,74 +515,8 @@ export default function BookBorrowHistory() {
             )}
           </div>
 
-          {/* Book Dropdown Selector */}
-          <div className="relative lg:col-span-3" ref={bookSelectRef}>
-            <button
-              type="button"
-              onClick={() => setIsBookSelectOpen(!isBookSelectOpen)}
-              className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50/70 flex items-center justify-between gap-2 hover:bg-slate-100 transition-colors cursor-pointer"
-            >
-              <span className="truncate">
-                {selectedBookId
-                  ? storeState.books.find((b) => b.id === selectedBookId)?.title || 'Selected Book'
-                  : 'All Books (All Titles)'}
-              </span>
-              <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-            </button>
-
-            {isBookSelectOpen && (
-              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-xl z-30 p-2 space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar animate-fade-in">
-                <input
-                  type="text"
-                  placeholder="Filter books..."
-                  value={bookSelectSearchTerm}
-                  onChange={(e) => setBookSelectSearchTerm(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-slate-50 focus:outline-none focus:ring-1 focus:ring-purple-500/30 mb-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedBookId('');
-                    setIsBookSelectOpen(false);
-                    setCurrentPage(1);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                    !selectedBookId ? 'bg-purple-100 text-purple-900' : 'hover:bg-slate-50 text-slate-700'
-                  }`}
-                >
-                  All Books (All Titles)
-                </button>
-                {storeState.books
-                  .filter((b) =>
-                    !bookSelectSearchTerm ||
-                    b.title.toLowerCase().includes(bookSelectSearchTerm.toLowerCase()) ||
-                    (b.authorName && b.authorName.toLowerCase().includes(bookSelectSearchTerm.toLowerCase()))
-                  )
-                  .map((book) => (
-                    <button
-                      key={book.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBookId(book.id);
-                        setIsBookSelectOpen(false);
-                        setCurrentPage(1);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 rounded-xl text-xs transition-colors cursor-pointer ${
-                        selectedBookId === book.id
-                          ? 'bg-purple-100 text-purple-900 font-bold'
-                          : 'hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      <p className="truncate font-semibold">{book.title}</p>
-                      <p className="text-[10px] text-slate-400 truncate">{book.authorName}</p>
-                    </button>
-                  ))}
-              </div>
-            )}
-          </div>
-
           {/* Status Filter */}
-          <div className="relative lg:col-span-2">
+          <div className={`relative ${isAdminOrStaff ? 'lg:col-span-2' : 'lg:col-span-4'}`}>
             <select
               value={statusFilter}
               onChange={(e) => {

@@ -35,8 +35,10 @@ import { libraryStore, getLocalDateStr, generateLibraryCardId } from '../../serv
 import { MemberProfile, Role, UserStatus } from '../../types/library';
 import { exportStyledExcelFile } from '../../utils/excelExport';
 import { generateAuthorizedSealHtml } from '../../components/common/AuthorizedCirculationSeal';
+import { usePermission } from '../../hooks/usePermission';
 
 export default function AccountApprovals() {
+  const { canApprove, canReject, isAdmin } = usePermission();
   const [state, setState] = useState(libraryStore.snapshot);
   const [activeTab, setActiveTab] = useState<'PENDING' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED' | 'ALL'>('PENDING');
   const [searchTerm, setSearchTerm] = useState('');
@@ -620,28 +622,32 @@ export default function AccountApprovals() {
                         {/* Actions for Pending */}
                         {member.status === 'PENDING_APPROVAL' && (
                           <>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenApproveModal(member)}
-                              className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs transition-all flex items-center gap-1 cursor-pointer active:scale-95"
-                              title="Approve & Activate"
-                            >
-                              <Check className="w-3.5 h-3.5" /> Approve
-                            </button>
+                            {canApprove('approvals') && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenApproveModal(member)}
+                                className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                                title="Approve & Activate"
+                              >
+                                <Check className="w-3.5 h-3.5" /> Approve
+                              </button>
+                            )}
 
-                            <button
-                              type="button"
-                              onClick={() => handleOpenRejectModal(member)}
-                              className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px] border border-rose-200 transition-all flex items-center gap-1 cursor-pointer"
-                              title="Reject Application"
-                            >
-                              <X className="w-3.5 h-3.5" /> Reject
-                            </button>
+                            {canReject('approvals') && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenRejectModal(member)}
+                                className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px] border border-rose-200 transition-all flex items-center gap-1 cursor-pointer"
+                                title="Reject Application"
+                              >
+                                <X className="w-3.5 h-3.5" /> Reject
+                              </button>
+                            )}
                           </>
                         )}
 
                         {/* Actions for Active */}
-                        {(member.status === 'ACTIVE' || member.status === 'APPROVED') && (
+                        {(member.status === 'ACTIVE' || member.status === 'APPROVED') && isAdmin && (
                           <button
                             type="button"
                             onClick={() => handleOpenSuspendModal(member)}
@@ -653,7 +659,7 @@ export default function AccountApprovals() {
                         )}
 
                         {/* Actions for Suspended */}
-                        {member.status === 'SUSPENDED' && (
+                        {member.status === 'SUSPENDED' && isAdmin && (
                           <button
                             type="button"
                             onClick={() => handleReactivate(member)}

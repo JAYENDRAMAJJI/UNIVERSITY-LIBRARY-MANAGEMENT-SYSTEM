@@ -454,7 +454,7 @@ export default function DigitalResources() {
             Digital Resource Hub & <span className="bg-gradient-to-r from-blue-300 via-indigo-200 to-sky-200 bg-clip-text text-transparent">Learning Repositories</span>
           </h1>
           <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-2xl font-medium">
-            20+ integrated digital asset modules including IEEE Xplore, ACM, SpringerLink, ScienceDirect, NPTEL, SWAYAM, NDLI, daily e-newspapers, question banks, and faculty research thesis.
+            Access 20+ digital repositories, research journals (IEEE, ACM, Springer), open courseware, e-newspapers, and thesis archives.
           </p>
         </div>
 

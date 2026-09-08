@@ -10,6 +10,7 @@ import MainLayout from './components/layout/MainLayout';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/guards/ProtectedRoute';
 import RoleRoute from './components/guards/RoleRoute';
+import PermissionRoute from './components/guards/PermissionRoute';
 
 // Public & Workspace Pages
 import Home from './pages/Home';
@@ -48,6 +49,8 @@ import MembersManagement from './pages/admin/MembersManagement';
 import MasterData from './pages/admin/MasterData';
 import DigitalLibraryAdmin from './pages/admin/DigitalLibraryAdmin';
 import UsersManagement from './pages/admin/UsersManagement';
+import RolesPermissionsManagement from './pages/admin/RolesPermissionsManagement';
+import AuditLogsManagement from './pages/admin/AuditLogsManagement';
 import SettingsManagement from './pages/admin/SettingsManagement';
 import ProcurementManagement from './pages/admin/ProcurementManagement';
 import BookBorrowHistory from './pages/admin/BookBorrowHistory';
@@ -159,30 +162,84 @@ export default function App() {
               {/* Admin & Staff Exclusive Operations Modules */}
               <Route element={<RoleRoute allowedRoles={['ADMIN', 'STAFF', 'LIBRARIAN']} />}>
                 <Route path="admin" element={<Navigate to="/admin/dashboard" replace />} />
-                <Route path="admin/dashboard" element={<AdminDashboard />} />
-                <Route path="admin/approvals" element={<AccountApprovals />} />
-                <Route path="admin/account-approvals" element={<AccountApprovals />} />
-                <Route path="admin/books" element={<BooksManagement />} />
-                <Route path="admin/inventory" element={<InventoryManagement />} />
-                <Route path="admin/issue-books" element={<IssueBooks />} />
-                <Route path="admin/return-books" element={<ReturnBooks />} />
-                <Route path="admin/renew-books" element={<RenewBooks />} />
-                <Route path="admin/attendance" element={<AttendanceManagement />} />
-                <Route path="attendance" element={<AttendanceManagement />} />
-                <Route path="admin/borrow-history" element={<BookBorrowHistory />} />
-                <Route path="admin/reservations" element={<ReservationsManagement />} />
-                <Route path="admin/fines" element={<FineManagement />} />
-                <Route path="admin/procurement" element={<ProcurementManagement />} />
-                <Route path="admin/no-due" element={<NoDueClearanceDesk />} />
-                <Route path="admin/members" element={<MembersManagement />} />
-                <Route path="admin/categories" element={<MasterData />} />
-                <Route path="admin/authors" element={<MasterData />} />
-                <Route path="admin/publishers" element={<MasterData />} />
-                <Route path="admin/digital-library" element={<DigitalLibraryAdmin />} />
-                <Route path="admin/downloads" element={<DownloadsManagement />} />
-                <Route path="admin/users" element={<UsersManagement />} />
-                <Route path="admin/reports" element={<Navigate to="/admin/dashboard" replace />} />
-                <Route path="admin/settings" element={<SettingsManagement />} />
+
+                {/* Dashboard */}
+                <Route element={<PermissionRoute module="dashboard" />}>
+                  <Route path="admin/dashboard" element={<AdminDashboard />} />
+                  <Route path="admin/reports" element={<Navigate to="/admin/dashboard" replace />} />
+                </Route>
+
+                {/* Account Approvals */}
+                <Route element={<PermissionRoute module="approvals" />}>
+                  <Route path="admin/approvals" element={<AccountApprovals />} />
+                  <Route path="admin/account-approvals" element={<AccountApprovals />} />
+                </Route>
+
+                {/* Catalog & Inventory */}
+                <Route element={<PermissionRoute module="books" />}>
+                  <Route path="admin/books" element={<BooksManagement />} />
+                </Route>
+                <Route element={<PermissionRoute module="inventory" />}>
+                  <Route path="admin/inventory" element={<InventoryManagement />} />
+                </Route>
+                <Route element={<PermissionRoute module="categories" />}>
+                  <Route path="admin/categories" element={<MasterData />} />
+                  <Route path="admin/authors" element={<MasterData />} />
+                  <Route path="admin/publishers" element={<MasterData />} />
+                </Route>
+
+                {/* Circulation */}
+                <Route element={<PermissionRoute module="circulation" />}>
+                  <Route path="admin/issue-books" element={<IssueBooks />} />
+                  <Route path="admin/return-books" element={<ReturnBooks />} />
+                  <Route path="admin/renew-books" element={<RenewBooks />} />
+                  <Route path="admin/borrow-history" element={<BookBorrowHistory />} />
+                </Route>
+                <Route element={<PermissionRoute module="reservations" />}>
+                  <Route path="admin/reservations" element={<ReservationsManagement />} />
+                </Route>
+                <Route element={<PermissionRoute module="attendance" />}>
+                  <Route path="admin/attendance" element={<AttendanceManagement />} />
+                  <Route path="attendance" element={<AttendanceManagement />} />
+                </Route>
+                <Route element={<PermissionRoute module="fines" />}>
+                  <Route path="admin/fines" element={<FineManagement />} />
+                </Route>
+                <Route element={<PermissionRoute module="procurement" />}>
+                  <Route path="admin/procurement" element={<ProcurementManagement />} />
+                </Route>
+                <Route element={<PermissionRoute module="nodue" />}>
+                  <Route path="admin/no-due" element={<NoDueClearanceDesk />} />
+                </Route>
+
+                {/* Members */}
+                <Route element={<PermissionRoute module="members" />}>
+                  <Route path="admin/members" element={<MembersManagement />} />
+                </Route>
+
+                {/* Digital & Downloads */}
+                <Route element={<PermissionRoute module="digital_library" />}>
+                  <Route path="admin/digital-library" element={<DigitalLibraryAdmin />} />
+                </Route>
+                <Route element={<PermissionRoute module="downloads" />}>
+                  <Route path="admin/downloads" element={<DownloadsManagement />} />
+                </Route>
+
+                {/* Roles & Permissions / Users - Strictly Library Admin */}
+                <Route element={<PermissionRoute module="roles_permissions" allowedRoles={['ADMIN']} />}>
+                  <Route path="admin/roles-permissions" element={<RolesPermissionsManagement />} />
+                  <Route path="admin/users" element={<UsersManagement />} />
+                </Route>
+
+                {/* System Audit Logs - Strictly Library Admin */}
+                <Route element={<PermissionRoute module="audit_logs" allowedRoles={['ADMIN']} />}>
+                  <Route path="admin/audit-logs" element={<AuditLogsManagement />} />
+                </Route>
+
+                {/* Settings & Operating Hours - Strictly Library Admin */}
+                <Route element={<PermissionRoute module="settings" allowedRoles={['ADMIN']} />}>
+                  <Route path="admin/settings" element={<SettingsManagement />} />
+                </Route>
               </Route>
 
               {/* Faculty Exclusive Workspace */}

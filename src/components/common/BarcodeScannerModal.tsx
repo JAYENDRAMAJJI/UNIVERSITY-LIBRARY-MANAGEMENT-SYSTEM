@@ -377,9 +377,11 @@ export default function BarcodeScannerModal({
     );
   }, [filteredCopies, copySearchTerm]);
 
-  // Academic Rack and 5-Shelf Locations Extraction
+  // Academic Rack and Shelf Locations Extraction
+  const availableRacks = state.racks && state.racks.length > 0 ? state.racks : ACADEMIC_RACK_HIERARCHY;
+
   const rackLocations = useMemo(() => {
-    return ACADEMIC_RACK_HIERARCHY.map((r) => {
+    return availableRacks.map((r) => {
       const books = (state.books || []).filter((b) => {
         const rNorm = (b.rackNumber || '').toUpperCase().trim();
         return rNorm === r.rackCode || rNorm === r.rackId || rNorm.includes(r.shortCode);
@@ -396,10 +398,10 @@ export default function BarcodeScannerModal({
         totalCopies,
       };
     });
-  }, [state.books]);
+  }, [state.books, state.racks]);
 
   const shelfLocations = useMemo(() => {
-    return ACADEMIC_RACK_HIERARCHY.flatMap((r) => {
+    return availableRacks.flatMap((r) => {
       return r.shelves.map((s) => {
         const books = (state.books || []).filter((b) => {
           const rNorm = (b.rackNumber || '').toUpperCase().trim();
@@ -421,7 +423,7 @@ export default function BarcodeScannerModal({
         };
       });
     });
-  }, [state.books]);
+  }, [state.books, state.racks]);
 
   // Currently selected member object if any
   const currentMemberObj = memberCards.find((m) => {

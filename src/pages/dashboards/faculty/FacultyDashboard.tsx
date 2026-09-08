@@ -413,23 +413,49 @@ export default function FacultyDashboard() {
       </div>
 
       {/* Navigation Tabs Bar */}
-      <div className="bg-white p-3 rounded-3xl shadow-sm border border-slate-200 flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-1.5 shadow-xs flex items-center gap-1.5 overflow-x-auto whitespace-nowrap no-scrollbar">
         <button
+          type="button"
           onClick={() => handleTabChange('loans')}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
-            activeTab === 'loans' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+            activeTab === 'loans'
+              ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
           }`}
         >
-          <Book className="w-3.5 h-3.5" /> Active Borrowed Books ({facultyTransactions.length})
+          <Book className="w-3.5 h-3.5 shrink-0" />
+          <span>Active Borrowed Books</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+              activeTab === 'loans'
+                ? 'bg-white/25 text-white'
+                : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            {facultyTransactions.length}
+          </span>
         </button>
 
         <button
+          type="button"
           onClick={() => handleTabChange('procurement')}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
-            activeTab === 'procurement' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+            activeTab === 'procurement'
+              ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
           }`}
         >
-          <ShoppingBag className="w-3.5 h-3.5" /> Procurement Recommendations ({facultyProcurementRequests.length})
+          <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
+          <span>Procurement Recommendations</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+              activeTab === 'procurement'
+                ? 'bg-white/25 text-white'
+                : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            {facultyProcurementRequests.length}
+          </span>
         </button>
       </div>
 

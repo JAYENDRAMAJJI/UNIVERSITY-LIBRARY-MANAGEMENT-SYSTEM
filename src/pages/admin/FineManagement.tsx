@@ -6,8 +6,10 @@ import { FineRecord, CopyCondition, IssueTransaction } from '../../types/library
 import { generateQrSvgString, getUpiPaymentUrl } from '../../utils/barcodeQrGenerator';
 import SendNotificationModal from '../../components/common/SendNotificationModal';
 import AuthorizedCirculationSeal, { generateAuthorizedSealHtml } from '../../components/common/AuthorizedCirculationSeal';
+import { usePermission } from '../../hooks/usePermission';
 
 export default function FineManagement() {
+  const { canAdd, canDelete, can, isAdmin } = usePermission();
   const [state, setState] = useState(libraryStore.snapshot);
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
@@ -629,23 +631,27 @@ export default function FineManagement() {
                               <Bell className="h-3.5 w-3.5" />
                               <span>Dues Notice</span>
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenCollectModal(fine)}
-                              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
-                            >
-                              Collect ₹{fine.amount.toFixed(2)}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenWaiveModal(fine)}
-                              className="px-3 py-1.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 font-semibold text-xs hover:bg-purple-100 transition-colors cursor-pointer"
-                            >
-                              Waive Fine
-                            </button>
+                            {canAdd('payments') && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenCollectModal(fine)}
+                                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
+                              >
+                                Collect ₹{fine.amount.toFixed(2)}
+                              </button>
+                            )}
+                            {(isAdmin || can('payments', 'approve')) && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenWaiveModal(fine)}
+                                className="px-3 py-1.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 font-semibold text-xs hover:bg-purple-100 transition-colors cursor-pointer"
+                              >
+                                Waive Fine
+                              </button>
+                            )}
                           </>
                         )}
-                        {fine.status === 'WAIVED' && (
+                        {fine.status === 'WAIVED' && (isAdmin || can('payments', 'approve')) && (
                           <button
                             type="button"
                             onClick={() => handleOpenWaiveModal(fine)}
