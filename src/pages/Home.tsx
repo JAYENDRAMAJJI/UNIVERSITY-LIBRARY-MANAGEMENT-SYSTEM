@@ -145,6 +145,20 @@ export default function Home() {
       iconColor: 'bg-emerald-50 text-emerald-600 border-emerald-200',
       link: '/collections',
     },
+    {
+      title: 'Theses & Research',
+      description: 'Explore peer-reviewed publications and theses.',
+      icon: GraduationCap,
+      iconColor: 'bg-indigo-50 text-indigo-600 border-indigo-200',
+      link: '/digital-resources',
+    },
+    {
+      title: 'Hold & Reservations',
+      description: 'Reserve issued books and track queue priority.',
+      icon: BookMarked,
+      iconColor: 'bg-teal-50 text-teal-600 border-teal-200',
+      link: '/book-search',
+    },
   ];
 
   // Tab filtering logic for books
@@ -467,8 +481,12 @@ export default function Home() {
                   <div>
                     <div className="relative w-full h-36 sm:h-40 rounded-xl overflow-hidden bg-slate-100 mb-2.5 shadow-2xs">
                       <img
-                        src={book.coverUrl}
+                        src={book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400&q=80'}
                         alt={book.title}
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400&q=80';
+                        }}
                         className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300 block"
                       />
                       <span className="absolute top-1.5 left-1.5 z-10 text-[8.5px] font-extrabold uppercase tracking-wider text-white bg-slate-950/85 backdrop-blur-xs px-1.5 py-0.5 rounded border border-white/15 shadow-2xs max-w-[85%] truncate">
@@ -499,7 +517,7 @@ export default function Home() {
 
         {/* Right: OUR SERVICES (5 Columns, Full Stretch Height) */}
         <div className="lg:col-span-5 bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between h-full">
-          <div>
+          <div className="space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <div className="flex items-center gap-1.5 text-xs font-bold text-teal-600 uppercase tracking-wide">
@@ -517,12 +535,12 @@ export default function Home() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
               {servicesList.map((srv) => (
                 <Link
                   key={srv.title}
                   to={srv.link}
-                  className="group p-3 rounded-2xl bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-teal-400 hover:shadow-xs transition-all flex items-start gap-2.5"
+                  className="group p-2.5 sm:p-3 rounded-2xl bg-slate-50/70 hover:bg-white border border-slate-200/80 hover:border-teal-400 hover:shadow-xs transition-all flex items-start gap-2.5"
                 >
                   <div className={`p-2 rounded-xl border ${srv.iconColor} shrink-0 group-hover:scale-105 transition-transform`}>
                     <srv.icon className="w-4 h-4" />
@@ -537,6 +555,35 @@ export default function Home() {
                   </div>
                 </Link>
               ))}
+            </div>
+          </div>
+
+          {/* Bottom Operational Assistance / Helpdesk Banner */}
+          <div className="pt-2">
+            <div className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-teal-50/90 via-sky-50/70 to-indigo-50/80 border border-teal-100/90 flex items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Clock3 className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-slate-900">Library Desk & Reading Wing</span>
+                    <span className="text-[9px] font-extrabold text-teal-700 bg-teal-100/90 px-1.5 py-0.5 rounded-full border border-teal-200">
+                      Open Today
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                    Mon – Sat: 8:00 AM – 10:00 PM • Central Wing
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/faq"
+                className="shrink-0 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-[10.5px] font-bold text-teal-700 hover:text-teal-800 shadow-2xs hover:shadow-xs transition-all flex items-center gap-1"
+              >
+                <span>Help</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
           </div>
         </div>

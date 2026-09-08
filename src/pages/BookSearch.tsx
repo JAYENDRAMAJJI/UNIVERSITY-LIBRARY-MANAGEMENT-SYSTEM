@@ -356,12 +356,21 @@ export default function BookSearch() {
 
       {/* SEARCH AND FILTER CONTROLS */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="h-4 w-4 text-blue-600" />
             <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Search & Filter Catalog</h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setIsScannerModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Scan physical Rack, Shelf, or Book barcode"
+            >
+              <ScanBarcode className="w-3.5 h-3.5" />
+              <span>Scan Rack / Shelf</span>
+            </button>
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
               Showing {filteredBooks.length} of {totalBooks} Catalog Titles
             </span>
@@ -376,44 +385,34 @@ export default function BookSearch() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-          {/* Main Search Input with Scan Button */}
-          <div className="md:col-span-6 flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search title, author, ISBN, rack (e.g. RACK-CS-01), shelf (e.g. SHELF-A1)..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium transition-all"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsScannerModalOpen(true)}
-              className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-              title="Scan physical Rack, Shelf, or Book barcode"
-            >
-              <ScanBarcode className="w-4 h-4" />
-              <span className="hidden sm:inline">Scan Rack / Shelf</span>
-            </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+          {/* Main Search Input */}
+          <div className="lg:col-span-6 sm:col-span-2 relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by title, author, ISBN, rack, or shelf..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 placeholder:text-slate-400 bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Category Select Filter Dropdown */}
-          <div className="md:col-span-2">
+          <div className="lg:col-span-2 relative">
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 cursor-pointer appearance-none pr-8"
             >
               <option value="ALL">All Categories</option>
               {state.categories.map((c) => {
@@ -425,14 +424,15 @@ export default function BookSearch() {
                 );
               })}
             </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
           </div>
 
           {/* Department Select Filter Dropdown */}
-          <div className="md:col-span-2">
+          <div className="lg:col-span-2 relative">
             <select
               value={selectedDepartment}
               onChange={(e) => setSelectedDepartment(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 cursor-pointer appearance-none pr-8"
             >
               <option value="ALL">All Departments</option>
               {departmentOptions.map((dept) => (
@@ -441,20 +441,22 @@ export default function BookSearch() {
                 </option>
               ))}
             </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
           </div>
 
           {/* Search Target Field Dropdown */}
-          <div className="md:col-span-2">
+          <div className="lg:col-span-2 relative">
             <select
               value={searchBy}
               onChange={(e) => setSearchBy(e.target.value as any)}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 cursor-pointer appearance-none pr-8"
             >
               <option value="all">Search All Fields</option>
               <option value="title">Search Title</option>
               <option value="author">Search Author</option>
               <option value="isbn">Search ISBN</option>
             </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
           </div>
         </div>
 

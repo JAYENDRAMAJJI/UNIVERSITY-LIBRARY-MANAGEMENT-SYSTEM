@@ -15,73 +15,85 @@ export default function BrandLogo({
 }: BrandLogoProps) {
   const isDark = variant === 'dark';
 
-  // Sizing configurations
+  // Responsive, balanced sizing configurations
   const iconSizes = {
-    sm: 'w-10 h-10 rounded-xl shadow-[0_6px_16px_-3px_rgba(67,97,238,0.45)]',
-    md: 'w-13 h-13 sm:w-14 sm:h-14 rounded-2xl shadow-[0_10px_25px_-4px_rgba(67,97,238,0.48)]',
-    lg: 'w-16 h-16 sm:w-18 sm:h-18 rounded-3xl shadow-[0_14px_32px_-4px_rgba(67,97,238,0.5)]',
+    sm: 'w-8 h-8 sm:w-9 sm:h-9 rounded-xl shadow-[0_4px_12px_-2px_rgba(37,99,235,0.35)]',
+    md: 'w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl shadow-[0_6px_18px_-3px_rgba(37,99,235,0.4)]',
+    lg: 'w-14 h-14 sm:w-16 sm:h-16 rounded-2xl shadow-[0_10px_24px_-4px_rgba(37,99,235,0.45)]',
   };
 
   const svgSizes = {
-    sm: 'w-6 h-6',
-    md: 'w-8 h-8',
-    lg: 'w-10 h-10',
+    sm: 'w-4.5 h-4.5 sm:w-5 sm:h-5',
+    md: 'w-6 h-6 sm:w-6.5 sm:h-6.5',
+    lg: 'w-8 h-8 sm:w-9 sm:h-9',
   };
 
   const titleSizes = {
-    sm: 'text-lg sm:text-xl',
-    md: 'text-2xl sm:text-[26px]',
-    lg: 'text-3xl sm:text-4xl',
+    sm: 'text-base sm:text-lg',
+    md: 'text-lg sm:text-[21px]',
+    lg: 'text-2xl sm:text-3xl',
   };
 
   const sublineTextSizes = {
-    sm: 'text-[8px] tracking-[0.24em]',
-    md: 'text-[10.5px] sm:text-[11px] tracking-[0.28em]',
-    lg: 'text-xs tracking-[0.32em]',
+    sm: 'text-[7.5px] sm:text-[8px] tracking-[0.2em]',
+    md: 'text-[9px] sm:text-[9.5px] tracking-[0.24em]',
+    lg: 'text-[11px] sm:text-xs tracking-[0.28em]',
   };
 
   const taglineSizes = {
-    sm: 'text-[9px] gap-2',
-    md: 'text-[11px] gap-2.5',
-    lg: 'text-xs gap-3',
+    sm: 'text-[8px] gap-1.5',
+    md: 'text-[9px] sm:text-[9.5px] gap-2',
+    lg: 'text-[11px] gap-2.5',
   };
 
   return (
-    <div className={`flex items-center gap-3.5 select-none ${className}`}>
-      {/* 3D Gradient Squircle Icon with Filled White Open Book */}
+    <div className={`flex items-center gap-2.5 sm:gap-3 select-none min-w-0 ${className}`}>
+      {/* 3D Gradient Squircle Icon with Sleek Open Book Vector */}
       <div
-        className={`relative shrink-0 flex items-center justify-center ${iconSizes[size]} bg-gradient-to-br from-[#2f70f6] via-[#4361ee] to-[#8a3ffc] text-white ring-2 ring-white/40 border border-white/20 group-hover:scale-105 transition-transform duration-300`}
+        className={`relative shrink-0 flex items-center justify-center ${iconSizes[size]} bg-gradient-to-br from-[#2563eb] via-[#4f46e5] to-[#7c3aed] text-white ring-1 ring-white/30 border border-white/20 group-hover:scale-105 transition-all duration-300`}
       >
+        {/* Subtle top inner glow */}
+        <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-t from-transparent via-white/5 to-white/20 pointer-events-none" />
+
         <svg
-          viewBox="0 0 64 64"
+          viewBox="0 0 48 48"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className={`${svgSizes[size]} text-white drop-shadow-md`}
+          className={`${svgSizes[size]} text-white drop-shadow-sm relative z-10`}
         >
-          {/* Left Page (Solid White with gentle curve) */}
+          {/* Left Book Page */}
           <path
-            d="M12 16 C 20 13, 27 15, 30 18 L 30 48 C 27 45, 20 43, 12 46 Z"
+            d="M8 12C14 10 20 11.5 22.5 14V36C20 33.8 14 32.5 8 34.5V12Z"
             fill="white"
+            fillOpacity="0.95"
           />
-          {/* Right Page (Solid White with gentle curve) */}
+          {/* Right Book Page */}
           <path
-            d="M52 16 C 44 13, 37 15, 34 18 L 34 48 C 37 45, 44 43, 52 46 Z"
+            d="M40 12C34 10 28 11.5 25.5 14V36C28 33.8 34 32.5 40 34.5V12Z"
             fill="white"
+            fillOpacity="0.95"
           />
-          {/* Curved Bottom Outline Spine */}
+          {/* Spine & Page Bottom Curves */}
           <path
-            d="M12 47.5 C 20 44.5, 28 46.5, 32 49.5 C 36 46.5, 44 44.5, 52 47.5"
+            d="M8 34.5C14 32.5 20 33.8 24 36.5C28 33.8 34 32.5 40 34.5"
             stroke="white"
-            strokeWidth="2.5"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+          {/* Center Spine Crease */}
+          <path
+            d="M24 14.5V36"
+            stroke="rgba(37,99,235,0.4)"
+            strokeWidth="1.5"
             strokeLinecap="round"
           />
         </svg>
       </div>
 
       {/* Brand Typography Header */}
-      <div className="flex flex-col justify-center">
+      <div className="flex flex-col justify-center min-w-0">
         {/* Main Title: UNIVERSITY LIBRARY */}
-        <div className={`font-black font-poppins leading-none flex items-center gap-1.5 ${titleSizes[size]}`}>
+        <div className={`font-black font-poppins leading-none flex items-center gap-1.5 truncate tracking-tight ${titleSizes[size]}`}>
           <span className={isDark ? 'text-white' : 'text-[#0a1128]'}>UNIVERSITY</span>
           <span className="bg-gradient-to-r from-[#2563eb] via-[#4f46e5] to-[#7c3aed] bg-clip-text text-transparent">
             LIBRARY
@@ -89,8 +101,8 @@ export default function BrandLogo({
         </div>
 
         {/* Subtitle with Gradient Flanking Lines: —— ENTERPRISE PORTAL —— */}
-        <div className="flex items-center gap-2 mt-1 w-full">
-          <span className="flex-1 h-[2px] bg-gradient-to-r from-[#2563eb] to-[#4f46e5] rounded-full" />
+        <div className="flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-1.2 w-full">
+          <span className="flex-1 h-[1.5px] bg-gradient-to-r from-blue-500/80 to-indigo-500/80 rounded-full min-w-[5px]" />
           <span
             className={`font-bold uppercase font-sans whitespace-nowrap leading-none ${
               isDark ? 'text-slate-300' : 'text-slate-600'
@@ -98,20 +110,22 @@ export default function BrandLogo({
           >
             ENTERPRISE PORTAL
           </span>
-          <span className="flex-1 h-[2px] bg-gradient-to-r from-[#4f46e5] to-[#7c3aed] rounded-full" />
+          <span className="flex-1 h-[1.5px] bg-gradient-to-r from-indigo-500/80 to-purple-500/80 rounded-full min-w-[5px]" />
         </div>
 
         {/* Optional Tagline: Learn • Explore • Discover • Grow */}
         {showTagline && (
           <div
-            className={`flex items-center justify-between text-slate-500 font-medium tracking-wide mt-1 leading-none ${taglineSizes[size]}`}
+            className={`hidden min-[360px]:flex items-center justify-between font-semibold tracking-wider mt-1 leading-none ${
+              isDark ? 'text-slate-400' : 'text-slate-500'
+            } ${taglineSizes[size]}`}
           >
             <span>Learn</span>
-            <span className="text-blue-500 text-[9px]">•</span>
+            <span className="text-blue-500 text-[8px] font-black">•</span>
             <span>Explore</span>
-            <span className="text-indigo-500 text-[9px]">•</span>
+            <span className="text-indigo-500 text-[8px] font-black">•</span>
             <span>Discover</span>
-            <span className="text-purple-500 text-[9px]">•</span>
+            <span className="text-purple-500 text-[8px] font-black">•</span>
             <span>Grow</span>
           </div>
         )}

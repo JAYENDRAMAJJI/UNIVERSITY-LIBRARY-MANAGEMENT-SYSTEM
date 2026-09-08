@@ -1,5 +1,7 @@
 export type Role = 'ADMIN' | 'LIBRARIAN' | 'STAFF' | 'FACULTY' | 'STUDENT' | 'GUEST' | 'OTHER';
 
+export * from './rbac';
+
 export type UserStatus = 'ACTIVE' | 'APPROVED' | 'PENDING_APPROVAL' | 'REJECTED' | 'SUSPENDED' | 'INACTIVE';
 
 export interface User {

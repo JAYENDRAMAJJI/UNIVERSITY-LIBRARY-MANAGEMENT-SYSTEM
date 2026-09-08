@@ -30,8 +30,10 @@ import { libraryStore, getLocalDateStr, getMemberPendingFines } from '../../serv
 import { MemberProfile, NoDueCertificate, NoDueApplication, NoDueStatus, NoDuePurpose } from '../../types/library';
 import { exportStyledExcelFile } from '../../utils/excelExport';
 import NoDueCertificateModal from '../../components/common/NoDueCertificateModal';
+import { usePermission } from '../../hooks/usePermission';
 
 export default function NoDueClearanceDesk() {
+  const { canApprove, canPrint, isAdmin } = usePermission();
   const [state, setState] = useState(libraryStore.snapshot);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'APPLICATIONS' | 'STUDENTS'>('APPLICATIONS');
@@ -577,7 +579,7 @@ export default function NoDueClearanceDesk() {
                             </button>
                           )}
 
-                          {app.status !== 'CERTIFICATE_ISSUED' && isReady && (
+                          {app.status !== 'CERTIFICATE_ISSUED' && isReady && canApprove('nodue') && (
                             <button
                               type="button"
                               onClick={() => handleQuickApprove(app)}

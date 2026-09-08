@@ -370,7 +370,7 @@ export default function MembersManagement() {
       </div>
 
       {/* Members Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
         {filteredMembers.map((member) => (
           <div key={member.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 relative overflow-hidden">
             <div className="flex items-start justify-between">

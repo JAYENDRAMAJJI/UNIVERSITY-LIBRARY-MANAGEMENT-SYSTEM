@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { usePermission } from '../../hooks/usePermission';
 import { libraryStore, getRelevantNoticesForUser, isNoticeReadForUser } from '../../services/libraryStore.service';
+import { ModuleKey } from '../../types/rbac';
 import {
   LayoutDashboard,
   BookOpen,
@@ -25,6 +27,10 @@ import {
   Award,
   FileDown,
   Bookmark,
+  Shield,
+  KeyRound,
+  Sliders,
+  Settings,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -34,6 +40,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
   const { user } = useAuth();
+  const { canView, isAdmin } = usePermission();
   const location = useLocation();
   const [state, setState] = useState(libraryStore.snapshot);
 
@@ -66,47 +73,81 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
 
   const pendingApprovalsCount = (state.members || []).filter((m) => m.status === 'PENDING_APPROVAL').length;
 
-  const getAdminSections = () => [
-    {
-      title: 'MAIN CONTROL',
-      links: [
-        { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Admin Dashboard' },
-      ],
-    },
-    {
-      title: 'DAILY CIRCULATION',
-      links: [
-        { to: '/admin/issue-books', icon: ScanBarcode, label: 'Issue Books' },
-        { to: '/admin/return-books', icon: RotateCcw, label: 'Return Books' },
-        { to: '/admin/renew-books', icon: RefreshCw, label: 'Extend Book Time' },
-        { to: '/admin/attendance', icon: UserCheck, label: 'Library Attendance Desk' },
-        { to: '/admin/borrow-history', icon: History, label: 'Book Borrow History' },
-        { to: '/admin/reservations', icon: Bell, label: 'Reservations Queue' },
-        { to: '/admin/fines', icon: IndianRupee, label: 'Fine Management' },
-        { to: '/admin/procurement', icon: ShoppingBag, label: 'Book Purchasing & Orders' },
-        { to: '/admin/no-due', icon: Award, label: 'Issue No Due Certificate' },
-      ],
-    },
-    {
-      title: 'CATALOG & INVENTORY',
-      links: [
-        { to: '/catalog', icon: BookOpen, label: 'Books Catalog' },
-        { to: '/admin/books', icon: Layers, label: 'Manage Books' },
-        { to: '/admin/inventory', icon: Tag, label: 'Inventory & Shelves' },
-        { to: '/admin/digital-library', icon: Download, label: 'Digital Library' },
-        { to: '/admin/downloads', icon: FileDown, label: 'Official Forms & Downloads' },
-      ],
-    },
-    {
-      title: 'MEMBER & USER ADMIN',
-      links: [
-        { to: '/admin/approvals', icon: UserCheck, label: 'Account Approvals', badgeCount: pendingApprovalsCount },
-        { to: '/admin/members', icon: Users, label: 'Student & Faculty Members' },
-        { to: '/admin/users', icon: ShieldCheck, label: 'User Roles & Permissions' },
-        { to: '/notifications', icon: Bell, label: 'Notifications & Alerts' },
-      ],
-    },
-  ];
+  const getAdminSections = () => {
+    const allSections: {
+      title: string;
+      links: {
+        to: string;
+        icon: any;
+        label: string;
+        module?: ModuleKey;
+        adminOnly?: boolean;
+        badgeCount?: number;
+      }[];
+    }[] = [
+      {
+        title: 'MAIN CONTROL',
+        links: [
+          { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Admin Dashboard', module: 'dashboard' },
+        ],
+      },
+      {
+        title: 'DAILY CIRCULATION',
+        links: [
+          { to: '/admin/issue-books', icon: ScanBarcode, label: 'Issue Books', module: 'circulation' },
+          { to: '/admin/return-books', icon: RotateCcw, label: 'Return Books', module: 'circulation' },
+          { to: '/admin/renew-books', icon: RefreshCw, label: 'Extend Book Time', module: 'circulation' },
+          { to: '/admin/attendance', icon: UserCheck, label: 'Library Attendance Desk', module: 'attendance' },
+          { to: '/admin/borrow-history', icon: History, label: 'Book Borrow History', module: 'circulation' },
+          { to: '/admin/reservations', icon: Bell, label: 'Reservations Queue', module: 'reservations' },
+          { to: '/admin/fines', icon: IndianRupee, label: 'Fine Management', module: 'fines' },
+          { to: '/admin/procurement', icon: ShoppingBag, label: 'Book Purchasing & Orders', module: 'procurement' },
+          { to: '/admin/no-due', icon: Award, label: 'Issue No Due Certificate', module: 'nodue' },
+        ],
+      },
+      {
+        title: 'CATALOG & INVENTORY',
+        links: [
+          { to: '/catalog', icon: BookOpen, label: 'Books Catalog', module: 'books' },
+          { to: '/admin/books', icon: Layers, label: 'Manage Books', module: 'books' },
+          { to: '/admin/inventory', icon: Tag, label: 'Inventory & Shelves', module: 'inventory' },
+          { to: '/admin/digital-library', icon: Download, label: 'Digital Library', module: 'digital_library' },
+          { to: '/admin/downloads', icon: FileDown, label: 'Official Forms & Downloads', module: 'downloads' },
+        ],
+      },
+      {
+        title: 'MEMBER & USER ADMIN',
+        links: [
+          { to: '/admin/approvals', icon: UserCheck, label: 'Account Approvals', badgeCount: pendingApprovalsCount, module: 'approvals' },
+          { to: '/admin/members', icon: Users, label: 'Student & Faculty Members', module: 'members' },
+          { to: '/admin/users', icon: ShieldCheck, label: 'User Directory & Roles', module: 'members' },
+          { to: '/notifications', icon: Bell, label: 'Notifications & Alerts', module: 'notifications' },
+        ],
+      },
+      {
+        title: 'SETTINGS & ADMINISTRATION',
+        links: [
+          { to: '/admin/roles-permissions', icon: Shield, label: 'Roles & Permissions', module: 'roles_permissions', adminOnly: true },
+          { to: '/admin/audit-logs', icon: FileText, label: 'System Audit Logs', module: 'audit_logs', adminOnly: true },
+          { to: '/admin/settings', icon: Settings, label: 'Library Settings & Hours', module: 'settings', adminOnly: true },
+        ],
+      },
+    ];
+
+    // Filter each section based on user's active permissions and role
+    return allSections
+      .map((sec) => ({
+        ...sec,
+        links: sec.links.filter((l) => {
+          if (l.adminOnly && !isAdmin) return false;
+          if (l.module) {
+            return canView(l.module);
+          }
+          return true;
+        }),
+      }))
+      .filter((sec) => sec.links.length > 0);
+  };
 
   const getFacultySections = () => [
     {

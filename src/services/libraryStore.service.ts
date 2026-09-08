@@ -1,7 +1,7 @@
 import XLSX from 'xlsx-js-style';
 import { exportStyledExcelFile } from '../utils/excelExport';
 import { digitalFileStorage } from '../utils/digitalFileStorage';
-import { normalizeRackAndShelf, ACADEMIC_RACK_HIERARCHY, RackDefinition, ShelfDefinition } from '../data/rackShelfHierarchy';
+import { normalizeRackAndShelf, ACADEMIC_RACK_HIERARCHY, reconcileAcademicRacks, RackDefinition, ShelfDefinition } from '../data/rackShelfHierarchy';
 import {
   Role,
   Book,
@@ -40,6 +40,15 @@ import {
   CalendarEventCategory,
   UniversityCalendarEvent,
   UserStatus,
+  PermissionAction,
+  ModuleKey,
+  ModulePermissions,
+  PermissionMatrix,
+  createAdminDefaultPermissions,
+  createStaffDefaultPermissions,
+  createEmptyModulePermissions,
+  RBAC_MODULES,
+  AuditLogRecord,
 } from '../types/library';
 
 // Key for LocalStorage
@@ -3112,6 +3121,8 @@ interface StateSchema {
   calendarEvents?: UniversityCalendarEvent[];
   readNoticeIds?: { [userKey: string]: string[] };
   racks?: RackDefinition[];
+  rolePermissions?: Record<string, PermissionMatrix>;
+  userPermissions?: Record<string, Partial<PermissionMatrix>>;
 }
 
 // Lightweight Observable State Manager
@@ -3210,9 +3221,8 @@ class LibraryStoreService {
         if (!initialState.noDueCertificates || initialState.noDueCertificates.length === 0) {
           initialState.noDueCertificates = DEFAULT_NO_DUE_CERTIFICATES;
         }
-        if (!initialState.racks || initialState.racks.length === 0) {
-          initialState.racks = ACADEMIC_RACK_HIERARCHY;
-        }
+        // Reconcile and synchronize all 24 Academic Racks (R01 to R24) and purge old legacy 10 racks
+        initialState.racks = reconcileAcademicRacks(initialState.racks);
         if (!initialState.officialDocuments || initialState.officialDocuments.length === 0) {
           initialState.officialDocuments = DEFAULT_OFFICIAL_DOCUMENTS;
         }
@@ -3273,14 +3283,22 @@ class LibraryStoreService {
             }
           });
 
-          // Reserve EXACTLY Copy #1 (idx === 0) of EVERY book as a Reference Copy for in-library use only!
+          // Reserve EXACTLY Copy #1 (idx === 0) of EVERY book as a Reference Copy & normalize all rack/shelf codes to R01-R24 standard
           initialState.books = initialState.books.map((b) => {
-            const copies = (b.copies || []).map((c, idx) => ({
-              ...c,
-              isReferenceOnly: idx === 0,
-            }));
+            const norm = normalizeRackAndShelf(b.rackNumber, b.shelfNumber, b.department || b.categoryName, b.title);
+            const copies = (b.copies || []).map((c, idx) => {
+              const cNorm = normalizeRackAndShelf(c.rackNumber || b.rackNumber, c.shelfNumber || b.shelfNumber, b.department || b.categoryName, b.title);
+              return {
+                ...c,
+                rackNumber: cNorm.rackCode,
+                shelfNumber: cNorm.shelfCode,
+                isReferenceOnly: idx === 0,
+              };
+            });
             return {
               ...b,
+              rackNumber: norm.rackCode,
+              shelfNumber: norm.shelfCode,
               isReferenceOnly: false,
               collectionType: b.collectionType === 'REFERENCE' ? 'ACADEMIC' : (b.collectionType || 'ACADEMIC'),
               copies,
@@ -3616,6 +3634,27 @@ class LibraryStoreService {
       });
     }
 
+    // Auto-initialize RBAC Role and User Permissions
+    if (!initialState.rolePermissions) {
+      initialState.rolePermissions = {
+        ADMIN: createAdminDefaultPermissions(),
+        STAFF: createStaffDefaultPermissions(),
+        LIBRARIAN: createStaffDefaultPermissions(),
+      };
+    } else {
+      // Ensure ADMIN always has full permissions
+      initialState.rolePermissions.ADMIN = createAdminDefaultPermissions();
+      if (!initialState.rolePermissions.STAFF) {
+        initialState.rolePermissions.STAFF = createStaffDefaultPermissions();
+      }
+      if (!initialState.rolePermissions.LIBRARIAN) {
+        initialState.rolePermissions.LIBRARIAN = createStaffDefaultPermissions();
+      }
+    }
+    if (!initialState.userPermissions) {
+      initialState.userPermissions = {};
+    }
+
     this.state$ = new SimpleBehaviorSubject<StateSchema>(initialState);
     this.state$.subscribe((state) => {
       try {
@@ -3672,6 +3711,12 @@ class LibraryStoreService {
       calendarEvents: DEFAULT_CALENDAR_EVENTS,
       readNoticeIds: {},
       racks: ACADEMIC_RACK_HIERARCHY,
+      rolePermissions: {
+        ADMIN: createAdminDefaultPermissions(),
+        STAFF: createStaffDefaultPermissions(),
+        LIBRARIAN: createStaffDefaultPermissions(),
+      },
+      userPermissions: {},
     };
   }
 
@@ -3681,6 +3726,175 @@ class LibraryStoreService {
 
   public getObservable() {
     return this.state$;
+  }
+
+  // ================= RBAC & PERMISSION MANAGEMENT =================
+  public getRolePermissions(role: string): PermissionMatrix {
+    const r = role.toUpperCase();
+    if (r === 'ADMIN' || r === 'ADMINISTRATOR') {
+      return createAdminDefaultPermissions();
+    }
+    const state = this.snapshot;
+    if (state.rolePermissions && state.rolePermissions[r]) {
+      return state.rolePermissions[r];
+    }
+    return createStaffDefaultPermissions();
+  }
+
+  public getUserPermissions(userId: string): Partial<PermissionMatrix> | undefined {
+    return this.snapshot.userPermissions?.[userId];
+  }
+
+  public getEffectivePermissions(user: { id?: string; email?: string; role?: Role; userId?: string } | null | undefined): PermissionMatrix {
+    if (!user) {
+      const empty: Partial<PermissionMatrix> = {};
+      RBAC_MODULES.forEach((mod) => {
+        empty[mod.id] = createEmptyModulePermissions();
+      });
+      return empty as PermissionMatrix;
+    }
+    const role = (user.role || 'GUEST').toUpperCase();
+    if (role === 'ADMIN' || role === 'ADMINISTRATOR') {
+      return createAdminDefaultPermissions();
+    }
+    const base = this.getRolePermissions(role);
+    const targetId = user.id || user.userId || '';
+    const overrides = targetId ? this.getUserPermissions(targetId) : undefined;
+    if (!overrides) return base;
+
+    const result: Partial<PermissionMatrix> = {};
+    RBAC_MODULES.forEach((mod) => {
+      result[mod.id] = {
+        ...base[mod.id],
+        ...(overrides[mod.id] || {}),
+      };
+    });
+    return result as PermissionMatrix;
+  }
+
+  public hasPermission(
+    user: { id?: string; email?: string; role?: Role; status?: UserStatus; userId?: string } | null | undefined,
+    module: ModuleKey,
+    action: PermissionAction
+  ): boolean {
+    if (!user) return false;
+    // Account status check: only ACTIVE / APPROVED accounts can execute actions
+    if (user.status && user.status !== 'ACTIVE' && user.status !== 'APPROVED') {
+      return false;
+    }
+    const role = (user.role || 'GUEST').toUpperCase();
+    if (role === 'ADMIN' || role === 'ADMINISTRATOR') {
+      return true;
+    }
+    const effective = this.getEffectivePermissions(user);
+    return Boolean(effective[module]?.[action]);
+  }
+
+  public updateRolePermissions(
+    role: string,
+    permissions: PermissionMatrix,
+    updatedBy?: { name?: string; email?: string; role?: Role }
+  ): void {
+    const current = this.snapshot;
+    const r = role.toUpperCase();
+    const rolePermissions = {
+      ...(current.rolePermissions || {}),
+      [r]: permissions,
+    };
+    this.state$.next({
+      ...current,
+      rolePermissions,
+    });
+    this.logAuditAction(
+      updatedBy?.name || 'Library Admin',
+      updatedBy?.email || 'admin@university.edu',
+      updatedBy?.role || 'ADMIN',
+      'roles_permissions',
+      'Update Role Permissions',
+      `Updated permissions matrix for role: ${r}`
+    );
+  }
+
+  public updateUserPermissions(
+    userId: string,
+    permissions: Partial<PermissionMatrix>,
+    updatedBy?: { name?: string; email?: string; role?: Role }
+  ): void {
+    const current = this.snapshot;
+    const userPermissions = {
+      ...(current.userPermissions || {}),
+      [userId]: permissions,
+    };
+    const targetMember = (current.members || []).find((m) => m.id === userId || m.userId === userId);
+    this.state$.next({
+      ...current,
+      userPermissions,
+    });
+    this.logAuditAction(
+      updatedBy?.name || 'Library Admin',
+      updatedBy?.email || 'admin@university.edu',
+      updatedBy?.role || 'ADMIN',
+      'roles_permissions',
+      'Update User Permissions Override',
+      `Updated custom permission overrides for staff member: ${targetMember?.name || userId}`
+    );
+  }
+
+  public resetRolePermissions(
+    role: string,
+    updatedBy?: { name?: string; email?: string; role?: Role }
+  ): void {
+    const r = role.toUpperCase();
+    const defaults = r === 'ADMIN' ? createAdminDefaultPermissions() : createStaffDefaultPermissions();
+    this.updateRolePermissions(r, defaults, updatedBy);
+  }
+
+  public resetUserPermissions(
+    userId: string,
+    updatedBy?: { name?: string; email?: string; role?: Role }
+  ): void {
+    const current = this.snapshot;
+    const userPermissions = { ...(current.userPermissions || {}) };
+    delete userPermissions[userId];
+    const targetMember = (current.members || []).find((m) => m.id === userId || m.userId === userId);
+    this.state$.next({
+      ...current,
+      userPermissions,
+    });
+    this.logAuditAction(
+      updatedBy?.name || 'Library Admin',
+      updatedBy?.email || 'admin@university.edu',
+      updatedBy?.role || 'ADMIN',
+      'roles_permissions',
+      'Reset User Permissions',
+      `Reset permission overrides to role default for staff member: ${targetMember?.name || userId}`
+    );
+  }
+
+  public logAuditAction(
+    userName: string,
+    userEmail: string,
+    role: Role,
+    module: ModuleKey | string,
+    action: string,
+    details: string
+  ): void {
+    const current = this.snapshot;
+    const newLog: AuditLog = {
+      id: `audit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      userId: userEmail,
+      userName: userName || 'System User',
+      userRole: role,
+      module: String(module),
+      action: action,
+      details: details,
+      timestamp: getLocalDateTimeStr(),
+    };
+    const auditLogs = [newLog, ...(current.auditLogs || [])].slice(0, 500);
+    this.state$.next({
+      ...current,
+      auditLogs,
+    });
   }
 
   // ================= RACK & SHELF MANAGEMENT =================
@@ -3895,9 +4109,9 @@ class LibraryStoreService {
 
   public resetRacksToDefault(): { success: boolean; message: string } {
     const current = this.snapshot;
-    this.state$.next({ ...current, racks: ACADEMIC_RACK_HIERARCHY });
+    this.state$.next({ ...current, racks: reconcileAcademicRacks([]) });
     this.addAuditLog('1', 'Admin Librarian', 'ADMIN', 'RESET_RACKS', 'INVENTORY', 'Reset rack and shelf hierarchy to factory defaults');
-    return { success: true, message: 'All racks and shelves reset to academic defaults.' };
+    return { success: true, message: 'All 24 Academic Racks and 265 shelves reset to academic defaults.' };
   }
 
   public addAuditLog(userId: string, userName: string, userRole: Role | string, action: string, module: string, details: string) {

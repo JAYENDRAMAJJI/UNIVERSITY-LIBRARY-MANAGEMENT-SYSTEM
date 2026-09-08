@@ -1111,7 +1111,7 @@ export default function AttendanceManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-2">
                 <div className="space-y-1.5 min-w-0">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-700 truncate">
