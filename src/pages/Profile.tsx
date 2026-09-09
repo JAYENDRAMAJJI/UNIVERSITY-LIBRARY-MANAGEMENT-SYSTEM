@@ -40,6 +40,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/auth.service';
 import { libraryStore, getMemberPendingFines } from '../services/libraryStore.service';
 import { MemberProfile } from '../types/library';
 import { Link, useNavigate } from 'react-router-dom';
@@ -296,8 +297,7 @@ export default function Profile() {
     }
 
     if (user) {
-      const updatedUser = { ...user, name: formData.name, department: formData.department };
-      sessionStorage.setItem('library_user', JSON.stringify(updatedUser));
+      authService.updateStoredUser({ name: formData.name, department: formData.department });
     }
 
     setIsEditing(false);

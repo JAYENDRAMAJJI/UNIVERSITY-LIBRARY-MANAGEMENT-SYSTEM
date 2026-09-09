@@ -1,3 +1,8 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -27,6 +32,7 @@ import {
   HelpCircle,
   X,
   Layers,
+  ChevronDown,
 } from 'lucide-react';
 import RegisterAccountModal from '../../components/common/RegisterAccountModal';
 import BrandLogo from '../../components/common/BrandLogo';
@@ -48,13 +54,14 @@ function getDashboardPath(role: Role) {
 }
 
 export default function Login() {
-  const [email, setEmail] = useState('jayendramajji22@gmail.com');
-  const [password, setPassword] = useState('password');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role>('STUDENT');
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showDemoList, setShowDemoList] = useState(false);
   const [statusModal, setStatusModal] = useState<{
     type: 'PENDING_APPROVAL' | 'REJECTED' | 'SUSPENDED';
     title: string;
@@ -87,7 +94,7 @@ export default function Login() {
         setStatusModal({
           type: 'SUSPENDED',
           title: 'Account Privileges Suspended',
-          message: incomingNotice.message || 'Your library account has been suspended. Please contact the Library Administration.',
+          message: incomingNotice.message || 'Your library account has been suspended. Please contact Library Administration.',
         });
       }
     }
@@ -97,51 +104,41 @@ export default function Login() {
     role: Role;
     title: string;
     subtitle: string;
-    email: string;
+    demoEmail: string;
     icon: React.ElementType;
     badge: string;
-    gradient: string;
-    badgeStyle: string;
   }> = [
     {
       role: 'STUDENT',
       title: 'Student Scholar',
       subtitle: 'Self-service extensions, OPAC & e-books',
-      email: 'jayendramajji22@gmail.com',
+      demoEmail: 'jayendramajji22@gmail.com',
       icon: GraduationCap,
       badge: 'Student Portal',
-      gradient: 'from-emerald-500/20 to-teal-500/10 border-emerald-500/30 text-emerald-300',
-      badgeStyle: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30',
     },
     {
       role: 'FACULTY',
       title: 'Faculty / Professor',
       subtitle: '30-day loans, paper uploads & procurement',
-      email: 'faculty@college.edu',
+      demoEmail: 'faculty@college.edu',
       icon: Briefcase,
       badge: 'Faculty Portal',
-      gradient: 'from-purple-500/20 to-indigo-500/10 border-purple-500/30 text-purple-300',
-      badgeStyle: 'bg-purple-500/20 text-purple-300 border-purple-400/30',
     },
     {
       role: 'ADMIN',
-      title: 'Admin Control Desk',
+      title: 'Admin Desk',
       subtitle: 'Account approvals, circulation & catalog',
-      email: 'admin@college.edu',
+      demoEmail: 'admin@college.edu',
       icon: ShieldCheck,
       badge: 'Admin Desk',
-      gradient: 'from-blue-500/20 to-indigo-500/10 border-blue-500/30 text-blue-300',
-      badgeStyle: 'bg-blue-500/20 text-blue-300 border-blue-400/30',
     },
     {
       role: 'STAFF',
       title: 'Library Staff',
       subtitle: 'Counter circulation & book check-in desk',
-      email: 'staff@college.edu',
+      demoEmail: 'staff@college.edu',
       icon: User,
       badge: 'Staff Desk',
-      gradient: 'from-amber-500/20 to-orange-500/10 border-amber-500/30 text-amber-300',
-      badgeStyle: 'bg-amber-500/20 text-amber-300 border-amber-400/30',
     },
   ];
 
@@ -184,10 +181,16 @@ export default function Login() {
     }
   };
 
-  const handleSelectRole = (role: Role, demoEmail: string) => {
+  const handleSelectRole = (role: Role) => {
+    setSelectedRole(role);
+    setError('');
+    setStatusModal(null);
+  };
+
+  const handleFillDemo = (demoEmail: string, role: Role) => {
     setSelectedRole(role);
     setEmail(demoEmail);
-    setPassword('password');
+    setPassword('password123');
     setError('');
     setStatusModal(null);
   };
@@ -205,14 +208,14 @@ export default function Login() {
           className="inline-flex items-center gap-2 text-xs font-bold text-slate-300 hover:text-white bg-slate-900/60 hover:bg-slate-800/80 px-4 py-2 rounded-2xl border border-slate-800 backdrop-blur-md transition-all shadow-sm group cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span>Back to Library Portal</span>
+          <span>Back to Public Library Home</span>
         </Link>
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center flex flex-col items-center justify-center space-y-3 z-10 pt-8 sm:pt-0">
         <BrandLogo variant="dark" size="md" showTagline={true} />
         <p className="text-xs sm:text-sm text-slate-400">
-          Secure Role-Based Portal Authentication & Management Gateway
+          Institutional Role-Based Portal Authentication Gateway
         </p>
       </div>
 
@@ -223,7 +226,7 @@ export default function Login() {
             <button
               key={r.role}
               type="button"
-              onClick={() => handleSelectRole(r.role, r.email)}
+              onClick={() => handleSelectRole(r.role)}
               className={`p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
                 selectedRole === r.role
                   ? 'bg-blue-600/20 border-blue-400/60 text-white shadow-lg shadow-blue-500/10 ring-2 ring-blue-500/30'
@@ -246,6 +249,9 @@ export default function Login() {
             <h3 className="text-base sm:text-lg font-bold text-white">
               Sign in to your {selectedRole.toLowerCase()} account
             </h3>
+            <p className="text-xs text-slate-400">
+              Enter your registered institutional credentials to access your dashboard.
+            </p>
           </div>
 
           {/* Error Message */}
@@ -279,7 +285,6 @@ export default function Login() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-bold text-slate-300">Password</label>
-                <span className="text-[10px] text-slate-500">Default: password123</span>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
@@ -320,8 +325,49 @@ export default function Login() {
             </button>
           </form>
 
+          {/* Quick Demo Credentials Assistant (Optional Helper) */}
+          <div className="pt-2 border-t border-slate-800/80">
+            <button
+              type="button"
+              onClick={() => setShowDemoList(!showDemoList)}
+              className="w-full py-2 px-3 text-xs text-slate-400 hover:text-slate-200 flex items-center justify-between rounded-xl hover:bg-slate-800/50 transition-colors"
+            >
+              <span className="flex items-center gap-1.5 font-semibold">
+                <KeyRound className="w-3.5 h-3.5 text-blue-400" />
+                Need test credentials? Click for Demo Accounts
+              </span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${showDemoList ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showDemoList && (
+              <div className="mt-2 p-3 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2 text-xs">
+                <p className="text-[11px] text-slate-400">
+                  Click any account below to populate test credentials (Password: <code className="text-blue-400">password123</code>):
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {roleList.map((r) => (
+                    <button
+                      key={r.role}
+                      type="button"
+                      onClick={() => handleFillDemo(r.demoEmail, r.role)}
+                      className="p-2 text-left rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 transition-all flex items-center justify-between group"
+                    >
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-bold text-blue-400 block">{r.title}</span>
+                        <span className="text-[11px] text-slate-300 font-mono truncate block">{r.demoEmail}</span>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-blue-600/20 text-blue-300 border border-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                        Fill
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Registration CTA */}
-          <div className="pt-4 border-t border-slate-800/80 text-center space-y-3">
+          <div className="pt-2 border-t border-slate-800/80 text-center space-y-3">
             <p className="text-xs text-slate-400">
               Don't have an approved library membership account yet?
             </p>

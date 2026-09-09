@@ -115,16 +115,16 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
   const unreadCount = unreadNotices.length;
 
   // Active member profile details for header user card
-  const currentMember =
-    state.members.find((m) => user?.email && m.email.toLowerCase() === user.email.toLowerCase()) ||
-    state.members.find((m) => user?.id && m.id === user.id) ||
-    state.members.find((m) => user?.name && m.name.toLowerCase() === user.name.toLowerCase()) ||
-    state.members[0];
+  const currentMember = user
+    ? state.members.find((m) => user?.email && m.email.toLowerCase() === user.email.toLowerCase()) ||
+      state.members.find((m) => user?.id && m.id === user.id) ||
+      state.members.find((m) => user?.name && m.name.toLowerCase() === user.name.toLowerCase())
+    : null;
 
-  const displayName = user?.name || currentMember?.name || 'Jayendra Majji';
-  const displayEmail = user?.email || currentMember?.email || 'jayendramajji22@gmail.com';
-  const displayDept = user?.department || currentMember?.department || 'Computer Science & Engineering';
-  const displayId = user?.memberCardNo || currentMember?.memberCardNo || 'STU-2026-7326';
+  const displayName = user?.name || currentMember?.name || '';
+  const displayEmail = user?.email || currentMember?.email || '';
+  const displayDept = user?.department || currentMember?.department || '';
+  const displayId = user?.memberCardNo || currentMember?.memberCardNo || '';
   const displayAvatar = user?.avatarUrl || currentMember?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
 
   return (
