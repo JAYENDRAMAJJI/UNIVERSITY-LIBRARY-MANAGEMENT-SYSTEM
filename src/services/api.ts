@@ -9,6 +9,9 @@ const API_BASE_URL =
 
 export function getAuthToken(): string | null {
   try {
+    const directToken = sessionStorage.getItem('library_token') || localStorage.getItem('library_token');
+    if (directToken) return directToken;
+
     const sessionStr = localStorage.getItem('college_lms_auth_session');
     if (sessionStr) {
       const parsed = JSON.parse(sessionStr);

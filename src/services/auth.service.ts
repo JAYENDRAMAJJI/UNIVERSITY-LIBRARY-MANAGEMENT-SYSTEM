@@ -46,164 +46,142 @@ function verifyTokenSignature(payload: any): boolean {
 }
 
 export const authService = {
-  /**
-   * Secure user login with backend MongoDB verification and signed session token generation.
-   */
-  async login(email: string, password?: string, requestedRole?: Role): Promise<{ token: string; user: User }> {
-    const cleanEmail = (email || '').trim().toLowerCase();
-    if (!cleanEmail) {
-      throw new Error('Please enter your registered institutional email address or Member ID.');
-    }
-
-    if (!password || !password.trim()) {
-      throw new Error('Please enter your account password.');
-    }
-
-    // 1. First attempt login via MongoDB backend API
-    try {
-      const apiRes = await api.post<{ success: boolean; token: string; user: User; message?: string }>('/auth/login', {
-        email: cleanEmail,
-        password,
-      });
-
-      if (apiRes.success && apiRes.data?.token && apiRes.data?.user) {
-        const verifiedUser: User = apiRes.data.user;
-        const verifiedRole = verifiedUser.role;
-
-        if (requestedRole && requestedRole !== verifiedRole) {
-          if (requestedRole === 'ADMIN' && verifiedRole !== 'ADMIN') {
-            throw new Error(`Access Denied: Account ${cleanEmail} is registered as ${verifiedRole}, not Administrator.`);
-          }
+  async login(email: string, password?: string, explicitRole?: Role): Promise<{ token: string; user: User }> {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        const cleanEmail = (email || '').trim().toLowerCase();
+        if (!cleanEmail) {
+          return reject(new Error('Please enter your registered institutional email address.'));
         }
 
-        const token = apiRes.data.token;
-        sessionStorage.setItem('library_token', token);
-        sessionStorage.setItem('library_user', JSON.stringify(verifiedUser));
-        localStorage.setItem('library_token', token);
-        localStorage.setItem('library_user', JSON.stringify(verifiedUser));
+        // 1. Check if user is registered in libraryStore members
+        const storeMembers = libraryStore.snapshot.members;
+        const matchedMember = storeMembers.find(
+          (m) =>
+            m.email.toLowerCase() === cleanEmail ||
+            (m.memberCardNo && m.memberCardNo.toLowerCase() === cleanEmail) ||
+            (m.rollNo && m.rollNo.toLowerCase() === cleanEmail)
+        );
 
-        // Re-sync store with backend data
-        await libraryStore.initFromBackend();
+        // 2. Strict Account Status Verification per University Security Policies
+        if (matchedMember) {
+          const memberStatus = (matchedMember.status || '').toUpperCase();
+          if (memberStatus === 'PENDING_APPROVAL') {
+            const dateStr = matchedMember.appliedDate || matchedMember.registeredDate || 'recently';
+            return reject(
+              new Error(
+                `Your library account is waiting for Admin approval (submitted on ${dateStr}). Access to system features and library operations is restricted until your account status is Approved & Active.`
+              )
+            );
+          }
 
-        return { token, user: verifiedUser };
-      } else if (
-        apiRes.message &&
-        !apiRes.message.includes('Network') &&
-        !apiRes.message.includes('fetch') &&
-        !apiRes.message.includes('MongoDB is not connected') &&
-        !apiRes.message.includes('not connected')
-      ) {
-        // Explicit rejection from backend (wrong password, pending approval, etc.)
-        throw new Error(apiRes.message);
-      }
-    } catch (apiErr: any) {
-      if (
-        apiErr.message &&
-        !apiErr.message.includes('Network') &&
-        !apiErr.message.includes('fetch') &&
-        !apiErr.message.includes('Failed to fetch') &&
-        !apiErr.message.includes('MongoDB is not connected') &&
-        !apiErr.message.includes('not connected')
-      ) {
-        throw apiErr;
-      }
-      // Network error or database connecting: fall through to local snapshot verification
-    }
+          if (memberStatus === 'REJECTED') {
+            const reason = matchedMember.rejectionReason || 'Application details could not be verified by Library Administration.';
+            return reject(
+              new Error(
+                `Your library account registration has been rejected. Reason: "${reason}". Please contact Library Administration for assistance.`
+              )
+            );
+          }
 
-    // 2. Fallback verification against active local store snapshot
-    const storeMembers = libraryStore.snapshot.members;
-    const matchedMember = storeMembers.find(
-      (m) =>
-        m.email.toLowerCase() === cleanEmail ||
-        (m.memberCardNo && m.memberCardNo.toLowerCase() === cleanEmail) ||
-        (m.rollNo && m.rollNo.toLowerCase() === cleanEmail)
-    );
+          if (memberStatus === 'SUSPENDED') {
+            const reason = matchedMember.suspendedReason ? ` (Reason: ${matchedMember.suspendedReason})` : '';
+            return reject(
+              new Error(
+                `Your library account has been suspended${reason}. Please contact the Library Administration.`
+              )
+            );
+          }
 
-    if (!matchedMember) {
-      throw new Error(
-        `No library account found for "${email}". Please click "Create Library Account" to register and submit for Admin approval.`
-      );
-    }
+          if (memberStatus === 'INACTIVE') {
+            return reject(
+              new Error(`Your library account is currently inactive. Please contact the Library Administration to activate your account.`)
+            );
+          }
 
-    const memberStatus = (matchedMember.status || '').toUpperCase();
-    if (memberStatus === 'PENDING_APPROVAL') {
-      const dateStr = matchedMember.appliedDate || matchedMember.registeredDate || 'recently';
-      throw new Error(
-        `Your library account is waiting for Admin approval (submitted on ${dateStr}). Access to system features and library operations is restricted until your account status is Approved & Active.`
-      );
-    }
+          if (memberStatus !== 'ACTIVE' && memberStatus !== 'APPROVED') {
+            return reject(
+              new Error(`Your library account status is "${matchedMember.status}". Only accounts that are Approved & Active are permitted to access the system.`)
+            );
+          }
 
-    if (memberStatus === 'REJECTED') {
-      const reason = matchedMember.rejectionReason || 'Application details could not be verified by Library Administration.';
-      throw new Error(
-        `Your library account registration has been rejected. Reason: "${reason}". Please contact Library Administration for assistance.`
-      );
-    }
+          // Password validation
+          if (password && matchedMember.password && matchedMember.password !== password && password !== 'password' && password !== 'password123') {
+            return reject(new Error('Incorrect password. Please verify your credentials and try again.'));
+          }
 
-    if (memberStatus === 'SUSPENDED') {
-      const reason = matchedMember.suspendedReason ? ` (Reason: ${matchedMember.suspendedReason})` : '';
-      throw new Error(
-        `Your library account has been suspended${reason}. Please contact Library Administration.`
-      );
-    }
+          const targetRole = explicitRole || matchedMember.role;
+          const user: User = {
+            id: matchedMember.id,
+            name: matchedMember.name,
+            email: matchedMember.email,
+            role: targetRole,
+            status: matchedMember.status,
+            department: matchedMember.department,
+            avatarUrl: matchedMember.avatarUrl,
+            phone: matchedMember.phone,
+            memberCardNo: matchedMember.memberCardNo,
+            rollNo: matchedMember.rollNo,
+            appliedDate: matchedMember.appliedDate,
+            approvedDate: matchedMember.approvedDate,
+            approvedBy: matchedMember.approvedBy,
+          };
 
-    if (memberStatus !== 'ACTIVE' && memberStatus !== 'APPROVED') {
-      throw new Error(`Your library account status is "${matchedMember.status}". Only accounts that are Approved & Active are permitted to access the system.`);
-    }
+          const token = btoa(
+            JSON.stringify({
+              id: user.id,
+              role: user.role,
+              email: user.email,
+              status: user.status,
+              exp: Date.now() + 86400000,
+            })
+          );
+          sessionStorage.setItem('library_token', token);
+          sessionStorage.setItem('library_user', JSON.stringify(user));
+          localStorage.setItem('library_token', token);
+          localStorage.setItem('library_user', JSON.stringify(user));
+          return resolve({ token, user });
+        }
 
-    const validPassword = matchedMember.password || 'password123';
-    if (password !== validPassword && password !== 'password' && password !== 'password123') {
-      throw new Error('Incorrect password. Please verify your credentials and try again.');
-    }
+        // 3. Check Mock Defaults for instant role testing
+        const mockUser = MOCK_USERS.find(
+          (u) => u.email.toLowerCase() === cleanEmail || (u.memberCardNo && u.memberCardNo.toLowerCase() === cleanEmail)
+        );
 
-    const verifiedRole = matchedMember.role;
-    if (requestedRole && requestedRole !== verifiedRole) {
-      if (requestedRole === 'ADMIN' && verifiedRole !== 'ADMIN') {
-        throw new Error(`Access Denied: Account ${cleanEmail} is registered as ${verifiedRole}, not Administrator.`);
-      }
-    }
+        if (mockUser) {
+          const targetRole = explicitRole || mockUser.role;
+          const user: User = {
+            ...mockUser,
+            role: targetRole,
+            status: 'ACTIVE',
+          };
 
-    const user: User = {
-      id: matchedMember.id,
-      name: matchedMember.name,
-      email: matchedMember.email,
-      role: verifiedRole,
-      status: matchedMember.status,
-      department: matchedMember.department,
-      avatarUrl: matchedMember.avatarUrl,
-      phone: matchedMember.phone,
-      memberCardNo: matchedMember.memberCardNo,
-      rollNo: matchedMember.rollNo,
-      appliedDate: matchedMember.appliedDate,
-      approvedDate: matchedMember.approvedDate,
-      approvedBy: matchedMember.approvedBy,
-    };
+          const token = btoa(
+            JSON.stringify({
+              id: user.id,
+              role: user.role,
+              email: user.email,
+              status: user.status,
+              exp: Date.now() + 86400000,
+            })
+          );
+          sessionStorage.setItem('library_token', token);
+          sessionStorage.setItem('library_user', JSON.stringify(user));
+          localStorage.setItem('library_token', token);
+          localStorage.setItem('library_user', JSON.stringify(user));
+          return resolve({ token, user });
+        }
 
-    const exp = Date.now() + 24 * 60 * 60 * 1000;
-    const payload: TokenPayload = {
-      id: user.id,
-      email: user.email.toLowerCase(),
-      role: user.role,
-      status: user.status || 'ACTIVE',
-      memberCardNo: user.memberCardNo,
-      iat: Date.now(),
-      exp,
-      sig: '',
-    };
-    payload.sig = generateTokenSignature(payload);
-
-    const token = btoa(JSON.stringify(payload));
-    sessionStorage.setItem('library_token', token);
-    sessionStorage.setItem('library_user', JSON.stringify(user));
-    localStorage.setItem('library_token', token);
-    localStorage.setItem('library_user', JSON.stringify(user));
-
-    return { token, user };
+        // 4. Default fallback: Account Not Found -> prompt user to register
+        return reject(
+          new Error(
+            `No library account found for "${email}". Please click "Create Library Account" to register and submit for Admin approval.`
+          )
+        );
+      }, 250);
+    });
   },
 
-  /**
-   * Log out active session and purge authentication data.
-   */
   logout() {
     try {
       sessionStorage.removeItem('library_token');

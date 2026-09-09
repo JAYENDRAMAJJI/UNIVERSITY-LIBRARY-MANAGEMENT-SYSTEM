@@ -58,32 +58,36 @@ export default function Home() {
     }
   };
 
+  const totalBookCopies = state.books.reduce((s, b) => s + (b.totalCopies || 0), 0);
+  const totalStudents = state.members.filter((m) => m.role === 'STUDENT').length;
+  const totalDigital = state.digitalResources?.length || 0;
+
   const metrics = [
     {
-      value: `${state.books.reduce((s, b) => s + b.totalCopies, 0) || 10000}+`,
+      value: `${totalBookCopies}`,
       title: 'Books Available',
-      subtitle: 'Wide range of academic resources',
+      subtitle: 'Live library resource copies',
       icon: BookMarked,
       iconColor: 'bg-cyan-50 text-cyan-600 border-cyan-100',
     },
     {
       value: '24',
       title: 'Academic Programs',
-      subtitle: 'From Engineering to Humanities',
+      subtitle: '275 Shelves across 24 Racks',
       icon: Building2,
       iconColor: 'bg-blue-50 text-blue-600 border-blue-100',
     },
     {
-      value: `${state.members.length || 5000}+`,
+      value: `${totalStudents}`,
       title: 'Students Registered',
-      subtitle: 'Active library members',
+      subtitle: 'Active student members',
       icon: Users,
       iconColor: 'bg-indigo-50 text-indigo-600 border-indigo-100',
     },
     {
-      value: `${state.digitalResources.length ? state.digitalResources.length + '+' : '2,000+'}`,
+      value: `${totalDigital}`,
       title: 'Digital Resources',
-      subtitle: 'eBooks, Journals & More',
+      subtitle: 'eBooks, Journals & Documents',
       icon: MonitorSmartphone,
       iconColor: 'bg-emerald-50 text-emerald-600 border-emerald-100',
     },
