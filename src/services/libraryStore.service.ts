@@ -2,6 +2,7 @@ import XLSX from 'xlsx-js-style';
 import { exportStyledExcelFile } from '../utils/excelExport';
 import { digitalFileStorage } from '../utils/digitalFileStorage';
 import { normalizeRackAndShelf, ACADEMIC_RACK_HIERARCHY, reconcileAcademicRacks, RackDefinition, ShelfDefinition } from '../data/rackShelfHierarchy';
+import { api } from './api';
 import {
   Role,
   Book,
@@ -1668,6 +1669,7 @@ const DEFAULT_MEMBERS: MemberProfile[] = [
     academicBatch: '2022 - 2026',
     department: 'Computer Science & Engineering',
     status: 'ACTIVE',
+    password: 'password123',
     maxAllowedBooks: 5,
     currentActiveLoans: 0,
     pendingFines: 0.00,
@@ -1683,6 +1685,7 @@ const DEFAULT_MEMBERS: MemberProfile[] = [
     memberCardNo: 'FAC-2023-1102',
     department: 'Electrical Engineering',
     status: 'ACTIVE',
+    password: 'password123',
     maxAllowedBooks: 10,
     currentActiveLoans: 3,
     pendingFines: 0.00,
@@ -1698,10 +1701,26 @@ const DEFAULT_MEMBERS: MemberProfile[] = [
     memberCardNo: 'ADM-2020-0001',
     department: 'Central University Library',
     status: 'ACTIVE',
+    password: 'password123',
     maxAllowedBooks: 15,
     currentActiveLoans: 0,
     pendingFines: 0.00,
     registeredDate: '2020-01-01',
+  },
+  {
+    id: 'mem-staff-1',
+    userId: '4',
+    name: 'Mr. Rajesh Kumar',
+    email: 'staff@college.edu',
+    role: 'STAFF',
+    memberCardNo: 'STA-2024-0012',
+    department: 'Circulation & Desk Operations',
+    status: 'ACTIVE',
+    password: 'password123',
+    maxAllowedBooks: 10,
+    currentActiveLoans: 0,
+    pendingFines: 0.00,
+    registeredDate: '2024-01-10',
   },
   {
     id: 'mem-app-1',
@@ -1718,6 +1737,7 @@ const DEFAULT_MEMBERS: MemberProfile[] = [
     idProofType: 'COLLEGE_ID',
     idProofNumber: 'CLG-2024-8841',
     status: 'PENDING_APPROVAL',
+    password: 'password123',
     appliedDate: '2026-09-04 10:30',
     maxAllowedBooks: 4,
     currentActiveLoans: 0,
@@ -1738,6 +1758,7 @@ const DEFAULT_MEMBERS: MemberProfile[] = [
     idProofType: 'COLLEGE_ID',
     idProofNumber: 'FAC-EMP-8821',
     status: 'PENDING_APPROVAL',
+    password: 'password123',
     appliedDate: '2026-09-05 09:15',
     maxAllowedBooks: 10,
     currentActiveLoans: 0,
@@ -1761,6 +1782,7 @@ const DEFAULT_MEMBERS: MemberProfile[] = [
     idProofType: 'AADHAAR',
     idProofNumber: 'XXXX-XXXX-4512',
     status: 'REJECTED',
+    password: 'password123',
     appliedDate: '2026-09-01 14:00',
     rejectionReason: 'Invalid student ID card attachment and mismatched roll number. Please re-apply with official registration proof.',
     maxAllowedBooks: 4,
@@ -1782,6 +1804,7 @@ const DEFAULT_MEMBERS: MemberProfile[] = [
     academicBatch: '2024 - 2026',
     phone: '+91 94455 66778',
     status: 'SUSPENDED',
+    password: 'password123',
     appliedDate: '2024-08-10',
     approvedDate: '2024-08-11',
     approvedBy: 'Chief Admin Librarian',
@@ -3684,6 +3707,32 @@ class LibraryStoreService {
       setInterval(() => {
         this.checkAndAutoCheckoutExpiredSessions();
       }, 30000);
+    }
+
+    // Hydrate live library data from MongoDB Backend API
+    this.initFromBackend();
+  }
+
+  /**
+   * Connects to backend /api/sync endpoint to populate state directly from MongoDB
+   */
+  public async initFromBackend(): Promise<void> {
+    try {
+      const res = await api.get<{ success: boolean; state: Partial<StateSchema> }>('/sync');
+      if (res.success && res.data && res.data.state) {
+        const remoteState = res.data.state;
+        const current = this.state$.getValue();
+        const merged: StateSchema = {
+          ...current,
+          ...remoteState,
+          config: remoteState.config || current.config,
+          racks: reconcileAcademicRacks(remoteState.racks || current.racks),
+        } as StateSchema;
+        this.state$.next(merged);
+        console.log('✅ [LibraryStore] Live state loaded from MongoDB.');
+      }
+    } catch (err) {
+      console.warn('⚠️ [LibraryStore] Sync from MongoDB failed:', err);
     }
   }
 

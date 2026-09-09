@@ -352,6 +352,139 @@ export const createStaffDefaultPermissions = (): PermissionMatrix => {
   return matrix as PermissionMatrix;
 };
 
+/**
+ * Preset: Circulation Desk Assistant (Focused purely on issuing, returns, renewals, fines, attendance)
+ */
+export const createCirculationDeskPreset = (): PermissionMatrix => {
+  const matrix: Partial<PermissionMatrix> = {};
+  RBAC_MODULES.forEach((mod) => {
+    matrix[mod.id] = createEmptyModulePermissions();
+  });
+
+  matrix.dashboard = { ...createEmptyModulePermissions(), view: true };
+  matrix.books = { ...createEmptyModulePermissions(), view: true };
+  matrix.inventory = { ...createEmptyModulePermissions(), view: true, print: true };
+  matrix.barcodes = { ...createEmptyModulePermissions(), view: true, print: true };
+  matrix.circulation = { ...createEmptyModulePermissions(), view: true, add: true, edit: true, approve: true, print: true, export: true };
+  matrix.reservations = { ...createEmptyModulePermissions(), view: true, add: true, edit: true, approve: true };
+  matrix.attendance = { ...createEmptyModulePermissions(), view: true, add: true, edit: true, export: true };
+  matrix.fines = { ...createEmptyModulePermissions(), view: true, add: true, export: true };
+  matrix.payments = { ...createEmptyModulePermissions(), view: true, add: true, print: true };
+  matrix.members = { ...createEmptyModulePermissions(), view: true, print: true };
+  matrix.nodue = { ...createEmptyModulePermissions(), view: true };
+  matrix.notifications = { ...createEmptyModulePermissions(), view: true };
+
+  return matrix as PermissionMatrix;
+};
+
+/**
+ * Preset: Cataloging & Inventory Specialist (Focused on books, copies, racks, shelves, barcodes)
+ */
+export const createCatalogerPreset = (): PermissionMatrix => {
+  const matrix: Partial<PermissionMatrix> = {};
+  RBAC_MODULES.forEach((mod) => {
+    matrix[mod.id] = createEmptyModulePermissions();
+  });
+
+  matrix.dashboard = { ...createEmptyModulePermissions(), view: true };
+  matrix.books = { ...createEmptyModulePermissions(), view: true, add: true, edit: true, export: true };
+  matrix.inventory = { ...createEmptyModulePermissions(), view: true, add: true, edit: true, print: true, export: true };
+  matrix.categories = { ...createEmptyModulePermissions(), view: true, add: true, edit: true, export: true };
+  matrix.racks = { ...createEmptyModulePermissions(), view: true, add: true, edit: true, print: true };
+  matrix.shelves = { ...createEmptyModulePermissions(), view: true, add: true, edit: true, print: true };
+  matrix.barcodes = { ...createEmptyModulePermissions(), view: true, add: true, print: true, export: true, manage: true };
+  matrix.procurement = { ...createEmptyModulePermissions(), view: true, add: true, edit: true };
+  matrix.digital_library = { ...createEmptyModulePermissions(), view: true, add: true, edit: true };
+
+  return matrix as PermissionMatrix;
+};
+
+/**
+ * Preset: Read-Only Auditor / Inspector (View and export only)
+ */
+export const createAuditorPreset = (): PermissionMatrix => {
+  const matrix: Partial<PermissionMatrix> = {};
+  RBAC_MODULES.forEach((mod) => {
+    matrix[mod.id] = {
+      ...createEmptyModulePermissions(),
+      view: mod.supportedActions.includes('view'),
+      export: mod.supportedActions.includes('export'),
+      print: mod.supportedActions.includes('print'),
+    };
+  });
+  return matrix as PermissionMatrix;
+};
+
+/**
+ * Preset: Senior Assistant Librarian (Broad operational and clearance powers)
+ */
+export const createSeniorLibrarianPreset = (): PermissionMatrix => {
+  const matrix = createStaffDefaultPermissions();
+  // Grant additional elevated privileges
+  matrix.approvals = { ...createEmptyModulePermissions(), view: true, approve: true, reject: true, export: true };
+  matrix.nodue = { ...createEmptyModulePermissions(), view: true, add: true, edit: true, approve: true, reject: true, print: true, export: true };
+  matrix.fines = { ...createEmptyModulePermissions(), view: true, add: true, edit: true, approve: true, export: true };
+  matrix.payments = { ...createEmptyModulePermissions(), view: true, add: true, approve: true, print: true, export: true };
+  matrix.reports = { ...createEmptyModulePermissions(), view: true, print: true, export: true };
+  matrix.procurement = { ...createEmptyModulePermissions(), view: true, add: true, edit: true, approve: true, export: true };
+  matrix.downloads = { ...createEmptyModulePermissions(), view: true, add: true, edit: true, print: true };
+  matrix.notifications = { ...createEmptyModulePermissions(), view: true, add: true, edit: true, manage: true };
+  return matrix;
+};
+
+export interface PermissionPreset {
+  id: string;
+  name: string;
+  badge: string;
+  description: string;
+  generator: () => PermissionMatrix;
+}
+
+export const PERMISSION_PRESETS: PermissionPreset[] = [
+  {
+    id: 'staff_default',
+    name: 'Default Staff',
+    badge: 'Standard',
+    description: 'Safe baseline access for routine library duties (no account approval or deletions).',
+    generator: createStaffDefaultPermissions,
+  },
+  {
+    id: 'circulation_desk',
+    name: 'Circulation Desk',
+    badge: 'Front Desk',
+    description: 'Optimized for issue/returns, renewals, fine collecting, and visitor check-ins.',
+    generator: createCirculationDeskPreset,
+  },
+  {
+    id: 'cataloger',
+    name: 'Cataloger & Inventory',
+    badge: 'Cataloging',
+    description: 'Specialized for book cataloging, barcode tags, rack/shelf layout, and copy records.',
+    generator: createCatalogerPreset,
+  },
+  {
+    id: 'senior_librarian',
+    name: 'Senior Assistant Librarian',
+    badge: 'Elevated',
+    description: 'High-privilege staff with clearance approvals, procurement, and report generation.',
+    generator: createSeniorLibrarianPreset,
+  },
+  {
+    id: 'auditor',
+    name: 'Auditor (Read-Only)',
+    badge: 'Audit',
+    description: 'Read-only inspection and reporting rights across all library modules.',
+    generator: createAuditorPreset,
+  },
+  {
+    id: 'full_admin',
+    name: 'Administrator (All)',
+    badge: 'Unrestricted',
+    description: 'Complete unrestricted access across all 23 modules and system settings.',
+    generator: createAdminDefaultPermissions,
+  },
+];
+
 export interface AuditLogRecord {
   id: string;
   userName: string;

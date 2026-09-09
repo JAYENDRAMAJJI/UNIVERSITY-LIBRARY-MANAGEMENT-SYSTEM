@@ -97,6 +97,7 @@ export default function UsersManagement() {
     const tempPass = `Reset#${Math.floor(100000 + Math.random() * 900000)}!`;
     setGeneratedTempPass(tempPass);
     setPassCopied(false);
+    libraryStore.updateMemberProfile(user.id, { password: tempPass });
   };
 
   const handleCopyPassword = () => {

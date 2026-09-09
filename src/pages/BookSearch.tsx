@@ -76,11 +76,10 @@ export default function BookSearch() {
 
   // Current active member
   const currentUserMember = useMemo(() => {
-    if (!user) return state.members.find((m) => m.role === 'STUDENT') || state.members[0];
+    if (!user) return null;
     return (
       state.members.find((m) => m.email.toLowerCase() === user.email?.toLowerCase() || m.id === user.id) ||
-      state.members.find((m) => m.role === 'STUDENT') ||
-      state.members[0]
+      state.members.find((m) => m.role === user.role)
     );
   }, [state.members, user]);
 
@@ -157,7 +156,11 @@ export default function BookSearch() {
   };
 
   const handleReserve = (book: Book) => {
-    const memberIdToUse = currentUserMember?.email || currentUserMember?.id || 'mem-1';
+    if (!user || !currentUserMember) {
+      navigate('/login', { state: { from: location } });
+      return;
+    }
+    const memberIdToUse = currentUserMember.email || currentUserMember.id;
     const result = libraryStore.reserveBook(book.id, memberIdToUse);
 
     setReservationMessage(result.message);
