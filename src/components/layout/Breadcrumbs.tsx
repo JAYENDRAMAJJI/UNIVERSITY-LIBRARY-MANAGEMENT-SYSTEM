@@ -8,11 +8,11 @@ export default function Breadcrumbs() {
   if (pathnames.length === 0) return null;
 
   return (
-    <nav className="flex px-4 sm:px-6 lg:px-8 py-3.5 bg-slate-50 border-b border-slate-200" aria-label="Breadcrumb">
-      <ol className="flex items-center space-x-2 text-base text-slate-500 max-w-7xl mx-auto w-full">
+    <nav className="flex px-3 sm:px-6 lg:px-8 py-2 sm:py-2.5 bg-slate-50/80 border-b border-slate-200/60" aria-label="Breadcrumb">
+      <ol className="flex items-center space-x-1.5 sm:space-x-2 text-xs sm:text-sm text-slate-500 max-w-7xl 2xl:max-w-[1600px] mx-auto w-full overflow-x-auto no-scrollbar">
         <li>
           <Link to="/" className="hover:text-blue-800 flex items-center transition-colors">
-            <Home className="w-5 h-5" />
+            <Home className="w-4 h-4" />
             <span className="sr-only">Home</span>
           </Link>
         </li>
@@ -28,7 +28,7 @@ export default function Breadcrumbs() {
 
           return (
             <li key={to} className="flex items-center">
-              <ChevronRight className="w-5 h-5 mx-1 text-slate-400" />
+              <ChevronRight className="w-3.5 h-3.5 mx-0.5 sm:mx-1 text-slate-400 shrink-0" />
               {last ? (
                 <span className="font-semibold text-slate-900" aria-current="page">
                   {title}

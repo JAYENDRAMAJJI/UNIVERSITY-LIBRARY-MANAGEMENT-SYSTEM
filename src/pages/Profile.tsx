@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   User as UserIcon,
   Mail,
@@ -47,8 +47,23 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   generateBarcodeSvgString,
   generateQrSvgString,
+  printMemberLibraryCard,
   svgToDataUrl,
 } from '../utils/barcodeQrGenerator';
+import {
+  SCHOLAR_PROGRAM_DEPARTMENT_MAP,
+  DEPARTMENT_RESEARCH_AREA_MAP,
+  DEPARTMENT_SUPERVISOR_MAP,
+  RESEARCH_ADMISSION_YEARS,
+  RESEARCH_STATUS_OPTIONS,
+  FACULTY_DEPT_PROGRAM_MAP,
+  FACULTY_DEPT_SPECIALIZATION_MAP,
+  FACULTY_DESIGNATIONS,
+  FACULTY_EMPLOYMENT_TYPES,
+  FACULTY_JOINING_YEARS,
+  FACULTY_STATUS_OPTIONS,
+  ROLE_DATASETS,
+} from '../components/common/RegisterAccountModal';
 
 export interface DegreeProgram {
   code: string;
@@ -61,7 +76,6 @@ export interface DegreeProgram {
 export const UNIVERSITY_PROGRAMS: DegreeProgram[] = [
   // Bachelor / Undergraduate Degrees
   { code: 'B.TECH', name: 'Bachelor of Technology (B.Tech)', level: 'BACHELOR', durationYears: 4, category: 'Engineering & Technology' },
-  { code: 'B.E.', name: 'Bachelor of Engineering (B.E.)', level: 'BACHELOR', durationYears: 4, category: 'Engineering & Technology' },
   { code: 'B.SC', name: 'Bachelor of Science (B.Sc)', level: 'BACHELOR', durationYears: 3, category: 'Science' },
   { code: 'B.SC (HONS)', name: 'Bachelor of Science with Honours (B.Sc Hons)', level: 'BACHELOR', durationYears: 4, category: 'Science' },
   { code: 'B.C.A.', name: 'Bachelor of Computer Applications (BCA)', level: 'BACHELOR', durationYears: 3, category: 'Computer Science' },
@@ -145,29 +159,42 @@ export default function Profile() {
   const isStudent = userRole === 'STUDENT';
   const isFaculty = userRole === 'FACULTY';
   const isAdmin = userRole === 'ADMIN' || userRole === 'STAFF';
+  const isResearchScholar = userRole === 'RESEARCH_SCHOLAR';
 
   const [formData, setFormData] = useState({
     name: user?.name || currentMember?.name || 'User Profile',
     email: user?.email || currentMember?.email || 'user@college.edu',
     phone: currentMember?.phone || '+91 98765 43210',
-    department: currentMember?.department || (isFaculty ? 'Computer Science & AI' : isAdmin ? 'Central Library Administration & Operations' : 'Computer Science & Engineering'),
+    department: currentMember?.department || (isFaculty ? 'Computer Science & AI' : isResearchScholar ? 'Computer Science & Engineering (AI / Systems)' : isAdmin ? 'Central Library Administration & Operations' : 'Computer Science & Engineering'),
     avatarUrl:
       currentMember?.avatarUrl ||
       'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-    rollNo: currentMember?.rollNo || (isFaculty ? 'FAC-EMP-882' : isAdmin ? 'ADM-OFFICER-001' : 'UNIV-2026-CS-042'),
-    program: currentMember?.program || 'B.TECH',
+    rollNo: currentMember?.rollNo || (isFaculty ? 'FAC-EMP-882' : isResearchScholar ? 'RS-2026-019' : isAdmin ? 'ADM-OFFICER-001' : 'UNIV-2026-CS-042'),
+    program: currentMember?.program || (isResearchScholar ? 'Ph.D. (Doctor of Philosophy) – Regular Full-Time' : 'B.TECH'),
+    facultyProgram: currentMember?.facultyProgram || (FACULTY_DEPT_PROGRAM_MAP[currentMember?.department || ''] || ['B.Tech (Computer Science & Engineering)'])[0],
+    facultySpecialization: currentMember?.facultySpecialization || (FACULTY_DEPT_SPECIALIZATION_MAP[currentMember?.department || ''] || ['Artificial Intelligence & Deep Learning'])[0],
+    facultyDesignation: currentMember?.designation || currentMember?.academicBatch || FACULTY_DESIGNATIONS[0],
+    facultyType: currentMember?.facultyType || FACULTY_EMPLOYMENT_TYPES[0],
+    facultyJoiningYear: currentMember?.facultyJoiningYear || FACULTY_JOINING_YEARS[0],
+    facultyStatus: currentMember?.facultyStatus || FACULTY_STATUS_OPTIONS[0],
+    researchProgram: currentMember?.researchProgram || (isResearchScholar ? currentMember?.program : undefined) || ROLE_DATASETS.RESEARCH_SCHOLAR.researchPrograms[0],
+    researchArea: currentMember?.researchArea || (DEPARTMENT_RESEARCH_AREA_MAP[currentMember?.department || ''] || ['Deep Learning, LLMs & Foundation Models'])[0],
+    researchSupervisor: currentMember?.researchSupervisor || (DEPARTMENT_SUPERVISOR_MAP[currentMember?.department || ''] || ROLE_DATASETS.RESEARCH_SCHOLAR.supervisors)[0],
+    researchAdmissionYear: currentMember?.researchAdmissionYear || (isResearchScholar ? RESEARCH_ADMISSION_YEARS[0] : '2026'),
+    researchStatus: currentMember?.researchStatus || (isResearchScholar ? RESEARCH_STATUS_OPTIONS[0] : 'Coursework Ongoing (Phase 1)'),
+    scholarId: currentMember?.scholarId || currentMember?.rollNo || (isResearchScholar ? 'RS-2026-019' : ''),
     startingYear: currentMember?.startingYear || 2023,
     passoutYear: currentMember?.passoutYear || 2027,
-    academicBatch: currentMember?.academicBatch || (isFaculty ? 'Associate Professor' : isAdmin ? 'Chief Librarian & Director' : 'B.Tech (2023–2027)'),
-    designation: currentMember?.academicBatch || (isFaculty ? 'Associate Professor' : isAdmin ? 'Chief Librarian & Director' : ''),
+    academicBatch: currentMember?.academicBatch || (isFaculty ? 'Associate Professor' : isResearchScholar ? 'Doctoral Research Scholar' : isAdmin ? 'Chief Librarian & Director' : 'B.Tech (2023–2027)'),
+    designation: currentMember?.academicBatch || (isFaculty ? 'Associate Professor' : isResearchScholar ? 'Doctoral Fellow' : isAdmin ? 'Chief Librarian & Director' : ''),
     qualification: isFaculty ? (currentMember?.academicBatch?.includes('Ph.D') ? currentMember.academicBatch : 'Ph.D. in Computer Science & Engineering') : '',
-    address: currentMember?.address || (isFaculty ? 'Faculty Academic Block 3, Cabin 412' : isAdmin ? 'Central Library 1st Floor, Admin Chamber 102' : 'Campus Hostel Block B, Room 304'),
-    emergencyContact: currentMember?.emergencyContact || (isFaculty ? '+91 98765 01234 (Dept Office)' : isAdmin ? '+91 98765 11111 (Security Desk)' : '+91 98123 45678 (Guardian)'),
+    address: currentMember?.address || (isFaculty ? 'Faculty Academic Block 3, Cabin 412' : isResearchScholar ? 'Research Scholar Wing, Lab 204' : isAdmin ? 'Central Library 1st Floor, Admin Chamber 102' : 'Campus Hostel Block B, Room 304'),
+    emergencyContact: currentMember?.emergencyContact || (isFaculty ? '+91 98765 01234 (Dept Office)' : isResearchScholar ? '+91 98765 22222 (Lab In-Charge)' : isAdmin ? '+91 98765 11111 (Security Desk)' : '+91 98123 45678 (Guardian)'),
   });
 
   useEffect(() => {
     if (currentMember) {
-      const initialProgram = currentMember.program || 'B.TECH';
+      const initialProgram = currentMember.program || (isResearchScholar ? 'Ph.D. (Doctor of Philosophy) – Regular Full-Time' : 'B.TECH');
       const duration = getProgramDurationYears(initialProgram);
       const sYear = currentMember.startingYear || 2023;
       const pYear = currentMember.passoutYear || (sYear + duration);
@@ -176,22 +203,131 @@ export default function Profile() {
         name: user?.name || currentMember.name,
         email: user?.email || currentMember.email,
         phone: currentMember.phone || '+91 98765 43210',
-        department: currentMember.department,
+        department: currentMember.department || (isFaculty ? 'Department of Computer Science & Engineering' : isResearchScholar ? 'Computer Science & Engineering (AI / Systems)' : isAdmin ? 'Central Library Administration & Operations' : 'Computer Science & Engineering'),
         avatarUrl:
           currentMember.avatarUrl ||
           'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-        rollNo: currentMember.rollNo || (currentMember.role === 'FACULTY' ? 'FAC-EMP-882' : currentMember.role === 'ADMIN' || currentMember.role === 'STAFF' ? 'ADM-OFFICER-001' : 'UNIV-2026-CS-042'),
+        rollNo: currentMember.rollNo || (currentMember.role === 'FACULTY' ? 'FAC-EMP-882' : currentMember.role === 'RESEARCH_SCHOLAR' ? 'RS-2026-019' : currentMember.role === 'ADMIN' || currentMember.role === 'STAFF' ? 'ADM-OFFICER-001' : 'UNIV-2026-CS-042'),
         program: initialProgram,
+        facultyProgram: currentMember.facultyProgram || (FACULTY_DEPT_PROGRAM_MAP[currentMember.department || ''] || ['B.Tech (Computer Science & Engineering)'])[0],
+        facultySpecialization: currentMember.facultySpecialization || (FACULTY_DEPT_SPECIALIZATION_MAP[currentMember.department || ''] || ['Artificial Intelligence & Deep Learning'])[0],
+        facultyDesignation: currentMember.designation || currentMember.academicBatch || FACULTY_DESIGNATIONS[0],
+        facultyType: currentMember.facultyType || FACULTY_EMPLOYMENT_TYPES[0],
+        facultyJoiningYear: currentMember.facultyJoiningYear || FACULTY_JOINING_YEARS[0],
+        facultyStatus: currentMember.facultyStatus || FACULTY_STATUS_OPTIONS[0],
+        researchProgram: currentMember.researchProgram || (currentMember.role === 'RESEARCH_SCHOLAR' ? currentMember.program : undefined) || ROLE_DATASETS.RESEARCH_SCHOLAR.researchPrograms[0],
+        researchArea: currentMember.researchArea || (DEPARTMENT_RESEARCH_AREA_MAP[currentMember.department || ''] || ['Deep Learning, LLMs & Foundation Models'])[0],
+        researchSupervisor: currentMember.researchSupervisor || (DEPARTMENT_SUPERVISOR_MAP[currentMember.department || ''] || ROLE_DATASETS.RESEARCH_SCHOLAR.supervisors)[0],
+        researchAdmissionYear: currentMember.researchAdmissionYear || (currentMember.role === 'RESEARCH_SCHOLAR' ? RESEARCH_ADMISSION_YEARS[0] : '2026'),
+        researchStatus: currentMember.researchStatus || (currentMember.role === 'RESEARCH_SCHOLAR' ? RESEARCH_STATUS_OPTIONS[0] : 'Coursework Ongoing (Phase 1)'),
+        scholarId: currentMember.scholarId || currentMember.rollNo || (currentMember.role === 'RESEARCH_SCHOLAR' ? 'RS-2026-019' : ''),
         startingYear: sYear,
         passoutYear: pYear,
-        academicBatch: currentMember.academicBatch || (currentMember.role === 'FACULTY' ? 'Associate Professor' : currentMember.role === 'ADMIN' || currentMember.role === 'STAFF' ? 'Chief Librarian & Director' : `${initialProgram} (${sYear}–${pYear})`),
-        designation: currentMember.academicBatch || (currentMember.role === 'FACULTY' ? 'Associate Professor' : currentMember.role === 'ADMIN' || currentMember.role === 'STAFF' ? 'Chief Librarian & Director' : ''),
+        academicBatch: currentMember.academicBatch || (currentMember.role === 'FACULTY' ? `${currentMember.designation || 'Associate Professor'} • Joined ${String(currentMember.facultyJoiningYear || '2026').split(' (')[0]}` : currentMember.role === 'RESEARCH_SCHOLAR' ? 'Doctoral Research Scholar' : currentMember.role === 'ADMIN' || currentMember.role === 'STAFF' ? 'Chief Librarian & Director' : `${initialProgram} (${sYear}–${pYear})`),
+        designation: currentMember.designation || currentMember.academicBatch || (currentMember.role === 'FACULTY' ? 'Associate Professor' : currentMember.role === 'RESEARCH_SCHOLAR' ? 'Doctoral Fellow' : currentMember.role === 'ADMIN' || currentMember.role === 'STAFF' ? 'Chief Librarian & Director' : ''),
         qualification: currentMember.role === 'FACULTY' ? 'Ph.D. in Computer Science & Engineering' : '',
-        address: currentMember.address || (currentMember.role === 'FACULTY' ? 'Faculty Academic Block 3, Cabin 412' : currentMember.role === 'ADMIN' || currentMember.role === 'STAFF' ? 'Central Library 1st Floor, Admin Chamber 102' : 'Campus Hostel Block B, Room 304'),
-        emergencyContact: currentMember.emergencyContact || (currentMember.role === 'FACULTY' ? '+91 98765 01234 (Dept Office)' : currentMember.role === 'ADMIN' || currentMember.role === 'STAFF' ? '+91 98765 11111 (Security Desk)' : '+91 98123 45678 (Guardian)'),
+        address: currentMember.address || (currentMember.role === 'FACULTY' ? 'Faculty Academic Block 3, Cabin 412' : currentMember.role === 'RESEARCH_SCHOLAR' ? 'Research Scholar Wing, Lab 204' : currentMember.role === 'ADMIN' || currentMember.role === 'STAFF' ? 'Central Library 1st Floor, Admin Chamber 102' : 'Campus Hostel Block B, Room 304'),
+        emergencyContact: currentMember.emergencyContact || (currentMember.role === 'FACULTY' ? '+91 98765 01234 (Dept Office)' : currentMember.role === 'RESEARCH_SCHOLAR' ? '+91 98765 22222 (Lab In-Charge)' : currentMember.role === 'ADMIN' || currentMember.role === 'STAFF' ? '+91 98765 11111 (Security Desk)' : '+91 98123 45678 (Guardian)'),
       });
     }
-  }, [currentMember, user]);
+  }, [currentMember, user, isResearchScholar, isFaculty]);
+
+  // Dynamic available Faculty Programs based on selected Department
+  const availableFacultyPrograms = useMemo(() => {
+    return (
+      FACULTY_DEPT_PROGRAM_MAP[formData.department] || [
+        'Undergraduate Engineering Program',
+        'Postgraduate Advanced Studies',
+        'Doctoral Research Program',
+      ]
+    );
+  }, [formData.department]);
+
+  // Dynamic available Faculty Specializations based on selected Department
+  const availableFacultySpecializations = useMemo(() => {
+    return (
+      FACULTY_DEPT_SPECIALIZATION_MAP[formData.department] || [
+        'Core Domain Engineering & Research',
+        'Applied Interdisciplinary Studies',
+        'Advanced Theoretical Research',
+      ]
+    );
+  }, [formData.department]);
+
+  // Handler when Faculty Department changes -> cascades to Program & Specialization
+  const handleFacultyDeptChange = (newDept: string) => {
+    const validPrograms = FACULTY_DEPT_PROGRAM_MAP[newDept] || ['Undergraduate Engineering Program'];
+    const validSpecs = FACULTY_DEPT_SPECIALIZATION_MAP[newDept] || ['Core Domain Engineering'];
+
+    setFormData((prev) => ({
+      ...prev,
+      department: newDept,
+      facultyProgram: validPrograms[0] || '',
+      facultySpecialization: validSpecs[0] || '',
+    }));
+  };
+
+  // Handler when Faculty Program changes
+  const handleFacultyProgramChange = (newProgram: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      facultyProgram: newProgram,
+    }));
+  };
+
+  // Dynamic available Research Departments based on selected Research Program
+  const availableScholarDepartments = useMemo(() => {
+    return SCHOLAR_PROGRAM_DEPARTMENT_MAP[formData.researchProgram] || ROLE_DATASETS.RESEARCH_SCHOLAR.departments;
+  }, [formData.researchProgram]);
+
+  // Dynamic available Research Areas based on selected Department
+  const availableResearchAreas = useMemo(() => {
+    return (
+      DEPARTMENT_RESEARCH_AREA_MAP[formData.department] || [
+        'Advanced Algorithmic Research & Computation',
+        'Applied Engineering Design & Modeling',
+        'Theoretical & Experimental Investigation',
+        'Interdisciplinary Studies & Analytics',
+      ]
+    );
+  }, [formData.department]);
+
+  // Dynamic available Supervisors based on selected Department
+  const availableSupervisors = useMemo(() => {
+    return (
+      DEPARTMENT_SUPERVISOR_MAP[formData.department] ||
+      ROLE_DATASETS.RESEARCH_SCHOLAR.supervisors
+    );
+  }, [formData.department]);
+
+  // Handler when Research Scholar Program changes -> automatically cascades to Department, Area & Supervisor
+  const handleScholarProgramChange = (newProgram: string) => {
+    const validDepts = SCHOLAR_PROGRAM_DEPARTMENT_MAP[newProgram] || ROLE_DATASETS.RESEARCH_SCHOLAR.departments;
+    const newDept = validDepts[0] || '';
+    const validAreas = DEPARTMENT_RESEARCH_AREA_MAP[newDept] || ['Advanced Algorithmic Research & Computation'];
+    const validSupervisors = DEPARTMENT_SUPERVISOR_MAP[newDept] || ROLE_DATASETS.RESEARCH_SCHOLAR.supervisors;
+
+    setFormData((prev) => ({
+      ...prev,
+      researchProgram: newProgram,
+      department: newDept,
+      researchArea: validAreas[0] || '',
+      researchSupervisor: validSupervisors[0] || '',
+    }));
+  };
+
+  // Handler when Research Scholar Department changes -> automatically cascades to Area & Supervisor
+  const handleScholarDeptChange = (newDept: string) => {
+    const validAreas = DEPARTMENT_RESEARCH_AREA_MAP[newDept] || ['Advanced Algorithmic Research & Computation'];
+    const validSupervisors = DEPARTMENT_SUPERVISOR_MAP[newDept] || ROLE_DATASETS.RESEARCH_SCHOLAR.supervisors;
+
+    setFormData((prev) => ({
+      ...prev,
+      department: newDept,
+      researchArea: validAreas[0] || '',
+      researchSupervisor: validSupervisors[0] || '',
+    }));
+  };
 
   const handleSelectProgram = (programCode: string) => {
     const duration = getProgramDurationYears(programCode);
@@ -276,7 +412,9 @@ export default function Profile() {
     e.preventDefault();
     if (currentMember) {
       const finalBatch = isFaculty
-        ? (formData.designation || formData.academicBatch)
+        ? `${formData.facultyDesignation || formData.designation} • Joined ${String(formData.facultyJoiningYear || '2026').split(' (')[0]}`
+        : isResearchScholar
+        ? `${(formData.researchStatus || 'Doctoral Research').split(' (')[0]} • Class of ${String(formData.researchAdmissionYear || '2026').split(' (')[0]}`
         : isAdmin
         ? (formData.designation || 'Chief Librarian & Director')
         : formData.academicBatch;
@@ -287,7 +425,19 @@ export default function Profile() {
         department: formData.department,
         avatarUrl: formData.avatarUrl,
         rollNo: formData.rollNo,
-        program: isStudent ? formData.program : undefined,
+        program: isStudent ? formData.program : isFaculty ? formData.facultyProgram : isResearchScholar ? formData.researchProgram : undefined,
+        designation: isFaculty ? formData.facultyDesignation : formData.designation,
+        facultyType: isFaculty ? formData.facultyType : undefined,
+        facultyProgram: isFaculty ? formData.facultyProgram : undefined,
+        facultySpecialization: isFaculty ? formData.facultySpecialization : undefined,
+        facultyJoiningYear: isFaculty ? formData.facultyJoiningYear : undefined,
+        facultyStatus: isFaculty ? formData.facultyStatus : undefined,
+        researchProgram: isResearchScholar ? formData.researchProgram : undefined,
+        researchSupervisor: isResearchScholar ? formData.researchSupervisor : undefined,
+        researchArea: isResearchScholar ? formData.researchArea : undefined,
+        researchAdmissionYear: isResearchScholar ? formData.researchAdmissionYear : undefined,
+        researchStatus: isResearchScholar ? formData.researchStatus : undefined,
+        scholarId: isResearchScholar ? formData.scholarId : undefined,
         startingYear: isStudent ? formData.startingYear : undefined,
         passoutYear: isStudent ? formData.passoutYear : undefined,
         academicBatch: finalBatch,
@@ -305,147 +455,22 @@ export default function Profile() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  const handlePrintLibraryCard = () => {
-    const printWindow = window.open('', '_blank', 'width=850,height=700');
-    if (!printWindow) return;
-
-    const qrSvg = generateQrSvgString(cardNo, 75);
-    const barcodeSvg = generateBarcodeSvgString(cardNo, { height: 45 });
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Print Digital Library Pass - ${formData.name}</title>
-          <style>
-            @page { size: A4; margin: 10mm; }
-            * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            body { margin: 0; padding: 24px; background: #f1f5f9; font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; color: #0f172a; }
-            @media print {
-              body { background: #ffffff; padding: 0; }
-              .no-print { display: none !important; }
-            }
-            .page-title { text-align: center; margin-bottom: 20px; }
-            .print-btn { background: #0f172a; color: #ffffff; border: none; padding: 12px 24px; font-size: 13px; font-weight: 700; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2); }
-            .print-btn:hover { background: #1e293b; }
-            
-            .cards-container { display: flex; flex-direction: column; align-items: center; gap: 24px; max-width: 480px; margin: 0 auto; }
-            
-            /* STANDARD CR80 ID CARD BOX (400px x 240px) */
-            .id-card {
-              width: 400px;
-              height: 240px;
-              border-radius: 16px;
-              background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #090d16 100%);
-              color: #ffffff;
-              padding: 16px 20px;
-              position: relative;
-              overflow: hidden;
-              box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
-              border: 2px solid rgba(255, 255, 255, 0.15);
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between;
-              page-break-inside: avoid;
-            }
-            
-            .card-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.15); padding-bottom: 8px; }
-            .univ-name { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; color: #93c5fd; text-transform: uppercase; white-space: nowrap; }
-            .pass-subtitle { font-size: 8.5px; color: #94a3b8; font-weight: 600; white-space: nowrap; }
-            .role-badge { font-size: 9px; font-weight: 800; text-transform: uppercase; background: rgba(59, 130, 246, 0.3); border: 1px solid rgba(147, 197, 253, 0.4); color: #bfdbfe; padding: 3px 9px; border-radius: 6px; white-space: nowrap; }
-            
-            .card-body-front { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
-            .avatar-photo { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; border: 2px solid #f59e0b; box-shadow: 0 4px 10px rgba(0,0,0,0.3); flex-shrink: 0; }
-            .member-details { flex: 1; min-width: 0; }
-            .member-name { font-size: 15px; font-weight: 800; color: #ffffff; margin: 0 0 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .card-no { font-family: 'Courier New', Courier, monospace; font-size: 13px; font-weight: 800; color: #f59e0b; white-space: nowrap; margin-bottom: 2px; }
-            .dept-text { font-size: 10px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .status-pill { font-size: 9px; font-weight: 700; color: #34d399; margin-top: 2px; }
-            
-            .qr-code-box { width: 72px; height: 72px; background: #ffffff; padding: 4px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
-            .qr-code-box svg { width: 100%; height: 100%; display: block; }
-            
-            .card-footer { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255, 255, 255, 0.15); padding-top: 6px; font-size: 8.5px; color: #94a3b8; font-family: monospace; }
-            
-            .card-body-back { display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 6px 0; }
-            .barcode-wrapper { width: 100%; background: #ffffff; padding: 8px 12px 4px 12px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
-            .barcode-wrapper svg { width: 100%; max-width: 320px; height: 48px; display: block; }
-            .rules-notice { font-size: 8px; color: #94a3b8; text-align: center; line-height: 1.3; margin-top: 4px; }
-          </style>
-        </head>
-        <body>
-          <div class="no-print page-title">
-            <button onclick="window.print()" class="print-btn">🖨️ Print Digital Library Pass (Front & Back)</button>
-          </div>
-          
-          <div class="cards-container">
-            <!-- FRONT SIDE -->
-            <div class="id-card">
-              <div class="card-header">
-                <div>
-                  <div class="univ-name">University Central Library</div>
-                  <div class="pass-subtitle">Official Student / Member Pass</div>
-                </div>
-                <div class="role-badge">${user?.role || 'MEMBER'}</div>
-              </div>
-              
-              <div class="card-body-front">
-                <img src="${formData.avatarUrl}" class="avatar-photo" alt="${formData.name}" />
-                <div class="member-details">
-                  <h3 class="member-name">${formData.name}</h3>
-                  <div class="card-no">${cardNo}</div>
-                  <div class="dept-text">Dept: ${formData.department}</div>
-                  <div class="status-pill">● ACTIVE MEMBER</div>
-                </div>
-                <div class="qr-code-box">
-                  ${qrSvg}
-                </div>
-              </div>
-              
-              <div class="card-footer">
-                <span>Issued: ${currentMember?.registeredDate || '2026-01-15'}</span>
-                <span>Valid Through: DEC 2028</span>
-                <span style="color: #f59e0b; font-weight: bold;">SECURITY VERIFIED</span>
-              </div>
-            </div>
-
-            <!-- BACK SIDE -->
-            <div class="id-card">
-              <div class="card-header">
-                <div class="univ-name" style="color: #f59e0b;">BARCODE & TURNSTILE ACCESS</div>
-                <div class="card-no" style="font-size: 11px; margin: 0;">${cardNo}</div>
-              </div>
-              
-              <div class="card-body-back">
-                <div class="barcode-wrapper">
-                  ${barcodeSvg}
-                </div>
-              </div>
-              
-              <div class="rules-notice">
-                • Present card at library turnstiles, circulation counters, and RFID gates.<br/>
-                • Non-transferable official pass. Max Quota: ${currentMember?.maxAllowedBooks || 5} Books.
-              </div>
-              
-              <div class="card-footer" style="padding-top: 4px;">
-                <span>Library System v2.4</span>
-                <span>Help: library@university.edu</span>
-              </div>
-            </div>
-          </div>
-
-          <script>
-            window.onload = function() {
-              setTimeout(function() { window.print(); }, 300);
-            };
-          </script>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
+  const handlePrintLibraryCard = (isReprint: boolean = false) => {
+    const memberData = currentMember || {
+      name: formData.name,
+      role: user?.role || 'STUDENT',
+      memberCardNo: cardNo,
+      barcode: cardNo,
+      department: formData.department,
+      registeredDate: '2026-01-15',
+      avatarUrl: formData.avatarUrl,
+      maxAllowedBooks: isStudent ? 5 : 10,
+    };
+    printMemberLibraryCard(memberData, {
+      isReprint,
+      issuedDate: currentMember?.approvedDate || currentMember?.registeredDate || '2026-01-15',
+      expiryDate: 'DEC 2028',
+    });
   };
 
   return (
@@ -479,7 +504,7 @@ export default function Profile() {
             <Printer className="w-4 h-4 text-blue-600" /> Print Profile Report (PDF)
           </button>
           <button
-            onClick={handlePrintLibraryCard}
+            onClick={() => handlePrintLibraryCard(false)}
             className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white backdrop-blur-md transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
             <CreditCard className="w-4 h-4 text-emerald-300" /> Print Pass
@@ -510,9 +535,11 @@ export default function Profile() {
                     ? 'bg-blue-100 text-blue-700'
                     : isFaculty
                     ? 'bg-indigo-100 text-indigo-700'
+                    : isResearchScholar
+                    ? 'bg-cyan-100 text-cyan-800'
                     : 'bg-slate-900 text-white'
                 }`}>
-                  {isStudent ? '🎓 Student Account' : isFaculty ? '👨‍🏫 Faculty Account' : '🛡️ Admin Account'}
+                  {isStudent ? '🎓 Student Account' : isFaculty ? '👨‍🏫 Faculty Account' : isResearchScholar ? '🔬 Research Scholar Account' : '🛡️ Admin Account'}
                 </span>
               </div>
             </div>
@@ -661,7 +688,56 @@ export default function Profile() {
               </>
             )}
 
-            {/* 3. ADMIN / STAFF PRIVILEGES */}
+            {/* 3. RESEARCH SCHOLAR PRIVILEGES */}
+            {isResearchScholar && (
+              <>
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-cyan-50/50 border border-cyan-100">
+                  <span className="text-cyan-900 font-bold">Doctoral Borrowing Quota</span>
+                  <span className="font-bold text-cyan-700 font-mono">{currentMember?.maxAllowedBooks || 8} Books</span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-slate-600 font-bold">Standard Loan Duration</span>
+                  <span className="font-bold text-slate-900 font-mono">60 Days / Issue</span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-slate-600 font-bold">Active Borrowed Books</span>
+                  <span className="font-bold text-cyan-700 font-mono">{currentMember?.currentActiveLoans || 0} Books in hand</span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-100">
+                  <span className="text-emerald-800 font-bold">Online Renewal Privileges</span>
+                  <span className="font-bold text-emerald-700 text-[11px]">Up to 4 Times / Title</span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-rose-50/50 border border-rose-100">
+                  <div className="flex flex-col">
+                    <span className="text-rose-700 font-bold">Pending Fine Balance</span>
+                    <Link to="/fines" className="text-[10px] text-rose-600 hover:underline font-semibold flex items-center gap-0.5 mt-0.5">
+                      View Receipts & Settle &rarr;
+                    </Link>
+                  </div>
+                  <span className="font-bold text-rose-900 font-mono text-sm">
+                    ₹{getMemberPendingFines(currentMember?.id || user?.email || '', state).toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-slate-600 font-bold">Scholar Clearance (NDC)</span>
+                  <span className="font-extrabold px-2 py-0.5 rounded-md text-[10px] uppercase bg-emerald-100 text-emerald-800">
+                    {currentMember?.noDueStatus || 'ELIGIBLE'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-cyan-50/50 border border-cyan-100">
+                  <span className="text-cyan-900 font-bold">Digital Research Repositories</span>
+                  <span className="font-bold text-cyan-700 text-[11px]">IEEE / ACM / Springer Access</span>
+                </div>
+              </>
+            )}
+
+            {/* 4. ADMIN / STAFF PRIVILEGES */}
             {isAdmin && (
               <>
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 text-white shadow-2xs">
@@ -727,10 +803,22 @@ export default function Profile() {
           <div className="flex items-center justify-between pb-1">
             <div>
               <h2 className="text-lg font-bold font-poppins text-slate-900">
-                {isStudent ? 'Student Profile & Academic Timeline' : isFaculty ? 'Faculty Profile & Academic Credentials' : 'Administrator & Library Operations Profile'}
+                {isStudent
+                  ? 'Student Profile & Academic Timeline'
+                  : isFaculty
+                  ? 'Faculty Profile & Academic Credentials'
+                  : isResearchScholar
+                  ? 'Research Scholar & Doctoral Profile'
+                  : 'Administrator & Library Operations Profile'}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                {isStudent ? 'Manage student details, enrollment parameters, and graduation timeline.' : isFaculty ? 'Manage faculty academic credentials, department, and office cabin.' : 'Manage library administration authority, staff credentials, and operations wing.'}
+                {isStudent
+                  ? 'Manage student details, enrollment parameters, and graduation timeline.'
+                  : isFaculty
+                  ? 'Manage faculty academic credentials, department, and office cabin.'
+                  : isResearchScholar
+                  ? 'Manage doctoral research program, research department, and supervisor details.'
+                  : 'Manage library administration authority, staff credentials, and operations wing.'}
               </p>
             </div>
             {!isEditing ? (
@@ -955,6 +1043,7 @@ export default function Profile() {
             {/* ========================================================================= */}
             {isFaculty && (
               <>
+                {/* Row 1: Faculty ID & Academic Designation */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="block text-slate-700 font-bold">Faculty Employee ID</label>
@@ -972,59 +1061,164 @@ export default function Profile() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block text-slate-700 font-bold">Academic Department / School</label>
-                    <div className="relative">
-                      <Building className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                      <input
-                        type="text"
-                        disabled={!isEditing}
-                        value={formData.department}
-                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                        placeholder="e.g. Department of Computer Science & AI"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-medium disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-blue-500/20"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-slate-700 font-bold">Faculty Academic Designation</label>
+                    <label className="block text-slate-700 font-bold">Academic Designation *</label>
                     <div className="relative">
                       <Briefcase className="absolute left-3.5 top-3 h-4 w-4 text-indigo-600 pointer-events-none" />
                       <select
                         disabled={!isEditing}
-                        value={formData.designation}
-                        onChange={(e) => setFormData({ ...formData, designation: e.target.value, academicBatch: e.target.value })}
+                        value={formData.facultyDesignation}
+                        onChange={(e) => setFormData({ ...formData, facultyDesignation: e.target.value, designation: e.target.value })}
                         className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-indigo-500/20 bg-white text-xs cursor-pointer shadow-2xs"
                       >
-                        <option value="Professor & Senior Researcher">Professor & Senior Researcher</option>
-                        <option value="Associate Professor">Associate Professor</option>
-                        <option value="Assistant Professor">Assistant Professor</option>
-                        <option value="Head of Department (HOD)">Head of Department (HOD)</option>
-                        <option value="Dean / Associate Dean">Dean / Associate Dean</option>
-                        <option value="Visiting Professor / Guest Faculty">Visiting Professor / Guest Faculty</option>
-                        <option value="Postdoctoral Research Fellow">Postdoctoral Research Fellow</option>
+                        {FACULTY_DESIGNATIONS.map((desig) => (
+                          <option key={desig} value={desig}>
+                            {desig}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 2: Department / Division & Program / Course Affiliation */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold flex items-center justify-between">
+                      <span>Department / Division *</span>
+                      <span className="text-[9.5px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
+                        Updates Programs
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <Building className="absolute left-3.5 top-3 h-4 w-4 text-blue-600 pointer-events-none" />
+                      <select
+                        disabled={!isEditing}
+                        value={formData.department}
+                        onChange={(e) => handleFacultyDeptChange(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-blue-500/20 bg-white text-xs cursor-pointer shadow-2xs"
+                      >
+                        {ROLE_DATASETS.FACULTY.departments.map((dept) => (
+                          <option key={dept} value={dept}>
+                            {dept}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block text-slate-700 font-bold">Highest Academic Qualification</label>
+                    <label className="block text-slate-700 font-bold flex items-center justify-between">
+                      <span>Program / Course Affiliation *</span>
+                      <span className="text-[9.5px] font-mono font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                        {availableFacultyPrograms.length} Programs
+                      </span>
+                    </label>
                     <div className="relative">
-                      <Award className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                      <input
-                        type="text"
+                      <GraduationCap className="absolute left-3.5 top-3 h-4 w-4 text-emerald-600 pointer-events-none" />
+                      <select
                         disabled={!isEditing}
-                        value={formData.qualification}
-                        onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
-                        placeholder="e.g. Ph.D. in Computer Science & AI"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-medium disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-blue-500/20"
-                      />
+                        value={formData.facultyProgram}
+                        onChange={(e) => handleFacultyProgramChange(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-emerald-500/20 bg-white text-xs cursor-pointer shadow-2xs"
+                      >
+                        {availableFacultyPrograms.map((prog) => (
+                          <option key={prog} value={prog}>
+                            {prog}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
 
+                {/* Row 3: Specialization / Domain & Employment Type */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold flex items-center justify-between">
+                      <span>Specialization / Domain *</span>
+                      <span className="text-[9.5px] font-mono font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-200">
+                        {availableFacultySpecializations.length} Disciplines
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <BookOpen className="absolute left-3.5 top-3 h-4 w-4 text-indigo-600 pointer-events-none" />
+                      <select
+                        disabled={!isEditing}
+                        value={formData.facultySpecialization}
+                        onChange={(e) => setFormData({ ...formData, facultySpecialization: e.target.value })}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-indigo-500/20 bg-white text-xs cursor-pointer shadow-2xs"
+                      >
+                        {availableFacultySpecializations.map((spec) => (
+                          <option key={spec} value={spec}>
+                            {spec}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold">Employment Type *</label>
+                    <div className="relative">
+                      <Layers className="absolute left-3.5 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
+                      <select
+                        disabled={!isEditing}
+                        value={formData.facultyType}
+                        onChange={(e) => setFormData({ ...formData, facultyType: e.target.value })}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-blue-500/20 bg-white text-xs cursor-pointer shadow-2xs"
+                      >
+                        {FACULTY_EMPLOYMENT_TYPES.map((ft) => (
+                          <option key={ft} value={ft}>
+                            {ft}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 4: Joining Year & Faculty Duty Status */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold">Joining Year *</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3.5 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
+                      <select
+                        disabled={!isEditing}
+                        value={formData.facultyJoiningYear}
+                        onChange={(e) => setFormData({ ...formData, facultyJoiningYear: e.target.value })}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-blue-500/20 bg-white text-xs cursor-pointer shadow-2xs"
+                      >
+                        {FACULTY_JOINING_YEARS.map((yr) => (
+                          <option key={yr} value={yr}>
+                            {yr}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold">Faculty Duty Status *</label>
+                    <div className="relative">
+                      <BadgeCheck className="absolute left-3.5 top-3 h-4 w-4 text-emerald-600 pointer-events-none" />
+                      <select
+                        disabled={!isEditing}
+                        value={formData.facultyStatus}
+                        onChange={(e) => setFormData({ ...formData, facultyStatus: e.target.value })}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-emerald-500/20 bg-white text-xs cursor-pointer shadow-2xs"
+                      >
+                        {FACULTY_STATUS_OPTIONS.map((st) => (
+                          <option key={st} value={st}>
+                            {st}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 5: Cabin / Room Number & Official Contact Phone */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="block text-slate-700 font-bold">Faculty Cabin / Office Room Number</label>
@@ -1074,7 +1268,252 @@ export default function Profile() {
             )}
 
             {/* ========================================================================= */}
-            {/* 3. ADMIN / STAFF-SPECIFIC SECTION */}
+            {/* 3. RESEARCH SCHOLAR-SPECIFIC SECTION */}
+            {/* ========================================================================= */}
+            {isResearchScholar && (
+              <>
+                {/* Row 1: Scholar ID & Program */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Scholar ID / Registration ID */}
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold">Scholar ID / Registration Number</label>
+                    <div className="relative">
+                      <Hash className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        disabled={!isEditing}
+                        value={formData.scholarId}
+                        onChange={(e) => setFormData({ ...formData, scholarId: e.target.value, rollNo: e.target.value })}
+                        placeholder="e.g. RS-2026-019"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-mono font-bold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-cyan-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Research Program (Automatically updates Research Departments & Areas) */}
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold flex items-center justify-between">
+                      <span>Research Program *</span>
+                      <span className="text-[9.5px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-200">
+                        Updates Dept & Area
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <GraduationCap className="absolute left-3.5 top-3 h-4 w-4 text-cyan-600 pointer-events-none" />
+                      <select
+                        disabled={!isEditing}
+                        value={formData.researchProgram}
+                        onChange={(e) => handleScholarProgramChange(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-cyan-500/20 bg-white text-xs cursor-pointer shadow-2xs"
+                      >
+                        {ROLE_DATASETS.RESEARCH_SCHOLAR.researchPrograms.map((rp) => (
+                          <option key={rp} value={rp}>
+                            {rp}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 2: Department & Area */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Research Department (Dynamically filtered by Research Program) */}
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold flex items-center justify-between">
+                      <span>Research Department *</span>
+                      <span className="text-[9.5px] font-mono font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                        {availableScholarDepartments.length} Relevant
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <Building className="absolute left-3.5 top-3 h-4 w-4 text-emerald-600 pointer-events-none" />
+                      <select
+                        disabled={!isEditing}
+                        value={formData.department}
+                        onChange={(e) => handleScholarDeptChange(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-emerald-500/20 bg-white text-xs cursor-pointer shadow-2xs"
+                      >
+                        {availableScholarDepartments.map((dept) => (
+                          <option key={dept} value={dept}>
+                            {dept}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Research Area / Specialization (Dynamically filtered by Department) */}
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold flex items-center justify-between">
+                      <span>Research Area / Specialization *</span>
+                      <span className="text-[9.5px] font-mono font-bold text-cyan-600 bg-cyan-50 px-1.5 py-0.2 rounded border border-cyan-200">
+                        {availableResearchAreas.length} Areas
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <BookOpen className="absolute left-3.5 top-3 h-4 w-4 text-cyan-600 pointer-events-none" />
+                      <select
+                        disabled={!isEditing}
+                        value={formData.researchArea}
+                        onChange={(e) => setFormData({ ...formData, researchArea: e.target.value })}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-cyan-500/20 bg-white text-xs cursor-pointer shadow-2xs"
+                      >
+                        {availableResearchAreas.map((area) => (
+                          <option key={area} value={area}>
+                            {area}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 3: Supervisor & Admission Year */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Research Supervisor / PI */}
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold flex items-center justify-between">
+                      <span>Research Supervisor / Guide *</span>
+                      <span className="text-[9.5px] font-mono font-bold text-violet-600 bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200">
+                        {availableSupervisors.length} Guides
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <Briefcase className="absolute left-3.5 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
+                      <select
+                        disabled={!isEditing}
+                        value={formData.researchSupervisor}
+                        onChange={(e) => setFormData({ ...formData, researchSupervisor: e.target.value })}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-cyan-500/20 bg-white text-xs cursor-pointer shadow-2xs"
+                      >
+                        {availableSupervisors.map((sup) => (
+                          <option key={sup} value={sup}>
+                            {sup}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Research Admission Year */}
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold">Research Admission Year *</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3.5 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
+                      <select
+                        disabled={!isEditing}
+                        value={formData.researchAdmissionYear}
+                        onChange={(e) => setFormData({ ...formData, researchAdmissionYear: e.target.value })}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-cyan-500/20 bg-white text-xs cursor-pointer shadow-2xs"
+                      >
+                        {RESEARCH_ADMISSION_YEARS.map((yr) => (
+                          <option key={yr} value={yr}>
+                            {yr}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 4: Status & Location */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Research Academic Status */}
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold flex items-center justify-between">
+                      <span>Research Academic Status *</span>
+                      <span className="text-[9.5px] font-mono font-bold text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                        Lifecycle Phase
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <Award className="absolute left-3.5 top-3 h-4 w-4 text-amber-600 pointer-events-none" />
+                      <select
+                        disabled={!isEditing}
+                        value={formData.researchStatus}
+                        onChange={(e) => setFormData({ ...formData, researchStatus: e.target.value })}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-semibold disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-amber-500/20 bg-white text-xs cursor-pointer shadow-2xs"
+                      >
+                        {RESEARCH_STATUS_OPTIONS.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Research Lab / Cabin */}
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold">Research Lab / Workstation Location</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        disabled={!isEditing}
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        placeholder="e.g. Advanced AI Lab 204, Tech Park Block B"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-medium disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-cyan-500/20"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 5: Phone & Emergency Contact */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Contact Phone */}
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold">Contact Phone Number</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        disabled={!isEditing}
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        placeholder="e.g. +91 98765 43210"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-medium disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-cyan-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Emergency Contact */}
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 font-bold">Emergency Contact / Lab In-Charge</label>
+                    <div className="relative">
+                      <PhoneCall className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        disabled={!isEditing}
+                        value={formData.emergencyContact}
+                        onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
+                        placeholder="e.g. +91 98765 22222 (Lab In-Charge)"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-900 font-medium disabled:bg-slate-50 disabled:text-slate-600 focus:ring-2 focus:ring-cyan-500/20"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Research Scholar Privileges Banner */}
+                <div className="p-4 rounded-2xl bg-cyan-50/60 border border-cyan-200 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-5 h-5 text-cyan-600 shrink-0" />
+                    <div>
+                      <span className="font-bold text-cyan-950">Doctoral Research & Circulation Privileges Active</span>
+                      <p className="text-[11px] text-cyan-700">8 Books Borrowing Quota • 60 Days Loan Period • IEEE / ACM Digital Repositories Access</p>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-xl bg-cyan-600 text-white font-bold text-[10px] uppercase">
+                    GRANTED
+                  </span>
+                </div>
+              </>
+            )}
+
+            {/* ========================================================================= */}
+            {/* 4. ADMIN / STAFF-SPECIFIC SECTION */}
             {/* ========================================================================= */}
             {isAdmin && (
               <>
@@ -1425,10 +1864,19 @@ export default function Profile() {
             </button>
 
             <button
-              onClick={handlePrintLibraryCard}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+              onClick={() => handlePrintLibraryCard(false)}
+              className="px-3.5 sm:px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Print standard library pass"
             >
-              <Printer className="w-3.5 h-3.5" /> Print Card
+              <Printer className="w-3.5 h-3.5" /> Print Pass
+            </button>
+
+            <button
+              onClick={() => handlePrintLibraryCard(true)}
+              className="px-3 sm:px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-amber-300 border border-amber-400/30 font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Reprint duplicate/replacement official card"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-amber-400" /> Reprint
             </button>
           </div>
         </div>

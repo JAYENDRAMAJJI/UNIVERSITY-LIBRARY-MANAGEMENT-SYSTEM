@@ -49,11 +49,11 @@ export default function Collections() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 rounded-3xl p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-6 sm:space-y-8 pb-10">
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl md:text-4xl font-extrabold font-poppins tracking-tight">University Library Collections</h1>
-          <p className="text-slate-300 text-sm md:text-base max-w-2xl mt-2">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold font-poppins tracking-tight">University Library Collections</h1>
+          <p className="text-slate-300 text-xs sm:text-sm md:text-base max-w-2xl mt-2">
             Explore our vast repository of knowledge. Our collections are continuously updated to provide the latest academic resources.
           </p>
         </div>

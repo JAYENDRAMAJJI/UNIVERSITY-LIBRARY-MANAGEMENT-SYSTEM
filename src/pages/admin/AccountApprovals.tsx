@@ -36,6 +36,7 @@ import { MemberProfile, Role, UserStatus } from '../../types/library';
 import { exportStyledExcelFile } from '../../utils/excelExport';
 import { generateAuthorizedSealHtml } from '../../components/common/AuthorizedCirculationSeal';
 import { usePermission } from '../../hooks/usePermission';
+import { printMemberLibraryCard } from '../../utils/barcodeQrGenerator';
 
 export default function AccountApprovals() {
   const { canApprove, canReject, isAdmin } = usePermission();
@@ -133,6 +134,14 @@ export default function AccountApprovals() {
     if (inspectingMember?.id === approvingMember.id) {
       setInspectingMember(null);
     }
+  };
+
+  const handlePrintMemberPass = (member: MemberProfile, isReprint: boolean = false) => {
+    printMemberLibraryCard(member, {
+      isReprint,
+      issuedDate: member.approvedDate || member.registeredDate,
+      expiryDate: 'DEC 2028',
+    });
   };
 
   // Reject Handler
@@ -252,6 +261,8 @@ export default function AccountApprovals() {
         return <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200"><Shield className="w-3 h-3" /> Admin</span>;
       case 'FACULTY':
         return <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200"><Briefcase className="w-3 h-3" /> Faculty</span>;
+      case 'RESEARCH_SCHOLAR':
+        return <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-cyan-100 text-cyan-800 border border-cyan-200"><Sparkles className="w-3 h-3" /> Research Scholar</span>;
       case 'STAFF':
         return <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200"><User className="w-3 h-3" /> Staff</span>;
       case 'STUDENT':
@@ -521,6 +532,7 @@ export default function AccountApprovals() {
               <option value="ALL">All Roles</option>
               <option value="STUDENT">Students Only</option>
               <option value="FACULTY">Faculty Only</option>
+              <option value="RESEARCH_SCHOLAR">Research Scholars</option>
               <option value="STAFF">Library Staff</option>
               <option value="ADMIN">Administrators</option>
             </select>
@@ -544,7 +556,7 @@ export default function AccountApprovals() {
 
         {/* Table Content */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[850px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
                 <th className="py-3.5 px-4 sm:px-6">Applicant / Member</th>
@@ -647,6 +659,17 @@ export default function AccountApprovals() {
                         )}
 
                         {/* Actions for Active */}
+                        {(member.status === 'ACTIVE' || member.status === 'APPROVED') && (
+                          <button
+                            type="button"
+                            onClick={() => handlePrintMemberPass(member, false)}
+                            className="p-1.5 rounded-xl text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors cursor-pointer"
+                            title="Print Official Library Pass"
+                          >
+                            <Printer className="w-4 h-4" />
+                          </button>
+                        )}
+
                         {(member.status === 'ACTIVE' || member.status === 'APPROVED') && isAdmin && (
                           <button
                             type="button"
@@ -744,7 +767,7 @@ export default function AccountApprovals() {
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Roll / Employee ID</span>
-                <p className="font-bold text-slate-800 font-mono mt-0.5">{inspectingMember.rollNo || 'N/A'}</p>
+                <p className="font-bold text-slate-800 font-mono mt-0.5">{inspectingMember.rollNo || inspectingMember.scholarId || 'N/A'}</p>
               </div>
 
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
@@ -753,14 +776,76 @@ export default function AccountApprovals() {
               </div>
 
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Department</span>
-                <p className="font-semibold text-slate-800 mt-0.5">{inspectingMember.department}</p>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                  {inspectingMember.role === 'RESEARCH_SCHOLAR'
+                    ? 'Research Department'
+                    : 'Department / Division'}
+                </span>
+                <p className="font-semibold text-slate-800 mt-0.5">{inspectingMember.department || inspectingMember.libraryDivision || 'General Academic'}</p>
               </div>
 
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Academic Batch / Level</span>
-                <p className="font-semibold text-slate-800 mt-0.5">{inspectingMember.academicBatch || inspectingMember.program || 'N/A'}</p>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                  {inspectingMember.role === 'STUDENT'
+                    ? 'Academic Batch / Level'
+                    : inspectingMember.role === 'FACULTY'
+                    ? 'Designation & Faculty Type'
+                    : inspectingMember.role === 'RESEARCH_SCHOLAR'
+                    ? 'Research Program'
+                    : 'Staff Designation & Division'}
+                </span>
+                <p className="font-semibold text-slate-800 mt-0.5">
+                  {inspectingMember.role === 'STUDENT'
+                    ? `${inspectingMember.academicBatch || inspectingMember.program || 'N/A'}${inspectingMember.level ? ` (${inspectingMember.level})` : ''}`
+                    : inspectingMember.role === 'FACULTY'
+                    ? `${inspectingMember.designation || inspectingMember.academicBatch || 'Faculty'}${inspectingMember.facultyType ? ` • ${inspectingMember.facultyType}` : ''}`
+                    : inspectingMember.role === 'RESEARCH_SCHOLAR'
+                    ? `${inspectingMember.researchProgram || inspectingMember.program || 'Ph.D. Research'}`
+                    : `${inspectingMember.designation || inspectingMember.academicBatch || 'Staff'}${inspectingMember.libraryDivision ? ` • ${inspectingMember.libraryDivision}` : ''}`}
+                </p>
               </div>
+
+              {inspectingMember.role === 'FACULTY' && (
+                <>
+                  <div className="p-3 rounded-2xl bg-indigo-50/50 border border-indigo-100">
+                    <span className="text-[10px] font-bold text-indigo-700 uppercase">Program / Course Affiliation</span>
+                    <p className="font-semibold text-indigo-950 mt-0.5">{inspectingMember.facultyProgram || inspectingMember.program || 'Undergraduate & Postgraduate'}</p>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-blue-50/50 border border-blue-100">
+                    <span className="text-[10px] font-bold text-blue-700 uppercase">Specialization / Domain</span>
+                    <p className="font-semibold text-blue-950 mt-0.5">{inspectingMember.facultySpecialization || 'Core Domain Engineering & Research'}</p>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-amber-50/50 border border-amber-100">
+                    <span className="text-[10px] font-bold text-amber-700 uppercase">Joining Year & Status</span>
+                    <p className="font-semibold text-amber-950 mt-0.5">
+                      {inspectingMember.facultyStatus || 'Active Duty'} • Joined {inspectingMember.facultyJoiningYear ? String(inspectingMember.facultyJoiningYear).split(' (')[0] : '2026'}
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {inspectingMember.role === 'RESEARCH_SCHOLAR' && (
+                <>
+                  <div className="p-3 rounded-2xl bg-cyan-50/50 border border-cyan-100">
+                    <span className="text-[10px] font-bold text-cyan-700 uppercase">Research Area / Specialization</span>
+                    <p className="font-semibold text-cyan-950 mt-0.5">{inspectingMember.researchArea || 'Advanced Scientific Research'}</p>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-violet-50/50 border border-violet-100">
+                    <span className="text-[10px] font-bold text-violet-700 uppercase">Research Supervisor / Guide</span>
+                    <p className="font-semibold text-violet-950 mt-0.5">{inspectingMember.researchSupervisor || 'Institutional Research Guide'}</p>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-amber-50/50 border border-amber-100">
+                    <span className="text-[10px] font-bold text-amber-700 uppercase">Admission Year & Status</span>
+                    <p className="font-semibold text-amber-950 mt-0.5">
+                      {inspectingMember.researchStatus || inspectingMember.academicBatch || 'Coursework Ongoing'} • Year {inspectingMember.researchAdmissionYear || '2026'}
+                    </p>
+                  </div>
+                </>
+              )}
 
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Phone Number</span>
@@ -814,13 +899,35 @@ export default function AccountApprovals() {
               )}
 
               {inspectingMember.status !== 'PENDING_APPROVAL' && (
-                <button
-                  type="button"
-                  onClick={() => setInspectingMember(null)}
-                  className="px-5 py-2.5 rounded-2xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-all cursor-pointer"
-                >
-                  Close Dossier
-                </button>
+                <div className="flex items-center gap-2">
+                  {(inspectingMember.status === 'ACTIVE' || inspectingMember.status === 'APPROVED') && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handlePrintMemberPass(inspectingMember, false)}
+                        className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Printer className="w-4 h-4" /> Print Pass
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handlePrintMemberPass(inspectingMember, true)}
+                        className="px-3.5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-900 text-amber-300 border border-amber-400/30 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <CreditCard className="w-4 h-4 text-amber-400" /> Reprint
+                      </button>
+                    </>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setInspectingMember(null)}
+                    className="px-5 py-2.5 rounded-2xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-all cursor-pointer"
+                  >
+                    Close Dossier
+                  </button>
+                </div>
               )}
             </div>
           </div>

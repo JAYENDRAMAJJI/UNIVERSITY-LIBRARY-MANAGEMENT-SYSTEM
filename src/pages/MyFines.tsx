@@ -431,7 +431,7 @@ export default function MyFines() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-600">
+                <table className="w-full text-left text-xs text-slate-600 min-w-[700px]">
                   <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider">
                     <tr>
                       <th className="p-3.5 rounded-l-xl">Book Title & Accession</th>
@@ -507,7 +507,7 @@ export default function MyFines() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-600">
+                <table className="w-full text-left text-xs text-slate-600 min-w-[720px]">
                   <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider">
                     <tr>
                       <th className="p-3.5 rounded-l-xl">Fine ID & Book Title</th>
@@ -668,8 +668,8 @@ export default function MyFines() {
 
       {/* Pay Fine Modal */}
       {isPayModalOpen && payingFine && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-scaleUp">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-scaleUp max-h-[90vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-2xl">
@@ -853,8 +853,8 @@ export default function MyFines() {
 
       {/* Official Fine Receipt / Assessment Slip Modal */}
       {selectedFineForReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-6 animate-scaleUp">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-6 animate-scaleUp max-h-[90vh] overflow-y-auto my-auto">
             {/* Header with University Emblem Info */}
             <div className="flex items-start justify-between border-b border-slate-100 pb-4">
               <div className="space-y-1">

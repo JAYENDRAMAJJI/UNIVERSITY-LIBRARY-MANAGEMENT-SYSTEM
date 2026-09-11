@@ -958,7 +958,7 @@ export default function RolesPermissionsManagement() {
         {/* VIEW MODE 1: UNIFIED SPREADSHEET TABLE */}
         {viewMode === 'TABLE' && (
           <div className="border border-slate-200 rounded-2xl overflow-hidden overflow-x-auto shadow-2xs">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[980px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
                   <th className="py-3.5 px-4 min-w-[260px]">Library Module</th>

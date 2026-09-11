@@ -674,13 +674,13 @@ export default function DigitalResources() {
       </div>
 
       {/* Digital Resource Grid View */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
         {filteredResources.map((res) => {
           const isBookmarked = (state.bookmarkedIds || []).includes(res.id);
           return (
             <div
               key={res.id}
-              className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-300 transition-all space-y-4 flex flex-col justify-between relative group"
+              className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-purple-300 transition-all space-y-3.5 flex flex-col justify-between relative group"
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">

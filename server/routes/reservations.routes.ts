@@ -26,7 +26,13 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     const member = await Member.findOne({
-      $or: [{ id: memberId }, { memberCardNo: memberId }, { email: memberId }],
+      $or: [
+        { id: memberId },
+        { memberCardNo: new RegExp(`^${memberId}$`, 'i') },
+        { barcode: new RegExp(`^${memberId}$`, 'i') },
+        { rollNo: new RegExp(`^${memberId}$`, 'i') },
+        { email: memberId.toLowerCase().trim() },
+      ],
     });
     if (!member) {
       return res.status(404).json({ success: false, message: 'Member not found' });

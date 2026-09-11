@@ -203,27 +203,27 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-7 pb-10">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-900 rounded-3xl p-8 text-white shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative overflow-hidden">
-        <div className="space-y-3 max-w-2xl">
+      <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-900 rounded-3xl p-5 sm:p-7 lg:p-8 text-white shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative overflow-hidden">
+        <div className="space-y-2.5 max-w-2xl">
           <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-300 bg-white/10 px-3.5 py-1 rounded-full">
             <Sparkles className="h-4 w-4" /> Head Librarian Control Center
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold font-poppins tracking-tight">University Library Executive Dashboard</h1>
-          <p className="text-slate-300 text-sm leading-relaxed">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-poppins tracking-tight">University Library Executive Dashboard</h1>
+          <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
             Monitor real-time accessions, member registrations, active book circulations, fine ledgers, and audit trail logs.
           </p>
         </div>
 
-        <div className="relative z-10 flex flex-wrap items-center gap-3">
+        <div className="relative z-10 flex flex-wrap items-center gap-2.5">
           <button
             onClick={() => {
               const res = libraryStore.exportOverallExecutiveReport();
               setToast(`1-Click Executive Meeting Report downloaded: ${res.filename}`);
               setTimeout(() => setToast(null), 5000);
             }}
-            className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white text-xs font-bold shadow-lg shadow-blue-500/30 hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer border border-white/20"
+            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white text-xs font-bold shadow-lg shadow-blue-500/30 hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer border border-white/20"
           >
             <Download className="w-4 h-4" /> Download Executive Meeting Report
           </button>
@@ -231,25 +231,25 @@ export default function AdminDashboard() {
       </div>
 
       {toast && (
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium animate-fadeIn">
+        <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-medium animate-fadeIn">
           <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
           <span>{toast}</span>
         </div>
       )}
 
       {/* Interactive Quick Actions Bar */}
-      <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div className="bg-white p-4 sm:p-6 lg:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-3 sm:space-y-4">
         <div>
-          <h2 className="text-lg sm:text-xl font-extrabold font-poppins text-slate-900">Administrative Shortcuts & Workstations</h2>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">Launch circulation workflows and system tools directly.</p>
+          <h2 className="text-base sm:text-lg font-extrabold font-poppins text-slate-900">Administrative Shortcuts & Workstations</h2>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">Launch circulation workflows and system tools directly.</p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-2.5">
           {quickActionsList.map((act) => (
             <Link
               key={act.label}
               to={act.to}
-              className={`inline-flex items-center gap-2 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold border transition-all hover:scale-105 shadow-2xs ${act.color}`}
+              className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs sm:text-[13px] font-bold border transition-all hover:scale-105 shadow-2xs ${act.color}`}
             >
               <act.icon className="w-4 h-4" />
               <span>{act.label}</span>
@@ -259,18 +259,18 @@ export default function AdminDashboard() {
       </div>
 
       {/* Interactive Live Stats Cards */}
-      <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3.5 sm:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat, i) => (
           <Link
             key={i}
             to={stat.to}
-            className="group bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-lg hover:border-blue-300 transition-all flex flex-col justify-between space-y-3 min-w-0"
+            className="group bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-lg hover:border-blue-300 transition-all flex flex-col justify-between space-y-3 min-w-0"
           >
             <div className="flex items-center justify-between">
-              <div className={`p-3.5 rounded-2xl bg-gradient-to-br ${stat.accent} text-white shadow-md`}>
-                <stat.icon className="h-6 w-6" />
+              <div className={`p-3 rounded-2xl bg-gradient-to-br ${stat.accent} text-white shadow-md`}>
+                <stat.icon className="h-5 w-5 sm:h-6 sm:w-6" />
               </div>
-              <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-800 shadow-2xs">
+              <span className="text-[11px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 shadow-2xs">
                 {stat.delta}
               </span>
             </div>

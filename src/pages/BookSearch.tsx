@@ -506,7 +506,7 @@ export default function BookSearch() {
       {/* CATALOG RESULTS GRID */}
       <div className="space-y-4">
         {filteredBooks.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4 sm:gap-5 items-stretch">
             {filteredBooks.map((book) => {
               const userReservation = state.reservations.find(
                 (r) =>
@@ -518,7 +518,7 @@ export default function BookSearch() {
               return (
                 <div
                   key={book.id}
-                  className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-blue-300 transition-all space-y-4 flex flex-col justify-between"
+                  className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-blue-300 transition-all space-y-3.5 flex flex-col justify-between"
                 >
                   <div className="flex flex-col sm:flex-row gap-4 items-start">
                     <img

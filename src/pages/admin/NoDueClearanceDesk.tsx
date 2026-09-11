@@ -453,7 +453,7 @@ export default function NoDueClearanceDesk() {
       {viewMode === 'APPLICATIONS' && (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-xs min-w-[850px]">
               <thead>
                 <tr className="bg-gradient-to-r from-purple-50 via-slate-50 to-purple-50 border-b border-slate-200 text-slate-700 font-extrabold uppercase tracking-wider text-[11px]">
                   <th className="py-3.5 px-4 w-[28%]">Application & Student</th>

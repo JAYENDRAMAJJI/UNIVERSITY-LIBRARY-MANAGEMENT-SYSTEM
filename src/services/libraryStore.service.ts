@@ -51,9 +51,15 @@ import {
   RBAC_MODULES,
   AuditLogRecord,
 } from '../types/library';
+import {
+  CodeType,
+  detectCodeType,
+  validateCodeForSection,
+  INVALID_SECTION_SCAN_MESSAGE,
+} from '../utils/codeValidation';
 
 // Key for LocalStorage
-const STORAGE_KEY = 'college_lms_master_state_v8';
+const STORAGE_KEY = 'college_lms_master_state_v9';
 
 // Real Local System Date & Time Helpers (Uses local clock instead of UTC ISO strings)
 export const parseMonthNumFromDate = (dateStr?: string): number => {
@@ -85,6 +91,10 @@ export const getRoleCardPrefix = (role?: string): string => {
       return 'STU';
     case 'FACULTY':
       return 'FAC';
+    case 'RESEARCH_SCHOLAR':
+    case 'SCHOLAR':
+    case 'RESEARCH SCHOLAR':
+      return 'RES';
     case 'STAFF':
     case 'LIBRARY_STAFF':
     case 'LIBRARY STAFF':
@@ -547,6 +557,137 @@ export const getLibraryOperatingStatus = (
   };
 };
 
+export const DEFAULT_DEMO_MEMBERS: MemberProfile[] = [
+  {
+    id: 'mem-admin-1',
+    userId: 'admin-1',
+    name: 'Chief Admin Librarian',
+    email: 'admin@college.edu',
+    password: 'password123',
+    role: 'ADMIN',
+    status: 'ACTIVE',
+    memberCardNo: 'ADM-2026-1001',
+    barcode: 'ADM-2026-1001',
+    department: 'Central Library Administration',
+    maxAllowedBooks: 20,
+    currentActiveLoans: 0,
+    pendingFines: 0,
+    registeredDate: '2026-01-01',
+    appliedDate: '2026-01-01',
+    approvedDate: '2026-01-01',
+    approvedBy: 'SYSTEM_BOOTSTRAP',
+    gender: 'MALE',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    phone: '+91 98765 00001',
+    rollNo: 'ADM-OFFICER-001',
+    designation: 'Chief Librarian & System Authority',
+  },
+  {
+    id: 'mem-staff-1',
+    userId: 'staff-1',
+    name: 'Marcus Reed',
+    email: 'staff@college.edu',
+    password: 'password123',
+    role: 'STAFF',
+    status: 'ACTIVE',
+    memberCardNo: 'STA-2026-001',
+    barcode: 'STA-2026-001',
+    department: 'Central Library Circulation & Help Desk',
+    maxAllowedBooks: 15,
+    currentActiveLoans: 0,
+    pendingFines: 0,
+    registeredDate: '2026-01-05',
+    appliedDate: '2026-01-05',
+    approvedDate: '2026-01-05',
+    approvedBy: 'Chief Admin Librarian',
+    gender: 'MALE',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+    phone: '+91 98765 00002',
+    rollNo: 'STA-DESK-001',
+    designation: 'Circulation & Front Desk Officer',
+  },
+  {
+    id: 'mem-faculty-1',
+    userId: 'faculty-1',
+    name: 'Dr. Sarah Connor',
+    email: 'faculty@college.edu',
+    password: 'password123',
+    role: 'FACULTY',
+    status: 'ACTIVE',
+    memberCardNo: 'FAC-2023-1102',
+    barcode: 'FAC-2023-1102',
+    department: 'Electrical & Electronics Engineering',
+    maxAllowedBooks: 10,
+    currentActiveLoans: 0,
+    pendingFines: 0,
+    registeredDate: '2021-08-15',
+    appliedDate: '2021-08-15',
+    approvedDate: '2021-08-15',
+    approvedBy: 'Chief Admin Librarian',
+    gender: 'FEMALE',
+    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
+    phone: '+91 98765 01234',
+    rollNo: 'FAC-EMP-882',
+    designation: 'Associate Professor & Senior Researcher',
+    facultyProgram: 'M.Tech / Research Guidance',
+    facultyType: 'Professor',
+  },
+  {
+    id: 'mem-scholar-1',
+    userId: 'scholar-1',
+    name: 'Alex Vance',
+    email: 'scholar@college.edu',
+    password: 'password123',
+    role: 'RESEARCH_SCHOLAR',
+    status: 'ACTIVE',
+    memberCardNo: 'RS-2026-019',
+    barcode: 'RS-2026-019',
+    scholarId: 'RS-2026-019',
+    rollNo: 'RS-2026-019',
+    department: 'Computer Science & Engineering',
+    maxAllowedBooks: 8,
+    currentActiveLoans: 0,
+    pendingFines: 0,
+    registeredDate: '2026-01-10',
+    appliedDate: '2026-01-10',
+    approvedDate: '2026-01-10',
+    approvedBy: 'Chief Admin Librarian',
+    gender: 'MALE',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
+    phone: '+91 98765 22222',
+    researchProgram: 'Ph.D. (Doctor of Philosophy) – Regular Full-Time',
+    researchSupervisor: 'Dr. Sarah Connor',
+    researchArea: 'Artificial Intelligence & Distributed Systems',
+    academicBatch: 'Doctoral Research Fellow',
+  },
+  {
+    id: 'mem-student-1',
+    userId: 'student-1',
+    name: 'Alex Johnson',
+    email: 'student@college.edu',
+    password: 'password123',
+    role: 'STUDENT',
+    status: 'ACTIVE',
+    memberCardNo: 'STU-2022-0891',
+    barcode: 'STU-2022-0891',
+    rollNo: '22CS104',
+    department: 'Computer Science & Engineering',
+    maxAllowedBooks: 5,
+    currentActiveLoans: 0,
+    pendingFines: 0,
+    registeredDate: '2022-08-01',
+    appliedDate: '2022-08-01',
+    approvedDate: '2022-08-01',
+    approvedBy: 'Chief Admin Librarian',
+    gender: 'MALE',
+    avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=200&q=80',
+    phone: '+91 98765 43210',
+    program: 'B.Tech (Bachelor of Technology)',
+    academicBatch: '2022 - 2026',
+    yearSemester: '4th Year / 8th Semester',
+  },
+];
+
 const DEFAULT_CONFIG: SystemConfig = {
   fineRatePerDay: 5.0,
   studentMaxLoanDays: 14,
@@ -593,13 +734,15 @@ interface StateSchema {
   userPermissions?: Record<string, Partial<PermissionMatrix>>;
 }
 
-// Lightweight Observable State Manager
+// Lightweight Observable State Manager with automatic persistence
 class SimpleBehaviorSubject<T> {
   private value: T;
   private listeners: ((val: T) => void)[] = [];
+  private onNext?: (val: T) => void;
 
-  constructor(initialValue: T) {
+  constructor(initialValue: T, onNext?: (val: T) => void) {
     this.value = initialValue;
+    this.onNext = onNext;
   }
 
   getValue(): T {
@@ -608,6 +751,13 @@ class SimpleBehaviorSubject<T> {
 
   next(newValue: T): void {
     this.value = newValue;
+    if (this.onNext) {
+      try {
+        this.onNext(newValue);
+      } catch (e) {
+        console.warn('Storage persistence warning:', e);
+      }
+    }
     this.listeners.forEach((listener) => listener(newValue));
   }
 
@@ -628,7 +778,7 @@ class LibraryStoreService {
   constructor() {
     _activeLibraryStore = this;
 
-    // Actively purge any legacy localStorage caches from previous demo runs
+    // Purge older legacy cache keys
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('college_lms_master_state_v8');
@@ -641,8 +791,34 @@ class LibraryStoreService {
       }
     }
 
-    const initialState = this.getDefaultState();
-    this.state$ = new SimpleBehaviorSubject<StateSchema>(initialState);
+    let initialState = this.getDefaultState();
+
+    // Hydrate state from localStorage if present
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') {
+            initialState = {
+              ...initialState,
+              ...parsed,
+              config: parsed.config ? { ...initialState.config, ...parsed.config } : initialState.config,
+              racks: reconcileAcademicRacks(parsed.racks || initialState.racks),
+            };
+          }
+        }
+      } catch (e) {
+        console.warn('Error reading persisted state from localStorage:', e);
+      }
+    }
+
+    // Auto-verify and self-heal unique barcodes across all book copies
+    initialState = this.sanitizeAndEnsureUniqueBarcodes(initialState);
+
+    this.state$ = new SimpleBehaviorSubject<StateSchema>(initialState, (newState) => {
+      this.saveState(newState);
+    });
 
     // Run operating hours auto checkout logic on initialization
     this.checkAndAutoCheckoutExpiredSessions();
@@ -656,6 +832,16 @@ class LibraryStoreService {
 
     // Hydrate live library data strictly from MongoDB Backend API
     this.initFromBackend();
+  }
+
+  private saveState(state: StateSchema): void {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (err) {
+        console.warn('Failed to persist state to localStorage:', err);
+      }
+    }
   }
 
   /**
@@ -687,7 +873,7 @@ class LibraryStoreService {
       authors: [],
       publishers: [],
       books: [],
-      members: [],
+      members: DEFAULT_DEMO_MEMBERS,
       transactions: [],
       reservations: [],
       fines: [],
@@ -720,6 +906,10 @@ class LibraryStoreService {
 
   public getObservable() {
     return this.state$;
+  }
+
+  public getMembers(): MemberProfile[] {
+    return this.snapshot.members || [];
   }
 
   // ================= RBAC & PERMISSION MANAGEMENT =================
@@ -1216,15 +1406,131 @@ class LibraryStoreService {
     return true;
   }
 
+  /**
+   * Generates a guaranteed unique barcode for physical book copies
+   */
+  public generateUniqueCopyBarcode(existingUsedSet?: Set<string>): string {
+    const used = new Set<string>(existingUsedSet ? Array.from(existingUsedSet).map((s) => s.toLowerCase()) : []);
+    if (!existingUsedSet) {
+      const current = this.snapshot;
+      (current.books || []).forEach((b) => {
+        (b.copies || []).forEach((c) => {
+          if (c.barcode) used.add(c.barcode.trim().toLowerCase());
+        });
+      });
+    }
+
+    let newBc = '';
+    let tries = 0;
+    do {
+      newBc = `BC-${Math.floor(100000 + Math.random() * 900000)}`;
+      tries++;
+    } while (used.has(newBc.toLowerCase()) && tries < 1000);
+
+    return newBc;
+  }
+
+  /**
+   * Sanitizes all book copies and active members on startup to ensure zero duplicate or missing barcodes
+   */
+  public sanitizeAndEnsureUniqueBarcodes(state: StateSchema): StateSchema {
+    const usedBarcodes = new Set<string>();
+    let modified = false;
+
+    const books = (state.books || []).map((book) => {
+      let bookModified = false;
+      const copies = (book.copies || []).map((copy) => {
+        let bc = copy.barcode ? copy.barcode.trim() : '';
+        const bcLower = bc.toLowerCase();
+
+        // If empty or already used by another copy, generate a guaranteed unique barcode
+        if (!bc || usedBarcodes.has(bcLower)) {
+          let newBc = '';
+          let tries = 0;
+          do {
+            newBc = `BC-${Math.floor(100000 + Math.random() * 900000)}`;
+            tries++;
+          } while (usedBarcodes.has(newBc.toLowerCase()) && tries < 1000);
+
+          bc = newBc;
+          bookModified = true;
+          modified = true;
+        }
+
+        usedBarcodes.add(bc.toLowerCase());
+        const qr = copy.qrCode || `QR-${bc}`;
+
+        if (copy.barcode !== bc || copy.qrCode !== qr) {
+          bookModified = true;
+          return { ...copy, barcode: bc, qrCode: qr };
+        }
+        return copy;
+      });
+
+      if (bookModified) {
+        return { ...book, copies };
+      }
+      return book;
+    });
+
+    // Sanitize and ensure unique barcodes for all active Library Members
+    const usedMemberBarcodes = new Set<string>();
+    const members = (state.members || []).map((m) => {
+      if (m.status === 'ACTIVE' || m.status === 'APPROVED') {
+        let card = m.memberCardNo ? m.memberCardNo.trim() : '';
+        if (!card || card.startsWith('APP-')) {
+          card = generateLibraryCardId(m.role);
+          modified = true;
+        }
+
+        let bc = m.barcode ? m.barcode.trim() : card;
+        let bcLower = bc.toLowerCase();
+
+        // If duplicate barcode among active members, generate a fresh unique one
+        if (usedMemberBarcodes.has(bcLower)) {
+          let newCard = generateLibraryCardId(m.role);
+          while (usedMemberBarcodes.has(newCard.toLowerCase())) {
+            newCard = generateLibraryCardId(m.role);
+          }
+          card = newCard;
+          bc = newCard;
+          modified = true;
+        }
+
+        usedMemberBarcodes.add(bc.toLowerCase());
+
+        if (m.memberCardNo !== card || m.barcode !== bc) {
+          modified = true;
+          return { ...m, memberCardNo: card, barcode: bc };
+        }
+      }
+      return m;
+    });
+
+    if (modified) {
+      return { ...state, books, members };
+    }
+    return state;
+  }
+
   public addBook(bookData: Omit<Book, 'id' | 'copies' | 'availableCopies'>, initialCopiesCount: number = 3) {
     const bookId = `book-${Date.now()}`;
     const copies: BookCopy[] = [];
 
     const isRefBook = bookData.collectionType === 'REFERENCE' || bookData.isReferenceOnly || false;
 
+    const usedBarcodes = new Set<string>();
+    (this.snapshot.books || []).forEach((b) => {
+      (b.copies || []).forEach((c) => {
+        if (c.barcode) usedBarcodes.add(c.barcode.trim().toLowerCase());
+      });
+    });
+
     for (let i = 1; i <= initialCopiesCount; i++) {
       const accessionNo = `ACC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const barcode = `BC-${Math.floor(10000 + Math.random() * 90000)}`;
+      const barcode = this.generateUniqueCopyBarcode(usedBarcodes);
+      usedBarcodes.add(barcode.toLowerCase());
+
       copies.push({
         id: `copy-${bookId}-${i}`,
         bookId,
@@ -1272,10 +1578,19 @@ class LibraryStoreService {
 
         if (targetCount > currentCount) {
           const diff = targetCount - currentCount;
+          const usedBarcodes = new Set<string>();
+          current.books.forEach((b) => {
+            (b.copies || []).forEach((c) => {
+              if (c.barcode) usedBarcodes.add(c.barcode.trim().toLowerCase());
+            });
+          });
+
           for (let i = 1; i <= diff; i++) {
             const copyNum = currentCount + i;
             const accessionNo = `ACC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-            const barcode = `BC-${Math.floor(10000 + Math.random() * 90000)}`;
+            const barcode = this.generateUniqueCopyBarcode(usedBarcodes);
+            usedBarcodes.add(barcode.toLowerCase());
+
             updatedCopies.push({
               id: `copy-${id}-${copyNum}`,
               bookId: id,
@@ -1411,11 +1726,22 @@ class LibraryStoreService {
     const current = this.snapshot;
     let newCopy: BookCopy | undefined;
 
+    const usedBarcodes = new Set<string>();
+    current.books.forEach((b) => {
+      (b.copies || []).forEach((c) => {
+        if (c.barcode) usedBarcodes.add(c.barcode.trim().toLowerCase());
+      });
+    });
+
     const books = current.books.map((book) => {
       if (book.id !== bookId) return book;
 
       const accessionNo = copyData?.accessionNo || `ACC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const barcode = copyData?.barcode || `BC-${Math.floor(10000 + Math.random() * 90000)}`;
+      let barcode = copyData?.barcode?.trim() || '';
+      if (!barcode || usedBarcodes.has(barcode.toLowerCase())) {
+        barcode = this.generateUniqueCopyBarcode(usedBarcodes);
+      }
+      usedBarcodes.add(barcode.toLowerCase());
 
       newCopy = {
         id: `copy-${bookId}-${Date.now()}`,
@@ -1666,27 +1992,40 @@ class LibraryStoreService {
 
     const member = current.members.find((m) => {
       const cLower = (m.memberCardNo || '').toLowerCase();
+      const bLower = (m.barcode || '').toLowerCase();
       const idLower = (m.id || '').toLowerCase();
       const eLower = (m.email || '').toLowerCase();
+      const rLower = (m.rollNo || '').toLowerCase();
 
-      if (cLower === qClean || idLower === qClean || eLower === qClean) return true;
+      if (cLower === qClean || bLower === qClean || idLower === qClean || eLower === qClean || rLower === qClean) return true;
 
       const cNorm = cLower.replace(/[^a-z0-9]/g, '');
+      const bNorm = bLower.replace(/[^a-z0-9]/g, '');
       const idNorm = idLower.replace(/[^a-z0-9]/g, '');
       const eNorm = eLower.replace(/[^a-z0-9]/g, '');
+      const rNorm = rLower.replace(/[^a-z0-9]/g, '');
 
-      if (qNorm.length > 0 && (cNorm === qNorm || idNorm === qNorm || eNorm === qNorm)) return true;
+      if (qNorm.length > 0 && (cNorm === qNorm || bNorm === qNorm || idNorm === qNorm || eNorm === qNorm || rNorm === qNorm)) return true;
 
-      const cNoPrefix = cLower.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
-      const idNoPrefix = idLower.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
+      const cNoPrefix = cLower.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|lib-|sta-|res-|mem-|mbc-)/i, '').replace(/[^a-z0-9]/g, '');
+      const bNoPrefix = bLower.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|lib-|sta-|res-|mem-|mbc-)/i, '').replace(/[^a-z0-9]/g, '');
+      const idNoPrefix = idLower.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|lib-|sta-|res-|mem-|mbc-)/i, '').replace(/[^a-z0-9]/g, '');
 
-      if (qNoPrefix.length > 0 && (cNoPrefix === qNoPrefix || idNoPrefix === qNoPrefix || cNorm === qNoPrefix)) return true;
+      if (qNoPrefix.length > 0 && (cNoPrefix === qNoPrefix || bNoPrefix === qNoPrefix || idNoPrefix === qNoPrefix || cNorm === qNoPrefix)) return true;
 
       return false;
     });
 
     if (!member) {
       return { success: false, message: 'Member record not found.' };
+    }
+
+    if (member.status === 'PENDING_APPROVAL') {
+      return { success: false, message: `Member "${member.name}" is pending administrator approval. Barcode is inactive.` };
+    }
+
+    if (member.status === 'SUSPENDED') {
+      return { success: false, message: `Member account for "${member.name}" is SUSPENDED. Cannot issue books.` };
     }
 
     if (member.status !== 'ACTIVE') {
@@ -1701,27 +2040,22 @@ class LibraryStoreService {
       return { success: false, message: `Member has reached max borrowing limit of ${member.maxAllowedBooks} books.` };
     }
 
+    // Strict section validation: Step 1 must be a valid MEMBER_CARD
+    const memValidation = validateCodeForSection(memberId, 'MEMBER_CARD', current);
+    if (!memValidation.isValid) {
+      return { success: false, message: INVALID_SECTION_SCAN_MESSAGE };
+    }
+
+    // Strict section validation: Step 2 must be a valid BOOK_COPY
+    const copyValidation = validateCodeForSection(copyId, 'BOOK_COPY', current);
+    if (!copyValidation.isValid) {
+      return { success: false, message: INVALID_SECTION_SCAN_MESSAGE };
+    }
+
     const cleanQuery = (copyId || '').trim().toLowerCase();
     const queryNorm = cleanQuery.replace(/^(qr-|bc-|acc-|card-|id-)/i, '').replace(/[^a-z0-9]/g, '');
     if (!cleanQuery) {
       return { success: false, message: 'Please enter or scan a valid book barcode / accession number / QR code.' };
-    }
-
-    // Check if the provided code is actually a Member ID Card
-    const isMemberCode = current.members.some((m) => {
-      const cLower = (m.memberCardNo || '').toLowerCase();
-      const idLower = (m.id || '').toLowerCase();
-      if (cLower === cleanQuery || idLower === cleanQuery) return true;
-      const cNorm = cLower.replace(/[^a-z0-9]/g, '');
-      const idNorm = idLower.replace(/[^a-z0-9]/g, '');
-      return queryNorm.length > 0 && (cNorm === queryNorm || idNorm === queryNorm);
-    });
-
-    if (isMemberCode || cleanQuery.startsWith('stu-') || cleanQuery.startsWith('fac-') || cleanQuery.startsWith('adm-')) {
-      return {
-        success: false,
-        message: 'INVALID BOOK CODE: You scanned/entered a Member ID Card. Please scan or enter a Book Barcode or Accession Number in Step 2.',
-      };
     }
 
     let targetBook: Book | undefined;
@@ -1833,6 +2167,13 @@ class LibraryStoreService {
     }
   ): { success: boolean; message: string; fineAssessed?: number; receiptNo?: string } {
     const current = this.snapshot;
+
+    // Check if user scanned an invalid cross-section code (e.g. member card or rack)
+    const detectedType = detectCodeType(transactionId, current);
+    if (detectedType === 'MEMBER_CARD' || detectedType === 'RACK_SHELF' || detectedType === 'NO_DUE') {
+      return { success: false, message: INVALID_SECTION_SCAN_MESSAGE };
+    }
+
     const cleanQ = (transactionId || '').trim().toLowerCase();
     const tx = current.transactions.find(
       (t) =>
@@ -2845,6 +3186,7 @@ class LibraryStoreService {
       password: data.password || 'password123',
       role: data.role,
       memberCardNo: cardNo,
+      barcode: cardNo,
       department: data.department || 'General Academic',
       status: data.status || 'ACTIVE',
       maxAllowedBooks: maxBooks,
@@ -2883,15 +3225,47 @@ class LibraryStoreService {
     rollNo?: string;
     program?: string;
     academicBatch?: string;
+    studentSpecialization?: string;
+    studentStatus?: string;
     address?: string;
     emergencyContact?: string;
     gender?: 'MALE' | 'FEMALE' | 'OTHER';
     idProofType?: 'COLLEGE_ID' | 'AADHAAR' | 'PASSPORT' | 'DRIVING_LICENSE' | 'OTHER';
     idProofNumber?: string;
+    designation?: string;
+    facultyType?: string;
+    facultyProgram?: string;
+    facultySpecialization?: string;
+    facultyJoiningYear?: number | string;
+    facultyStatus?: string;
+    scholarId?: string;
+    researchProgram?: string;
+    researchSupervisor?: string;
+    researchArea?: string;
+    researchAdmissionYear?: number | string;
+    researchStatus?: string;
+    libraryDivision?: string;
+    level?: string;
+    yearSemester?: string;
   }): { success: boolean; message: string; member?: MemberProfile } {
     const current = this.snapshot;
     const cleanEmail = (data.email || '').trim().toLowerCase();
 
+    // 0. Password Strength & Security Enforcement
+    const pass = data.password || '';
+    const hasMinLen = pass.length >= 8;
+    const hasUpper = /[A-Z]/.test(pass);
+    const hasLower = /[a-z]/.test(pass);
+    const hasNumber = /[0-9]/.test(pass);
+    const hasSpecial = /[^A-Za-z0-9]/.test(pass);
+    if (!hasMinLen || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+      return {
+        success: false,
+        message: 'Account registration rejected: Password must meet Strong & Secure standards (minimum 8 characters, with uppercase, lowercase, numbers, and special characters).',
+      };
+    }
+
+    // 1. Duplicate Email Check
     const existing = current.members.find((m) => m.email.toLowerCase() === cleanEmail);
     if (existing) {
       if (existing.status === 'PENDING_APPROVAL') {
@@ -2915,9 +3289,51 @@ class LibraryStoreService {
       };
     }
 
+    // 2. Duplicate Phone Check
+    const cleanPhone = (data.phone || '').replace(/[^0-9]/g, '');
+    if (cleanPhone && cleanPhone.length >= 7) {
+      const existingPhone = current.members.find((m) => {
+        const p = (m.phone || '').replace(/[^0-9]/g, '');
+        return p && (p === cleanPhone || p.endsWith(cleanPhone.slice(-10)) || cleanPhone.endsWith(p.slice(-10)));
+      });
+      if (existingPhone) {
+        return {
+          success: false,
+          message: `A library account with phone number "${data.phone}" is already registered (${existingPhone.name}). Please use your registered credentials or contact Library Admin.`,
+          member: existingPhone,
+        };
+      }
+    }
+
+    // 3. Duplicate Roll No / Employee ID / Scholar ID Check
+    const effectiveId = (data.rollNo || data.scholarId || '').trim().toUpperCase();
+    if (effectiveId) {
+      const existingId = current.members.find((m) => {
+        const r = (m.rollNo || '').trim().toUpperCase();
+        const s = (m.scholarId || '').trim().toUpperCase();
+        return (r && r === effectiveId) || (s && s === effectiveId);
+      });
+      if (existingId) {
+        return {
+          success: false,
+          message: `Institutional ID / Roll Number "${effectiveId}" is already registered to ${existingId.name} (${existingId.role}). Duplicate ID numbers are not permitted.`,
+          member: existingId,
+        };
+      }
+    }
+
     const todayStr = getLocalDateStr(new Date());
     const roleCardId = generateLibraryCardId(data.role);
-    const maxBooks = data.role === 'FACULTY' ? 10 : data.role === 'STAFF' ? 8 : data.role === 'STUDENT' ? 5 : 3;
+    const maxBooks =
+      data.role === 'FACULTY'
+        ? 10
+        : data.role === 'RESEARCH_SCHOLAR'
+        ? 8
+        : data.role === 'STAFF'
+        ? 8
+        : data.role === 'STUDENT'
+        ? 5
+        : 3;
 
     const newApplicant: MemberProfile = {
       id: `mem-app-${Date.now()}`,
@@ -2926,8 +3342,8 @@ class LibraryStoreService {
       email: cleanEmail,
       password: data.password || 'password123',
       role: data.role,
-      memberCardNo: roleCardId, // Assigned role-based card ID (e.g. STU-2026-XXXX, FAC-2026-XXXX)
-      department: data.department || 'General Academic',
+      memberCardNo: roleCardId, // Assigned role-based card ID (e.g. STU-2026-XXXX, FAC-2026-XXXX, RES-2026-XXXX)
+      department: data.department || (data.role === 'STAFF' ? (data.libraryDivision || 'Library Administration') : 'General Academic'),
       status: 'PENDING_APPROVAL',
       maxAllowedBooks: maxBooks,
       currentActiveLoans: 0,
@@ -2937,13 +3353,30 @@ class LibraryStoreService {
       gender: data.gender || 'MALE',
       avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80`,
       phone: data.phone || '+91 98765 43210',
-      rollNo: data.rollNo || (data.role === 'STUDENT' ? '2026-CS-NEW' : 'EMP-2026-NEW'),
-      program: data.program || 'Undergraduate Program',
-      academicBatch: data.academicBatch || (data.role === 'STUDENT' ? 'Batch 2024-2028' : 'Faculty Staff'),
+      rollNo: effectiveId || (data.role === 'STUDENT' ? '2026-CS-NEW' : data.role === 'FACULTY' ? 'FAC-2026-NEW' : data.role === 'RESEARCH_SCHOLAR' ? 'RS-2026-NEW' : 'EMP-2026-NEW'),
+      program: data.program || (data.role === 'FACULTY' ? (data.facultyProgram || 'Faculty Academic Program') : data.role === 'RESEARCH_SCHOLAR' ? (data.researchProgram || 'Ph.D. Program') : 'Undergraduate Program'),
+      academicBatch: data.academicBatch || (data.role === 'STUDENT' ? 'Batch 2024-2028' : data.designation || 'Faculty Staff'),
+      studentSpecialization: data.studentSpecialization,
+      studentStatus: data.studentStatus,
       address: data.address || 'Hostel / Campus Residential',
       emergencyContact: data.emergencyContact || '+91 98000 00000',
       idProofType: data.idProofType || 'COLLEGE_ID',
-      idProofNumber: data.idProofNumber || data.rollNo,
+      idProofNumber: data.idProofNumber || effectiveId,
+      designation: data.designation,
+      facultyType: data.facultyType,
+      facultyProgram: data.facultyProgram,
+      facultySpecialization: data.facultySpecialization,
+      facultyJoiningYear: data.facultyJoiningYear,
+      facultyStatus: data.facultyStatus,
+      scholarId: data.scholarId || (data.role === 'RESEARCH_SCHOLAR' ? effectiveId : undefined),
+      researchProgram: data.researchProgram,
+      researchSupervisor: data.researchSupervisor,
+      researchArea: data.researchArea,
+      researchAdmissionYear: data.researchAdmissionYear,
+      researchStatus: data.researchStatus,
+      libraryDivision: data.libraryDivision,
+      level: data.level,
+      yearSemester: data.yearSemester,
     };
 
     // Add Admin Notification
@@ -2988,24 +3421,40 @@ class LibraryStoreService {
     options?: { memberCardNo?: string; notes?: string; reviewerName?: string }
   ): { success: boolean; message: string; member?: MemberProfile } {
     const current = this.snapshot;
+    const todayStr = new Date().toISOString().split('T')[0];
     const target = current.members.find((m) => m.id === memberId || m.email.toLowerCase() === memberId.toLowerCase());
 
     if (!target) {
       return { success: false, message: 'Member account not found.' };
     }
 
-    const todayStr = getLocalDateStr(new Date());
-    const generatedCardNo =
+    const usedMemberBarcodes = new Set<string>();
+    current.members.forEach((m) => {
+      if (m.id !== target.id) {
+        if (m.barcode) usedMemberBarcodes.add(m.barcode.trim().toLowerCase());
+        if (m.memberCardNo) usedMemberBarcodes.add(m.memberCardNo.trim().toLowerCase());
+      }
+    });
+
+    let generatedCardNo =
       options?.memberCardNo?.trim() && !options.memberCardNo.startsWith('APP-')
         ? options.memberCardNo.trim()
         : target.memberCardNo && !target.memberCardNo.startsWith('APP-')
         ? target.memberCardNo
         : generateLibraryCardId(target.role);
 
+    // Guarantee unique collision-free member card number and barcode
+    let tries = 0;
+    while (usedMemberBarcodes.has(generatedCardNo.toLowerCase()) && tries < 500) {
+      generatedCardNo = generateLibraryCardId(target.role);
+      tries++;
+    }
+
     const updatedMember: MemberProfile = {
       ...target,
       status: 'ACTIVE',
       memberCardNo: generatedCardNo,
+      barcode: generatedCardNo,
       approvedDate: todayStr,
       approvedBy: options?.reviewerName || 'Chief Admin Librarian',
       rejectionReason: undefined,
@@ -3015,7 +3464,7 @@ class LibraryStoreService {
     const approvalNotice: Notice = {
       id: `notice-appr-${Date.now()}`,
       title: '🎉 Library Account Approved & Activated',
-      content: `Dear ${target.name}, congratulations! Your University Central Library Account registration has been approved. Your official Library Card Number is "${updatedMember.memberCardNo}". You can now log into your portal dashboard to borrow books, reserve catalog items, and access digital resources.`,
+      content: `Dear ${target.name}, congratulations! Your University Central Library Account registration has been approved. Your official Library Card Number and Barcode is "${updatedMember.memberCardNo}". You can now log into your portal dashboard to borrow books, reserve catalog items, access turnstiles, and view digital resources.`,
       recipientEmail: target.email,
       recipientName: target.name,
       recipientMemberId: updatedMember.id,
@@ -3039,12 +3488,12 @@ class LibraryStoreService {
       target.role,
       'APPROVE_ACCOUNT',
       'ACCOUNT_APPROVALS',
-      `Approved ${target.role} account. Assigned Member Card: ${updatedMember.memberCardNo}.`
+      `Approved ${target.role} account. Assigned Member Card & Barcode: ${updatedMember.memberCardNo}.`
     );
 
     return {
       success: true,
-      message: `Account for "${target.name}" has been approved successfully! Assigned Card No: ${updatedMember.memberCardNo}.`,
+      message: `Account for "${target.name}" has been approved successfully! Assigned Card & Barcode No: ${updatedMember.memberCardNo}.`,
       member: updatedMember,
     };
   }
@@ -3242,8 +3691,13 @@ class LibraryStoreService {
       return { success: false, message: 'Member record not found.' };
     }
 
-    const members = current.members.filter((m) => m.id !== target.id);
+    const members = current.members.filter((m) => m.id !== target.id && m.email.toLowerCase() !== target.email.toLowerCase());
     this.state$.next({ ...current, members });
+
+    // Call backend API delete if online
+    api.delete(`/members/${target.id}`).catch(() => {
+      // Offline mode fallback
+    });
 
     this.addAuditLog(
       target.id,
@@ -4269,6 +4723,15 @@ class LibraryStoreService {
     allowClosedCheckIn: boolean = false
   ): { success: boolean; message: string; record?: AttendanceRecord; member?: MemberProfile } {
     const current = this.snapshot;
+
+    // Strict section validation: Attendance Gate only accepts MEMBER_CARD
+    const validation = validateCodeForSection(cardNoOrEmail, 'MEMBER_CARD', current);
+    if (!validation.isValid) {
+      return {
+        success: false,
+        message: INVALID_SECTION_SCAN_MESSAGE,
+      };
+    }
     // 0. Operating Hours & Holiday Check
     const opStatus = getLibraryOperatingStatus(new Date(), current.calendarEvents);
     if (!opStatus.isOpen && !allowClosedCheckIn) {
@@ -4292,9 +4755,11 @@ class LibraryStoreService {
     // 1. Find Member (exact, partial, alias, normalized, or auto-create)
     let member = current.members.find(
       (m) =>
-        m.memberCardNo.toLowerCase() === term ||
-        m.email.toLowerCase() === term ||
-        m.id.toLowerCase() === term
+        (m.memberCardNo && m.memberCardNo.toLowerCase() === term) ||
+        (m.barcode && m.barcode.toLowerCase() === term) ||
+        (m.email && m.email.toLowerCase() === term) ||
+        (m.id && m.id.toLowerCase() === term) ||
+        (m.rollNo && m.rollNo.toLowerCase() === term)
     );
 
     if (!member) {
@@ -4302,9 +4767,11 @@ class LibraryStoreService {
       if (normTerm) {
         member = current.members.find(
           (m) =>
-            m.memberCardNo.toLowerCase().replace(/[^a-z0-9]/g, '') === normTerm ||
-            m.email.toLowerCase().replace(/[^a-z0-9]/g, '') === normTerm ||
-            m.id.toLowerCase().replace(/[^a-z0-9]/g, '') === normTerm
+            (m.memberCardNo && m.memberCardNo.toLowerCase().replace(/[^a-z0-9]/g, '') === normTerm) ||
+            (m.barcode && m.barcode.toLowerCase().replace(/[^a-z0-9]/g, '') === normTerm) ||
+            (m.email && m.email.toLowerCase().replace(/[^a-z0-9]/g, '') === normTerm) ||
+            (m.id && m.id.toLowerCase().replace(/[^a-z0-9]/g, '') === normTerm) ||
+            (m.rollNo && m.rollNo.toLowerCase().replace(/[^a-z0-9]/g, '') === normTerm)
         );
       }
     }
@@ -4312,8 +4779,10 @@ class LibraryStoreService {
     if (!member) {
       member = current.members.find(
         (m) =>
-          term.includes(m.memberCardNo.toLowerCase()) ||
-          m.memberCardNo.toLowerCase().includes(term) ||
+          (m.memberCardNo && term.includes(m.memberCardNo.toLowerCase())) ||
+          (m.barcode && term.includes(m.barcode.toLowerCase())) ||
+          (m.memberCardNo && m.memberCardNo.toLowerCase().includes(term)) ||
+          (m.barcode && m.barcode.toLowerCase().includes(term)) ||
           m.name.toLowerCase().includes(term)
       );
     }
@@ -4333,6 +4802,7 @@ class LibraryStoreService {
         email: `${cleanCardNo.toLowerCase()}@college.edu`,
         role: role,
         memberCardNo: cleanCardNo,
+        barcode: cleanCardNo,
         department: 'Computer Science & Engineering',
         status: 'ACTIVE',
         maxAllowedBooks: role === 'FACULTY' ? 10 : role === 'ADMIN' ? 15 : 5,
@@ -4351,10 +4821,26 @@ class LibraryStoreService {
     }
 
     // 2. Validate Membership Status
-    if (member.status === 'SUSPENDED' || member.status === 'INACTIVE') {
+    if (member.status === 'PENDING_APPROVAL') {
       return {
         success: false,
-        message: `Membership status is ${member.status}. Access denied. Please report to circulation desk.`,
+        message: `Check-in Failed: Account for "${member.name}" is pending administrator approval. Barcode is inactive.`,
+        member,
+      };
+    }
+
+    if (member.status === 'SUSPENDED') {
+      return {
+        success: false,
+        message: `Check-in Failed: Account for "${member.name}" is SUSPENDED (${member.suspendedReason || 'Administrative hold'}). Access prohibited.`,
+        member,
+      };
+    }
+
+    if (member.status === 'REJECTED' || member.status === 'INACTIVE') {
+      return {
+        success: false,
+        message: `Membership status is ${member.status}. Access denied. Please contact library administration.`,
         member,
       };
     }

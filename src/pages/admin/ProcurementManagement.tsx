@@ -1348,8 +1348,8 @@ export default function ProcurementManagement() {
           </div>
 
           {/* Master Table Register */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-            <table className="w-full text-left text-xs text-slate-600 border-collapse">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-600 border-collapse min-w-[920px]">
               <thead className="bg-slate-50/90 border-b border-slate-200 font-extrabold uppercase tracking-wider text-slate-600 text-[11px]">
                 <tr>
                   <th className="py-3.5 px-4 w-[26%]">Book Details & Subject</th>

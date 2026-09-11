@@ -34,6 +34,11 @@ import { CopyCondition, ExtensionRequest, IssueTransaction, MemberProfile } from
 import BarcodeScannerModal from '../../components/common/BarcodeScannerModal';
 import { generateQrSvgString, getUpiPaymentUrl } from '../../utils/barcodeQrGenerator';
 import AuthorizedCirculationSeal, { generateAuthorizedSealHtml } from '../../components/common/AuthorizedCirculationSeal';
+import {
+  validateCodeForSection,
+  detectCodeType,
+  INVALID_SECTION_SCAN_MESSAGE,
+} from '../../utils/codeValidation';
 
 export default function ReturnBooks() {
   const navigate = useNavigate();
@@ -178,6 +183,42 @@ export default function ReturnBooks() {
     const code = (rawCode ?? terminalMemberInput).trim();
     if (!code) return;
 
+    const detectedType = detectCodeType(code, state);
+
+    // If a book copy barcode is scanned directly at Step 1, auto-detect active borrowing loan
+    if (detectedType === 'BOOK_COPY') {
+      const q = code.toLowerCase();
+      const directTx = activeTransactions.find(
+        (t) =>
+          t.barcode.toLowerCase() === q ||
+          t.accessionNo.toLowerCase() === q ||
+          t.id.toLowerCase() === q ||
+          t.bookCopyId.toLowerCase() === q
+      );
+
+      if (directTx) {
+        const borrower = state.members.find(
+          (m) => m.id === directTx.memberId || m.memberCardNo.toLowerCase() === directTx.memberCardNo.toLowerCase()
+        );
+        if (borrower) {
+          setTerminalMember(borrower);
+          setTerminalMemberInput(borrower.memberCardNo);
+          handleSelectBookTx(directTx);
+          return;
+        }
+      }
+    }
+
+    // Otherwise strictly validate that input is a MEMBER_CARD
+    const memVal = validateCodeForSection(code, 'MEMBER_CARD', state);
+    if (!memVal.isValid) {
+      setTerminalAlert({
+        type: 'error',
+        message: INVALID_SECTION_SCAN_MESSAGE,
+      });
+      return;
+    }
+
     let clean = code;
     if ((clean.startsWith('{') && clean.endsWith('}')) || (clean.startsWith('[') && clean.endsWith(']'))) {
       try {
@@ -285,6 +326,16 @@ export default function ReturnBooks() {
   const handleProcessBookInput = (rawCode?: string) => {
     const code = (rawCode ?? terminalBookInput).trim().toLowerCase();
     if (!code) return;
+
+    // Strict section validation: Step 2 only accepts BOOK_COPY
+    const copyVal = validateCodeForSection(code, 'BOOK_COPY', state);
+    if (!copyVal.isValid) {
+      setTerminalAlert({
+        type: 'error',
+        message: INVALID_SECTION_SCAN_MESSAGE,
+      });
+      return;
+    }
 
     const queryNorm = code.replace(/^(qr-|bc-|acc-|card-|id-)/i, '').replace(/[^a-z0-9]/g, '');
 
@@ -1283,7 +1334,7 @@ export default function ReturnBooks() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[760px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <th className="py-3.5 px-4">Accession / Barcode</th>

@@ -24,7 +24,15 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
 
-    const member = await Member.findOne({ email: email.toLowerCase().trim() });
+    const cleanIdentifier = (email || '').trim();
+    const member = await Member.findOne({
+      $or: [
+        { email: cleanIdentifier.toLowerCase() },
+        { memberCardNo: new RegExp(`^${cleanIdentifier}$`, 'i') },
+        { barcode: new RegExp(`^${cleanIdentifier}$`, 'i') },
+        { rollNo: new RegExp(`^${cleanIdentifier}$`, 'i') },
+      ],
+    });
     if (!member) {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
@@ -75,6 +83,7 @@ router.post('/login', async (req: Request, res: Response) => {
       status: member.status,
       department: member.department,
       memberCardNo: member.memberCardNo,
+      barcode: member.barcode || member.memberCardNo,
       rollNo: member.rollNo,
       avatarUrl: member.avatarUrl,
       phone: member.phone,

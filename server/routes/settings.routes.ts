@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { SystemConfigModel, CalendarEventModel, RolePermissionModel, UserPermissionModel } from '../models/Setting';
+import { authenticateToken, requireRole } from '../middleware/auth';
 
 const router = Router();
 
-// GET /api/settings/config
+// GET /api/settings/config - Public read for system library name / operating status
 router.get('/config', async (_req: Request, res: Response) => {
   try {
     let config = await SystemConfigModel.findOne({ key: 'main_config' }).lean();
@@ -16,8 +17,8 @@ router.get('/config', async (_req: Request, res: Response) => {
   }
 });
 
-// PUT /api/settings/config
-router.put('/config', async (req: Request, res: Response) => {
+// PUT /api/settings/config - Admin only
+router.put('/config', authenticateToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
     const update = req.body;
     let config = await SystemConfigModel.findOne({ key: 'main_config' });
@@ -33,8 +34,8 @@ router.put('/config', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/settings/permissions
-router.get('/permissions', async (_req: Request, res: Response) => {
+// GET /api/settings/permissions - Authenticated
+router.get('/permissions', authenticateToken, async (_req: Request, res: Response) => {
   try {
     const roleDocs = await RolePermissionModel.find().lean();
     const userDocs = await UserPermissionModel.find().lean();
@@ -55,8 +56,8 @@ router.get('/permissions', async (_req: Request, res: Response) => {
   }
 });
 
-// PUT /api/settings/permissions/role/:role
-router.put('/permissions/role/:role', async (req: Request, res: Response) => {
+// PUT /api/settings/permissions/role/:role - Admin only
+router.put('/permissions/role/:role', authenticateToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
     const { role } = req.params;
     const { permissions } = req.body;
@@ -75,8 +76,8 @@ router.put('/permissions/role/:role', async (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/settings/permissions/user/:userId
-router.put('/permissions/user/:userId', async (req: Request, res: Response) => {
+// PUT /api/settings/permissions/user/:userId - Admin only
+router.put('/permissions/user/:userId', authenticateToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { permissions } = req.body;
@@ -95,7 +96,7 @@ router.put('/permissions/user/:userId', async (req: Request, res: Response) => {
   }
 });
 
-// Calendar Events
+// Calendar Events - Public read, authenticated edit
 router.get('/calendar', async (_req: Request, res: Response) => {
   try {
     const events = await CalendarEventModel.find().sort({ date: 1 }).lean();
@@ -105,7 +106,7 @@ router.get('/calendar', async (_req: Request, res: Response) => {
   }
 });
 
-router.post('/calendar', async (req: Request, res: Response) => {
+router.post('/calendar', authenticateToken, requireRole('ADMIN', 'STAFF', 'LIBRARIAN'), async (req: Request, res: Response) => {
   try {
     const data = req.body;
     const event = new CalendarEventModel({
@@ -120,7 +121,7 @@ router.post('/calendar', async (req: Request, res: Response) => {
   }
 });
 
-router.delete('/calendar/:id', async (req: Request, res: Response) => {
+router.delete('/calendar/:id', authenticateToken, requireRole('ADMIN', 'STAFF', 'LIBRARIAN'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     await CalendarEventModel.deleteOne({ id });

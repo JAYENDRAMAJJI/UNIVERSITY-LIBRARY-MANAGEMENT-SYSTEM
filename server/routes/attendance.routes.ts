@@ -35,6 +35,7 @@ router.post('/check-in', async (req: Request, res: Response) => {
       $or: [
         { id: term },
         { memberCardNo: new RegExp(`^${term}$`, 'i') },
+        { barcode: new RegExp(`^${term}$`, 'i') },
         { rollNo: new RegExp(`^${term}$`, 'i') },
         { email: term.toLowerCase() },
       ],
@@ -60,33 +61,27 @@ router.post('/check-in', async (req: Request, res: Response) => {
 
     const now = new Date();
     const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const timeStr = `${dateStr} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    const checkInTimeStr = `${dateStr} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-    const record = new Attendance({
+    const newRecord = new Attendance({
       id: `att-${Date.now()}`,
       memberId: member.id,
       memberName: member.name,
       memberCardNo: member.memberCardNo,
       role: member.role,
       department: member.department,
-      email: member.email,
-      checkInTime: timeStr,
+      date: dateStr,
+      checkInTime: checkInTimeStr,
       status: 'IN_LIBRARY',
-      entryGate,
       purposeOfVisit,
       verificationMethod,
+      entryGate,
       checkedInBy,
       notes,
-      date: dateStr,
     });
 
-    await record.save();
-
-    return res.status(201).json({
-      success: true,
-      message: `Welcome ${member.name}! Check-in recorded at ${timeStr}.`,
-      record,
-    });
+    await newRecord.save();
+    return res.status(201).json({ success: true, message: `Check-in successful for ${member.name}.`, record: newRecord });
   } catch (err: any) {
     console.error('Check-in error:', err);
     return res.status(500).json({ success: false, message: 'Failed to record check-in', error: err.message });
@@ -107,6 +102,7 @@ router.post('/check-out', async (req: Request, res: Response) => {
         $or: [
           { id: term },
           { memberCardNo: new RegExp(`^${term}$`, 'i') },
+          { barcode: new RegExp(`^${term}$`, 'i') },
           { rollNo: new RegExp(`^${term}$`, 'i') },
           { email: term.toLowerCase() },
         ],

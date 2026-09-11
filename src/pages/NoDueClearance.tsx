@@ -120,7 +120,7 @@ export default function NoDueClearance() {
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-16">
+    <div className="w-full max-w-7xl 2xl:max-w-[1600px] mx-auto min-w-0 space-y-6 pb-16">
       {/* Top Header Card */}
       <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-900 p-6 sm:p-9 rounded-3xl border border-slate-800/80 shadow-xl space-y-4 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />

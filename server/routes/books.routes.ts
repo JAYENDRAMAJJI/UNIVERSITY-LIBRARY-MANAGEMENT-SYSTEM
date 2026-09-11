@@ -28,11 +28,12 @@ router.post('/', async (req: Request, res: Response) => {
         const copyNum = i + 1;
         const padNum = String(copyNum).padStart(3, '0');
         const randomHex = Math.floor(1000 + Math.random() * 9000);
+        const randomBarcode = Math.floor(100000 + Math.random() * 900000);
         return {
           id: `copy-${Date.now()}-${padNum}`,
           bookId,
           accessionNo: `ACC-${new Date().getFullYear()}-${padNum}-${randomHex}`,
-          barcode: `BC-${Date.now().toString().slice(-4)}${padNum}`,
+          barcode: `BC-${randomBarcode}`,
           qrCode: `QR-${bookId}-${padNum}`,
           rackNumber: data.rackNumber || 'R01',
           shelfNumber: data.shelfNumber || 'R01-S01',
@@ -113,11 +114,12 @@ router.post('/:id/copies', async (req: Request, res: Response) => {
       const copyNum = (book.copies?.length || 0) + i + 1;
       const padNum = String(copyNum).padStart(3, '0');
       const randomHex = Math.floor(1000 + Math.random() * 9000);
+      const randomBarcode = Math.floor(100000 + Math.random() * 900000);
       return {
         id: `copy-${Date.now()}-${padNum}`,
         bookId: id,
         accessionNo: `ACC-${new Date().getFullYear()}-${padNum}-${randomHex}`,
-        barcode: `BC-${Date.now().toString().slice(-4)}${padNum}`,
+        barcode: `BC-${randomBarcode}`,
         qrCode: `QR-${id}-${padNum}`,
         rackNumber: rackNumber || book.rackNumber || 'R01',
         shelfNumber: shelfNumber || book.shelfNumber || 'R01-S01',

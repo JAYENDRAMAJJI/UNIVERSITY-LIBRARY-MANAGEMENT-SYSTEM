@@ -34,6 +34,10 @@ import { useAuth } from '../../context/AuthContext';
 import BarcodeScannerModal from '../../components/common/BarcodeScannerModal';
 import UniversityCalendarSection from '../../components/admin/UniversityCalendarSection';
 import {
+  validateCodeForSection,
+  INVALID_SECTION_SCAN_MESSAGE,
+} from '../../utils/codeValidation';
+import {
   AttendanceRecord,
   AttendanceStatus,
   Role,
@@ -403,6 +407,17 @@ export default function AttendanceManagement() {
     }
 
     const term = scanInput.trim();
+
+    const val = validateCodeForSection(term, 'MEMBER_CARD', libraryStore.snapshot);
+    if (!val.isValid) {
+      setLastScanResult({
+        success: false,
+        message: INVALID_SECTION_SCAN_MESSAGE,
+      });
+      setScanInput('');
+      return;
+    }
+
     const autoMethod = detectVerificationMethod(term, verificationMethod);
     setVerificationMethod(autoMethod);
 
@@ -445,6 +460,17 @@ export default function AttendanceManagement() {
     }
 
     const term = scanInput.trim();
+
+    const val = validateCodeForSection(term, 'MEMBER_CARD', libraryStore.snapshot);
+    if (!val.isValid) {
+      setLastScanResult({
+        success: false,
+        message: INVALID_SECTION_SCAN_MESSAGE,
+      });
+      setScanInput('');
+      return;
+    }
+
     const autoMethod = detectVerificationMethod(term, verificationMethod);
     setVerificationMethod(autoMethod);
 
@@ -928,11 +954,21 @@ export default function AttendanceManagement() {
               isOpen={isStudentScannerOpen}
               onClose={() => setIsStudentScannerOpen(false)}
               onScanSuccess={(scannedCode, detectedMethod) => {
-                const autoMethod = (detectedMethod as VerificationMethod) || detectVerificationMethod(scannedCode, 'BARCODE');
+                const clean = (scannedCode || '').trim();
+                const val = validateCodeForSection(clean, 'MEMBER_CARD', libraryStore.snapshot);
+                if (!val.isValid) {
+                  setLastScanResult({
+                    success: false,
+                    message: INVALID_SECTION_SCAN_MESSAGE,
+                  });
+                  return;
+                }
+
+                const autoMethod = (detectedMethod as VerificationMethod) || detectVerificationMethod(clean, 'BARCODE');
                 setVerificationMethod(autoMethod);
                 setIsAutoDetectedMethod(true);
-                setScanInput(scannedCode);
-                const qClean = scannedCode.trim().toLowerCase();
+                setScanInput(clean);
+                const qClean = clean.toLowerCase();
                 const qNorm = qClean.replace(/[^a-z0-9]/g, '');
                 const qNoPrefix = qClean.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
 
@@ -959,7 +995,7 @@ export default function AttendanceManagement() {
                   res = libraryStore.checkOutMember(activeSession.id, user?.name || 'Scan Kiosk');
                 } else {
                   res = libraryStore.checkInMember(
-                    scannedCode,
+                    clean,
                     autoMethod,
                     purposeOfVisit,
                     entryGate,
@@ -969,8 +1005,8 @@ export default function AttendanceManagement() {
                 setLastScanResult(res);
                 setScanInput('');
               }}
-              scannerType="STUDENT_ID"
-              title="Scan Member / ID Card Pass"
+              scannerType="MEMBER_CARD"
+              title="Scan Member Library ID Card"
             />
 
             {/* Library Closed Info Banner */}

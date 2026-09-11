@@ -247,8 +247,8 @@ export default function BooksManagement() {
     description: '',
     coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400&q=80',
     totalCopies: 3,
-    rackNumber: 'RACK-CS-01',
-    shelfNumber: 'SHELF-A1',
+    rackNumber: '',
+    shelfNumber: '',
     isFeatured: false,
     isBookOfMonth: false,
     department: 'Engineering & Technology',
@@ -262,6 +262,29 @@ export default function BooksManagement() {
     keywords: 'algorithm, computer-science, textbook',
     condition: 'NEW' as CopyCondition,
   });
+
+  // Canonical Academic Racks List (R01 to R24)
+  const availableRacks = useMemo(() => {
+    return (state.racks && state.racks.length > 0 ? state.racks : ACADEMIC_RACK_HIERARCHY);
+  }, [state.racks]);
+
+  // Helper to extract 5-shelf tier options (S01–S05) for any selected rack
+  const getShelfOptionsForRack = (rackCode: string) => {
+    const rack = availableRacks.find((r) => r.rackCode === rackCode || r.rackId === rackCode);
+    if (rack && Array.isArray(rack.shelves) && rack.shelves.length > 0) {
+      return rack.shelves.slice(0, 5).map((s) => ({
+        id: s.shelfId,
+        label: `${s.shelfId} — ${s.shelfName}`,
+      }));
+    }
+    return [
+      { id: 'S01', label: 'S01 — Shelf Tier 01 (Core Fundamentals)' },
+      { id: 'S02', label: 'S02 — Shelf Tier 02 (Advanced Reference)' },
+      { id: 'S03', label: 'S03 — Shelf Tier 03 (Research & Specialized)' },
+      { id: 'S04', label: 'S04 — Shelf Tier 04 (Applied Manuals)' },
+      { id: 'S05', label: 'S05 — Shelf Tier 05 (General Literature)' },
+    ];
+  };
 
   // Centralized Taxonomy & Master Data Filter States
   const [taxonomyFilter, setTaxonomyFilter] = useState<{
@@ -377,8 +400,8 @@ export default function BooksManagement() {
       description: book.description || '',
       coverUrl: book.coverUrl || '',
       totalCopies: book.totalCopies || 1,
-      rackNumber: book.rackNumber || 'RACK-CS-01',
-      shelfNumber: book.shelfNumber || 'SHELF-A1',
+      rackNumber: book.rackNumber || '',
+      shelfNumber: book.shelfNumber || '',
       isFeatured: !!book.isFeatured,
       isBookOfMonth: !!book.isBookOfMonth,
       department: book.department || 'Engineering & Technology',
@@ -396,6 +419,11 @@ export default function BooksManagement() {
   const handleSaveEditBook = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBook) return;
+
+    if (!editFormData.rackNumber || !editFormData.shelfNumber) {
+      triggerToast('Please manually select both Academic Rack and Shelf Number (S01–S05).');
+      return;
+    }
 
     libraryStore.updateBook(editingBook.id, {
       ...editFormData,
@@ -842,6 +870,11 @@ export default function BooksManagement() {
       return;
     }
 
+    if (!addFormData.rackNumber || !addFormData.shelfNumber) {
+      triggerToast('Please manually select both Academic Rack and Shelf Number (S01–S05).');
+      return;
+    }
+
     // Duplicate ISBN validation check
     const existingBookWithIsbn = state.books.find((b) => b.isbn.replace(/-/g, '') === addFormData.isbn.replace(/-/g, ''));
     if (existingBookWithIsbn) {
@@ -936,6 +969,14 @@ export default function BooksManagement() {
     );
 
     setShowAddModal(false);
+    setAddFormData((prev) => ({
+      ...prev,
+      title: '',
+      isbn: '',
+      rackNumber: '',
+      shelfNumber: '',
+      description: '',
+    }));
     triggerToast(`"${addFormData.title}" added to catalog with author "${finalAuthorName}" and ${addFormData.totalCopies} accession copies!`);
   };
 
@@ -2160,33 +2201,52 @@ export default function BooksManagement() {
                   />
                 </div>
 
-                <div className="sm:col-span-2">
-                  <label className="block font-bold text-slate-700 mb-1">Academic Rack & 5-Shelf Placement</label>
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Academic Rack &amp; 5-Shelf Placement <span className="text-rose-500">*</span>
+                  </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <select
-                      value={addFormData.rackNumber}
-                      onChange={(e) => setAddFormData({ ...addFormData, rackNumber: e.target.value })}
-                      className="px-2.5 py-2 border rounded-xl font-semibold text-slate-800 text-xs"
-                    >
-                      {(state.racks || ACADEMIC_RACK_HIERARCHY).map((r) => (
-                        <option key={r.rackCode} value={r.rackCode}>
-                          {r.rackName}
-                        </option>
-                      ))}
-                    </select>
+                    <div>
+                      <select
+                        required
+                        value={addFormData.rackNumber}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setAddFormData((prev) => ({ ...prev, rackNumber: val }));
+                        }}
+                        className="w-full px-2.5 py-2 border border-slate-300 rounded-xl font-semibold text-slate-800 text-xs bg-white focus:ring-2 focus:ring-purple-500 transition-all cursor-pointer"
+                      >
+                        <option value="">-- Select Rack Number --</option>
+                        {availableRacks.map((r) => (
+                          <option key={r.rackCode} value={r.rackCode}>
+                            {r.rackName || `${r.rackCode} — ${r.degreeName}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                    <select
-                      value={addFormData.shelfNumber}
-                      onChange={(e) => setAddFormData({ ...addFormData, shelfNumber: e.target.value })}
-                      className="px-2.5 py-2 border rounded-xl font-semibold text-slate-800 text-xs"
-                    >
-                      {(((state.racks || ACADEMIC_RACK_HIERARCHY).find((r) => r.rackCode === addFormData.rackNumber || r.rackId === addFormData.rackNumber) || (state.racks || ACADEMIC_RACK_HIERARCHY)[0]).shelves || []).map((s) => (
-                        <option key={s.shelfId} value={s.shelfId}>
-                          {s.shelfId} — {s.shelfName}
-                        </option>
-                      ))}
-                    </select>
+                    <div>
+                      <select
+                        required
+                        value={addFormData.shelfNumber}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setAddFormData((prev) => ({ ...prev, shelfNumber: val }));
+                        }}
+                        className="w-full px-2.5 py-2 border border-slate-300 rounded-xl font-semibold text-slate-800 text-xs bg-white focus:ring-2 focus:ring-purple-500 transition-all cursor-pointer"
+                      >
+                        <option value="">-- Select Shelf Number (S01–S05) --</option>
+                        {getShelfOptionsForRack(addFormData.rackNumber).map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
+                  <p className="text-[10.5px] text-slate-500">
+                    Manually choose both the Academic Rack and Shelf Number (S01–S05) for physical placement.
+                  </p>
                 </div>
 
                 <div>
@@ -2350,35 +2410,51 @@ export default function BooksManagement() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Academic Domain Rack</label>
-                  <select
-                    value={editFormData.rackNumber}
-                    onChange={(e) => setEditFormData({ ...editFormData, rackNumber: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-xl font-semibold text-slate-800 text-xs"
-                  >
-                    {(state.racks || ACADEMIC_RACK_HIERARCHY).map((r) => (
-                      <option key={r.rackCode} value={r.rackCode}>
-                        {r.rackName}
-                      </option>
-                    ))}
-                  </select>
+              <div className="sm:col-span-2 space-y-1.5">
+                <label className="block font-bold text-slate-700 mb-1">
+                  Academic Rack &amp; 5-Shelf Placement <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <select
+                      required
+                      value={editFormData.rackNumber}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEditFormData((prev) => ({ ...prev, rackNumber: val }));
+                      }}
+                      className="w-full px-2.5 py-2 border border-slate-300 rounded-xl font-semibold text-slate-800 text-xs bg-white focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                    >
+                      <option value="">-- Select Rack Number --</option>
+                      {availableRacks.map((r) => (
+                        <option key={r.rackCode} value={r.rackCode}>
+                          {r.rackName || `${r.rackCode} — ${r.degreeName}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <select
+                      required
+                      value={editFormData.shelfNumber}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEditFormData((prev) => ({ ...prev, shelfNumber: val }));
+                      }}
+                      className="w-full px-2.5 py-2 border border-slate-300 rounded-xl font-semibold text-slate-800 text-xs bg-white focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                    >
+                      <option value="">-- Select Shelf Number (S01–S05) --</option>
+                      {getShelfOptionsForRack(editFormData.rackNumber).map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Shelf Tier Level</label>
-                  <select
-                    value={editFormData.shelfNumber}
-                    onChange={(e) => setEditFormData({ ...editFormData, shelfNumber: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-xl font-semibold text-slate-800 text-xs"
-                  >
-                    {(((state.racks || ACADEMIC_RACK_HIERARCHY).find((r) => r.rackCode === editFormData.rackNumber || r.rackId === editFormData.rackNumber) || (state.racks || ACADEMIC_RACK_HIERARCHY)[0]).shelves || []).map((s) => (
-                      <option key={s.shelfId} value={s.shelfId}>
-                        {s.shelfId} — {s.shelfName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <p className="text-[10.5px] text-slate-500">
+                  Manually choose both the Academic Rack and Shelf Number (S01–S05) for physical placement.
+                </p>
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
@@ -2403,6 +2479,7 @@ export default function BooksManagement() {
           setIsAddBookScannerOpen(false);
           openFetchMetadataModal(code);
         }}
+        scannerType="ISBN"
         title="Scan Book ISBN Barcode"
       />
 
@@ -2414,6 +2491,7 @@ export default function BooksManagement() {
           setIsCatalogSearchScannerOpen(false);
           triggerToast(`🔍 Filtered catalog by scanned barcode "${code}"`);
         }}
+        scannerType="BOOK_COPY"
         title="Scan Barcode / Accession Tag to Search Catalog"
       />
 

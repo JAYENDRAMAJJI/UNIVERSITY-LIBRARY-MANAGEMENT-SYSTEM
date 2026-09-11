@@ -215,8 +215,8 @@ export default function BookReservationsQueue() {
 
         {/* Holds Table */}
         {filteredReservations.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs min-w-[720px] text-slate-600">
               <thead className="bg-slate-50/80 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-100">
                 <tr>
                   <th className="p-4 rounded-l-2xl">Book Title & ID</th>

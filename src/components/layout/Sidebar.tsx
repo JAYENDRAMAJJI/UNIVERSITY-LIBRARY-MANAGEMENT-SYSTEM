@@ -149,6 +149,32 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       .filter((sec) => sec.links.length > 0);
   };
 
+  const getStaffSections = () => [
+    {
+      title: 'CIRCULATION DESK',
+      links: [
+        { to: '/staff/dashboard', icon: LayoutDashboard, label: 'Staff Operations Desk' },
+        { to: '/admin/issue-books', icon: ScanBarcode, label: 'Issue Books Desk' },
+        { to: '/admin/return-books', icon: RotateCcw, label: 'Return Books Desk' },
+        { to: '/admin/renew-books', icon: RefreshCw, label: 'Extend Book Time' },
+        { to: '/admin/attendance', icon: UserCheck, label: 'Door Attendance Desk' },
+        { to: '/admin/borrow-history', icon: History, label: 'Circulation History' },
+        { to: '/admin/reservations', icon: Bell, label: 'Hold Requests Queue' },
+        { to: '/admin/fines', icon: IndianRupee, label: 'Fine Collections' },
+      ],
+    },
+    {
+      title: 'CATALOG & MEMBERS',
+      links: [
+        { to: '/catalog', icon: BookOpen, label: 'Books Catalog' },
+        { to: '/admin/inventory', icon: Tag, label: 'Inventory & Shelves' },
+        { to: '/admin/approvals', icon: UserCheck, label: 'Account Approvals', badgeCount: pendingApprovalsCount },
+        { to: '/admin/members', icon: Users, label: 'Member Directory' },
+        { to: '/notifications', icon: Bell, label: 'Notifications & Alerts' },
+      ],
+    },
+  ];
+
   const getFacultySections = () => [
     {
       title: 'FACULTY WORKSPACE',
@@ -172,6 +198,34 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
       title: 'RESOURCES & GUIDELINES',
       links: [
         { to: '/downloads', icon: FileText, label: 'Library Forms & Downloads' },
+        { to: '/notifications', icon: Bell, label: 'Notifications & Alerts' },
+      ],
+    },
+  ];
+
+  const getScholarSections = () => [
+    {
+      title: 'DOCTORAL WORKSPACE',
+      links: [
+        { to: '/research-scholar/dashboard', icon: LayoutDashboard, label: 'Doctoral Scholar Portal' },
+        { to: '/reservations', icon: Bookmark, label: 'Reservations Queue' },
+        { to: '/extensions', icon: RefreshCw, label: 'Extend Book Time' },
+        { to: '/fines', icon: IndianRupee, label: 'My Fines & Dues' },
+        { to: '/no-due', icon: Award, label: 'Apply for No Due' },
+        { to: '/borrow-history', icon: History, label: 'My Borrowed Books' },
+      ],
+    },
+    {
+      title: 'RESEARCH & THESIS VAULT',
+      links: [
+        { to: '/catalog', icon: BookOpen, label: 'Books Catalog' },
+        { to: '/digital-resources', icon: Download, label: 'Digital Library & Papers' },
+      ],
+    },
+    {
+      title: 'RESOURCES & DOWNLOADS',
+      links: [
+        { to: '/downloads', icon: FileText, label: 'Library Downloads & Forms' },
         { to: '/notifications', icon: Bell, label: 'Notifications & Alerts' },
       ],
     },
@@ -206,17 +260,21 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
   ];
 
   const sections =
-    user?.role === 'ADMIN' || user?.role === 'STAFF'
+    user?.role === 'ADMIN'
       ? getAdminSections()
+      : user?.role === 'STAFF' || user?.role === 'LIBRARIAN'
+      ? getStaffSections()
       : user?.role === 'FACULTY'
       ? getFacultySections()
+      : user?.role === 'RESEARCH_SCHOLAR'
+      ? getScholarSections()
       : getStudentSections();
 
   const renderNavContent = () => (
-    <nav className="p-5 space-y-6">
+    <nav className="p-3.5 sm:p-4 space-y-4 sm:space-y-5">
       {sections.map((section) => (
         <div key={section.title} className="space-y-1">
-          <p className="px-3 text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">{section.title}</p>
+          <p className="px-2.5 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">{section.title}</p>
           {section.links.map((link) => {
             const active = isLinkActive(link.to);
             return (
@@ -224,17 +282,17 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
                 key={link.to}
                 to={link.to}
                 onClick={onCloseMobile}
-                className={`group relative flex items-center gap-3.5 rounded-2xl px-3.5 py-2.5 transition-all duration-200 text-sm font-semibold cursor-pointer ${
+                className={`group relative flex items-center gap-2.5 rounded-xl px-3 py-2 transition-all duration-200 text-xs sm:text-[13px] font-semibold cursor-pointer ${
                   active
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-200 font-bold'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <link.icon className="h-5 w-5 shrink-0" />
+                <link.icon className="h-4.5 w-4.5 shrink-0" />
                 <span className="flex-1 truncate">{link.label}</span>
                 {link.to === '/notifications' && unreadCount > 0 && (
                   <span
-                    className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-xs shrink-0 ${
+                    className={`text-[9.5px] font-extrabold px-1.5 py-0.2 rounded-full shadow-xs shrink-0 ${
                       active
                         ? 'bg-white text-blue-700'
                         : 'bg-rose-600 text-white animate-pulse'
@@ -245,7 +303,7 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
                 )}
                 {(link as any).badgeCount !== undefined && (link as any).badgeCount > 0 && (
                   <span
-                    className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-xs shrink-0 ${
+                    className={`text-[9.5px] font-extrabold px-1.5 py-0.2 rounded-full shadow-xs shrink-0 ${
                       active
                         ? 'bg-white text-amber-800'
                         : 'bg-amber-500 text-white animate-pulse'
@@ -265,7 +323,7 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
   return (
     <>
       {/* Fixed Desktop Sidebar */}
-      <aside className="w-64 lg:w-72 xl:w-80 hidden md:flex flex-col shrink-0 bg-white border-r border-slate-200 h-full overflow-y-auto z-30 select-none">
+      <aside className="w-56 md:w-60 lg:w-64 xl:w-72 hidden md:flex flex-col shrink-0 bg-white border-r border-slate-200/80 h-full overflow-y-auto z-30 select-none">
         {renderNavContent()}
       </aside>
 

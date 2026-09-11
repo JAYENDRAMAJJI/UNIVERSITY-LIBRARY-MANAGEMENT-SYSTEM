@@ -334,7 +334,7 @@ export default function BookTimeExtensions() {
         {/* Requests Table */}
         {filteredExtensionRequests.length > 0 ? (
           <div className="overflow-x-auto rounded-2xl border border-slate-100">
-            <table className="w-full text-left text-xs text-slate-600">
+            <table className="w-full text-left text-xs text-slate-600 min-w-[800px]">
               <thead className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200/80">
                 <tr>
                   <th className="py-3.5 px-4">Book Title & Accession</th>
@@ -425,8 +425,8 @@ export default function BookTimeExtensions() {
 
       {/* Extension Request Modal */}
       {extensionModalTx && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-200 max-h-[90vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-lg font-poppins text-slate-900 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-purple-600" /> Request Book Return Extension

@@ -33,21 +33,24 @@ import {
   X,
   Layers,
   ChevronDown,
+  FlaskConical,
 } from 'lucide-react';
 import RegisterAccountModal from '../../components/common/RegisterAccountModal';
 import BrandLogo from '../../components/common/BrandLogo';
 
-function getDashboardPath(role: Role) {
+export function getDashboardPath(role: Role): string {
   switch (role) {
     case 'ADMIN':
-    case 'LIBRARIAN':
       return '/admin/dashboard';
+    case 'STAFF':
+    case 'LIBRARIAN':
+      return '/staff/dashboard';
     case 'FACULTY':
       return '/faculty/dashboard';
+    case 'RESEARCH_SCHOLAR':
+      return '/research-scholar/dashboard';
     case 'STUDENT':
       return '/student/dashboard';
-    case 'STAFF':
-      return '/admin/dashboard';
     default:
       return '/';
   }
@@ -57,11 +60,10 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<Role>('STUDENT');
+  const [selectedRole, setSelectedRole] = useState<Role | 'AUTO'>('STUDENT');
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showDemoList, setShowDemoList] = useState(false);
   const [statusModal, setStatusModal] = useState<{
     type: 'PENDING_APPROVAL' | 'REJECTED' | 'SUSPENDED';
     title: string;
@@ -104,41 +106,49 @@ export default function Login() {
     role: Role;
     title: string;
     subtitle: string;
-    demoEmail: string;
     icon: React.ElementType;
     badge: string;
+    demoEmail: string;
   }> = [
     {
       role: 'STUDENT',
-      title: 'Student Scholar',
+      title: 'Student',
       subtitle: 'Self-service extensions, OPAC & e-books',
-      demoEmail: 'jayendramajji22@gmail.com',
       icon: GraduationCap,
       badge: 'Student Portal',
+      demoEmail: 'student@college.edu',
     },
     {
       role: 'FACULTY',
-      title: 'Faculty / Professor',
+      title: 'Faculty',
       subtitle: '30-day loans, paper uploads & procurement',
-      demoEmail: 'faculty@college.edu',
       icon: Briefcase,
       badge: 'Faculty Portal',
+      demoEmail: 'faculty@college.edu',
     },
     {
-      role: 'ADMIN',
-      title: 'Admin Desk',
-      subtitle: 'Account approvals, circulation & catalog',
-      demoEmail: 'admin@college.edu',
-      icon: ShieldCheck,
-      badge: 'Admin Desk',
+      role: 'RESEARCH_SCHOLAR',
+      title: 'Scholar',
+      subtitle: '60-day loans, thesis vault & research papers',
+      icon: FlaskConical,
+      badge: 'Scholar Portal',
+      demoEmail: 'scholar@college.edu',
     },
     {
       role: 'STAFF',
-      title: 'Library Staff',
-      subtitle: 'Counter circulation & book check-in desk',
-      demoEmail: 'staff@college.edu',
+      title: 'Staff',
+      subtitle: 'Counter circulation & door attendance desk',
       icon: User,
       badge: 'Staff Desk',
+      demoEmail: 'staff@college.edu',
+    },
+    {
+      role: 'ADMIN',
+      title: 'Admin',
+      subtitle: 'Account approvals, circulation & catalog',
+      icon: ShieldCheck,
+      badge: 'Admin Desk',
+      demoEmail: 'admin@college.edu',
     },
   ];
 
@@ -149,9 +159,16 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const authenticatedUser = await login(email, password, selectedRole);
-      const targetPath = from === '/' || from === '/login' ? getDashboardPath(authenticatedUser.role) : from;
-      navigate(targetPath, { replace: true });
+      const authenticatedUser = await login(
+        email,
+        password,
+        selectedRole === 'AUTO' ? undefined : selectedRole
+      );
+      const destination =
+        from === '/' || from === '/login' || from === '/register'
+          ? getDashboardPath(authenticatedUser.role)
+          : from;
+      navigate(destination, { replace: true });
     } catch (err: any) {
       const errMsg = err.message || 'Failed to authenticate credentials.';
 
@@ -181,15 +198,9 @@ export default function Login() {
     }
   };
 
-  const handleSelectRole = (role: Role) => {
-    setSelectedRole(role);
-    setError('');
-    setStatusModal(null);
-  };
-
-  const handleFillDemo = (demoEmail: string, role: Role) => {
-    setSelectedRole(role);
-    setEmail(demoEmail);
+  const handleSelectRole = (r: (typeof roleList)[0]) => {
+    setSelectedRole(r.role);
+    setEmail(r.demoEmail);
     setPassword('password123');
     setError('');
     setStatusModal(null);
@@ -215,42 +226,43 @@ export default function Login() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center flex flex-col items-center justify-center space-y-3 z-10 pt-8 sm:pt-0">
         <BrandLogo variant="dark" size="md" showTagline={true} />
         <p className="text-xs sm:text-sm text-slate-400">
-          Institutional Role-Based Portal Authentication Gateway
+          Institutional Role-Based Portal Gateway
         </p>
       </div>
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-xl z-10">
-        {/* Role Switcher Tabs */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+        {/* 5 Authorized Roles Selector Tabs */}
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2 mb-4">
           {roleList.map((r) => (
             <button
               key={r.role}
               type="button"
-              onClick={() => handleSelectRole(r.role)}
-              className={`p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
+              onClick={() => handleSelectRole(r)}
+              className={`p-2.5 sm:p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1 ${
                 selectedRole === r.role
                   ? 'bg-blue-600/20 border-blue-400/60 text-white shadow-lg shadow-blue-500/10 ring-2 ring-blue-500/30'
                   : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
               }`}
+              title={`Quick-fill ${r.title} Demo Account`}
             >
-              <r.icon className={`w-5 h-5 ${selectedRole === r.role ? 'text-blue-400' : 'text-slate-500'}`} />
-              <span className="text-[11px] font-bold">{r.title}</span>
+              <r.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${selectedRole === r.role ? 'text-blue-400' : 'text-slate-500'}`} />
+              <span className="text-[10px] sm:text-[11px] font-bold truncate w-full">{r.title}</span>
             </button>
           ))}
         </div>
 
         {/* Login Form Card */}
         <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-          {/* Header Description for selected role */}
+          {/* Header Description */}
           <div className="flex flex-col items-center justify-center text-center border-b border-slate-800/80 pb-4 space-y-2">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-400/20">
-              {selectedRole} AUTHENTICATION
+              {selectedRole.replace('_', ' ')} PORTAL LOGIN
             </span>
             <h3 className="text-base sm:text-lg font-bold text-white">
-              Sign in to your {selectedRole.toLowerCase()} account
+              Sign in with institutional credentials
             </h3>
             <p className="text-xs text-slate-400">
-              Enter your registered institutional credentials to access your dashboard.
+              Role is automatically detected to route you to your authorized dashboard.
             </p>
           </div>
 
@@ -274,7 +286,7 @@ export default function Login() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. name@college.edu or STU-2026-7326"
+                  placeholder="e.g. name@college.edu or STU-2022-0891"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-950/60 border border-slate-700/80 text-white text-xs placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all font-medium"
@@ -318,53 +330,12 @@ export default function Login() {
                 </>
               ) : (
                 <>
-                  <span>Sign In to {selectedRole} Dashboard</span>
+                  <span>Sign In & Open Dashboard</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
-
-          {/* Quick Demo Credentials Assistant (Optional Helper) */}
-          <div className="pt-2 border-t border-slate-800/80">
-            <button
-              type="button"
-              onClick={() => setShowDemoList(!showDemoList)}
-              className="w-full py-2 px-3 text-xs text-slate-400 hover:text-slate-200 flex items-center justify-between rounded-xl hover:bg-slate-800/50 transition-colors"
-            >
-              <span className="flex items-center gap-1.5 font-semibold">
-                <KeyRound className="w-3.5 h-3.5 text-blue-400" />
-                Need test credentials? Click for Demo Accounts
-              </span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${showDemoList ? 'rotate-180' : ''}`} />
-            </button>
-
-            {showDemoList && (
-              <div className="mt-2 p-3 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2 text-xs">
-                <p className="text-[11px] text-slate-400">
-                  Click any account below to populate test credentials (Password: <code className="text-blue-400">password123</code>):
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {roleList.map((r) => (
-                    <button
-                      key={r.role}
-                      type="button"
-                      onClick={() => handleFillDemo(r.demoEmail, r.role)}
-                      className="p-2 text-left rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/40 transition-all flex items-center justify-between group"
-                    >
-                      <div className="min-w-0">
-                        <span className="text-[10px] font-bold text-blue-400 block">{r.title}</span>
-                        <span className="text-[11px] text-slate-300 font-mono truncate block">{r.demoEmail}</span>
-                      </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-blue-600/20 text-blue-300 border border-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                        Fill
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* Registration CTA */}
           <div className="pt-2 border-t border-slate-800/80 text-center space-y-3">
@@ -374,10 +345,10 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setIsRegisterModalOpen(true)}
-              className="w-full py-2.5 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 text-white font-bold text-xs border border-slate-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700/80 hover:border-slate-600 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md group"
             >
-              <UserPlus className="w-4 h-4 text-emerald-400" />
-              <span>Create Library Account (Submit for Admin Approval)</span>
+              <UserPlus className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+              <span>Register for Library Account</span>
             </button>
           </div>
         </div>

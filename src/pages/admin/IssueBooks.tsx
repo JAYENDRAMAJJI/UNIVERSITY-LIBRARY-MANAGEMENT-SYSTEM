@@ -22,6 +22,11 @@ import { MemberProfile, IssueTransaction } from '../../types/library';
 import BarcodeScannerModal from '../../components/common/BarcodeScannerModal';
 import { generateBarcodeSvgString } from '../../utils/barcodeQrGenerator';
 import AuthorizedCirculationSeal, { generateAuthorizedSealHtml } from '../../components/common/AuthorizedCirculationSeal';
+import {
+  validateCodeForSection,
+  findMemberByScannedCode,
+  INVALID_SECTION_SCAN_MESSAGE,
+} from '../../utils/codeValidation';
 
 export default function IssueBooks() {
   const [searchParams] = useSearchParams();
@@ -226,38 +231,46 @@ export default function IssueBooks() {
       !term ||
       m.name.toLowerCase().includes(term) ||
       m.memberCardNo.toLowerCase().includes(term) ||
+      (m.barcode && m.barcode.toLowerCase().includes(term)) ||
       m.email.toLowerCase().includes(term) ||
+      (m.rollNo && m.rollNo.toLowerCase().includes(term)) ||
       (m.department && m.department.toLowerCase().includes(term));
     return matchesRole && matchesSearch;
   });
 
   const selectedMember: MemberProfile | undefined = useMemo(() => {
     if (!selectedMemberId) return undefined;
+    const resolved = findMemberByScannedCode(selectedMemberId, state);
+    if (resolved.member) return resolved.member;
+
     const qClean = selectedMemberId.trim().toLowerCase();
     const qNorm = qClean.replace(/[^a-z0-9]/g, '');
     const qNoPrefix = qClean.replace(/^(qr-|bc-|barcode-|bar-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
 
     return state.members.find((m) => {
       const cLower = m.memberCardNo.toLowerCase();
+      const bLower = (m.barcode || '').toLowerCase();
       const idLower = m.id.toLowerCase();
       const eLower = m.email.toLowerCase();
 
-      if (cLower === qClean || idLower === qClean || eLower === qClean) return true;
+      if (cLower === qClean || bLower === qClean || idLower === qClean || eLower === qClean) return true;
 
       const cNorm = cLower.replace(/[^a-z0-9]/g, '');
+      const bNorm = bLower.replace(/[^a-z0-9]/g, '');
       const idNorm = idLower.replace(/[^a-z0-9]/g, '');
       const eNorm = eLower.replace(/[^a-z0-9]/g, '');
 
-      if (qNorm.length > 0 && (cNorm === qNorm || idNorm === qNorm || eNorm === qNorm)) return true;
+      if (qNorm.length > 0 && (cNorm === qNorm || bNorm === qNorm || idNorm === qNorm || eNorm === qNorm)) return true;
 
       const cNoPrefix = cLower.replace(/^(qr-|bc-|barcode-|bar-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
+      const bNoPrefix = bLower.replace(/^(qr-|bc-|barcode-|bar-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
       const idNoPrefix = idLower.replace(/^(qr-|bc-|barcode-|bar-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
 
-      if (qNoPrefix.length > 0 && (cNoPrefix === qNoPrefix || idNoPrefix === qNoPrefix || cNorm === qNoPrefix)) return true;
+      if (qNoPrefix.length > 0 && (cNoPrefix === qNoPrefix || bNoPrefix === qNoPrefix || idNoPrefix === qNoPrefix || cNorm === qNoPrefix)) return true;
 
       return false;
     });
-  }, [selectedMemberId, state.members]);
+  }, [selectedMemberId, state]);
 
   const availableCopiesList = useMemo(() => {
     const list: Array<{ barcode: string; accessionNo: string; bookTitle: string; rack: string }> = [];
@@ -313,21 +326,11 @@ export default function IssueBooks() {
     const clean = code.trim();
     if (!clean) return;
 
-    const isMemberCard = state.members.some((m) => {
-      const cLower = m.memberCardNo.toLowerCase();
-      const idLower = m.id.toLowerCase();
-      const qClean = clean.toLowerCase();
-      if (cLower === qClean || idLower === qClean) return true;
-      const qNorm = qClean.replace(/[^a-z0-9]/g, '');
-      const cNorm = cLower.replace(/[^a-z0-9]/g, '');
-      const idNorm = idLower.replace(/[^a-z0-9]/g, '');
-      return qNorm.length > 0 && (cNorm === qNorm || idNorm === qNorm);
-    }) || clean.toLowerCase().startsWith('stu-') || clean.toLowerCase().startsWith('fac-') || clean.toLowerCase().startsWith('adm-');
-
-    if (isMemberCard) {
+    const validation = validateCodeForSection(clean, 'BOOK_COPY', state);
+    if (!validation.isValid) {
       setAlert({
         type: 'error',
-        message: 'INVALID BOOK CODE: You scanned/entered a Member ID Card. Step 2 requires a Book Barcode or Accession Number.',
+        message: INVALID_SECTION_SCAN_MESSAGE,
       });
       setAccessionOrBarcode('');
       return;
@@ -345,21 +348,20 @@ export default function IssueBooks() {
       return;
     }
 
-    const isMemberCard = state.members.some((m) => {
-      const cLower = m.memberCardNo.toLowerCase();
-      const idLower = m.id.toLowerCase();
-      const qClean = cleanCode.toLowerCase();
-      if (cLower === qClean || idLower === qClean) return true;
-      const qNorm = qClean.replace(/[^a-z0-9]/g, '');
-      const cNorm = cLower.replace(/[^a-z0-9]/g, '');
-      const idNorm = idLower.replace(/[^a-z0-9]/g, '');
-      return qNorm.length > 0 && (cNorm === qNorm || idNorm === qNorm);
-    }) || cleanCode.toLowerCase().startsWith('stu-') || cleanCode.toLowerCase().startsWith('fac-') || cleanCode.toLowerCase().startsWith('adm-');
-
-    if (isMemberCard) {
+    const memVal = validateCodeForSection(selectedMemberId, 'MEMBER_CARD', state);
+    if (!memVal.isValid) {
       setAlert({
         type: 'error',
-        message: 'INVALID BOOK CODE: You entered a Member ID Card instead of a Book Barcode or Accession Number.',
+        message: INVALID_SECTION_SCAN_MESSAGE,
+      });
+      return;
+    }
+
+    const copyVal = validateCodeForSection(cleanCode, 'BOOK_COPY', state);
+    if (!copyVal.isValid) {
+      setAlert({
+        type: 'error',
+        message: INVALID_SECTION_SCAN_MESSAGE,
       });
       return;
     }
@@ -445,46 +447,40 @@ export default function IssueBooks() {
                 isOpen={isMemberScannerOpen}
                 onClose={() => setIsMemberScannerOpen(false)}
                 onScanSuccess={(scannedCode) => {
-                  let clean = (scannedCode || '').trim();
-                  if ((clean.startsWith('{') && clean.endsWith('}')) || (clean.startsWith('[') && clean.endsWith(']'))) {
-                    try {
-                      const obj = JSON.parse(clean);
-                      clean = obj.memberCardNo || obj.id || obj.cardNo || obj.studentId || obj.code || clean;
-                    } catch {}
+                  const clean = (scannedCode || '').trim();
+                  const val = validateCodeForSection(clean, 'MEMBER_CARD', state);
+                  if (!val.isValid) {
+                    setAlert({
+                      type: 'error',
+                      message: INVALID_SECTION_SCAN_MESSAGE,
+                    });
+                    return;
                   }
-                  const qClean = clean.toLowerCase();
-                  const qNorm = qClean.replace(/[^a-z0-9]/g, '');
-                  const qNoPrefix = qClean.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
 
-                  const m = state.members.find((mem) => {
-                    const cLower = mem.memberCardNo.toLowerCase();
-                    const idLower = mem.id.toLowerCase();
-                    const eLower = mem.email.toLowerCase();
+                  const res = findMemberByScannedCode(clean, state);
+                  if (!res.found && res.error) {
+                    setAlert({
+                      type: 'error',
+                      message: res.error,
+                    });
+                    if (res.member) {
+                      setSelectedMemberId(res.member.id);
+                    }
+                    return;
+                  }
 
-                    if (cLower === qClean || idLower === qClean || eLower === qClean) return true;
-
-                    const cNorm = cLower.replace(/[^a-z0-9]/g, '');
-                    const idNorm = idLower.replace(/[^a-z0-9]/g, '');
-                    const eNorm = eLower.replace(/[^a-z0-9]/g, '');
-
-                    if (qNorm.length > 0 && (cNorm === qNorm || idNorm === qNorm || eNorm === qNorm)) return true;
-
-                    const cNoPrefix = cLower.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
-                    const idNoPrefix = idLower.replace(/^(qr-|bc-|acc-|card-|id-|stu-|fac-|adm-|mem-)/i, '').replace(/[^a-z0-9]/g, '');
-
-                    if (qNoPrefix.length > 0 && (cNoPrefix === qNoPrefix || idNoPrefix === qNoPrefix || cNorm === qNoPrefix)) return true;
-
-                    return false;
-                  });
-
-                  if (m) {
-                    setSelectedMemberId(m.id);
+                  if (res.member) {
+                    setSelectedMemberId(res.member.id);
+                    setAlert({
+                      type: 'success',
+                      message: `Member "${res.member.name}" (${res.member.memberCardNo}) selected successfully via barcode scan.`,
+                    });
                   } else {
                     setSelectedMemberId(clean);
                   }
                   setMemberSearchTerm('');
                 }}
-                scannerType="STUDENT_ID"
+                scannerType="MEMBER_CARD"
                 title="Scan Member Library ID Card"
               />
 
@@ -664,25 +660,13 @@ export default function IssueBooks() {
                   onChange={(e) => {
                     const val = e.target.value;
                     setAccessionOrBarcode(val);
+                    if (!val.trim()) return;
 
-                    const clean = val.trim();
-                    const isMemberCard = clean.length >= 4 && (
-                      state.members.some((m) => {
-                        const cLower = m.memberCardNo.toLowerCase();
-                        const idLower = m.id.toLowerCase();
-                        const qClean = clean.toLowerCase();
-                        if (cLower === qClean || idLower === qClean) return true;
-                        const qNorm = qClean.replace(/[^a-z0-9]/g, '');
-                        const cNorm = cLower.replace(/[^a-z0-9]/g, '');
-                        const idNorm = idLower.replace(/[^a-z0-9]/g, '');
-                        return qNorm.length > 0 && (cNorm === qNorm || idNorm === qNorm);
-                      }) || clean.toLowerCase().startsWith('stu-') || clean.toLowerCase().startsWith('fac-') || clean.toLowerCase().startsWith('adm-')
-                    );
-
-                    if (isMemberCard) {
+                    const checkVal = validateCodeForSection(val, 'BOOK_COPY', state);
+                    if (!checkVal.isValid) {
                       setAlert({
                         type: 'error',
-                        message: 'INVALID BOOK CODE: You scanned/entered a Member ID Card. Step 2 requires a Book Barcode or Accession Number.',
+                        message: INVALID_SECTION_SCAN_MESSAGE,
                       });
                       setAccessionOrBarcode('');
                       return;
@@ -696,7 +680,7 @@ export default function IssueBooks() {
                 <datalist id="available-book-copies-list">
                   {availableCopiesList.map((item) => (
                     <option key={item.barcode} value={item.barcode}>
-                      {item.accessionNo} — {item.bookTitle} ({item.rack || 'General'})
+                      {item.accessionNo} ({item.barcode}) — {item.bookTitle} ({item.rack || 'General'})
                     </option>
                   ))}
                 </datalist>
@@ -721,8 +705,8 @@ export default function IssueBooks() {
               isOpen={isScannerOpen}
               onClose={() => setIsScannerOpen(false)}
               onScanSuccess={(scannedCode) => handleSelectCode(scannedCode)}
-              scannerType="COPY_BARCODE"
-              title="Barcode Reader Simulator (Issue Desk)"
+              scannerType="BOOK_COPY"
+              title="Scan Book Copy Barcode"
             />
 
             {/* Submit Action */}

@@ -180,20 +180,20 @@ export default function FacultyDashboard() {
   };
 
   return (
-    <div className="space-y-8 pb-8">
+    <div className="space-y-5 sm:space-y-7 pb-10">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-900 rounded-3xl p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-900 rounded-3xl p-5 sm:p-7 lg:p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="space-y-1 relative z-10">
-          <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-blue-300 bg-white/10 px-3.5 py-1 rounded-full mb-2">
+        <div className="space-y-1.5 relative z-10">
+          <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-blue-300 bg-white/10 px-3.5 py-1 rounded-full mb-1">
             <Sparkles className="h-3.5 w-3.5" /> Faculty Academic & Research Portal
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold font-poppins tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-poppins tracking-tight">
             Welcome, Professor {facultyMember?.name || 'Faculty Member'}
           </h1>
-          <p className="text-slate-300 text-sm mt-1">
+          <p className="text-slate-300 text-xs sm:text-sm mt-0.5">
             Faculty ID: <span className="font-mono font-bold text-amber-300">{facultyMember?.memberCardNo}</span> | Department:{' '}
-            <strong className="text-white">{facultyMember?.department}</strong> | Max Borrowing Quota:{' '}
+            <strong className="text-white">{facultyMember?.department}</strong> | Max Quota:{' '}
             <span className="font-bold text-emerald-400">{facultyMember?.maxAllowedBooks} Books / 30 Days</span>
           </p>
         </div>

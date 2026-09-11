@@ -851,7 +851,7 @@ export default function DigitalLibraryAdmin() {
       {/* Resource Cards Table & Actions */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-left border-collapse text-xs min-w-[760px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold">
                 <th className="p-4">Document Title & Author</th>

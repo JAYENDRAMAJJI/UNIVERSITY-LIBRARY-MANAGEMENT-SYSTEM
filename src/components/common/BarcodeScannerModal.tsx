@@ -4,13 +4,18 @@ import jsQR from 'jsqr';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { libraryStore } from '../../services/libraryStore.service';
 import { ACADEMIC_RACK_HIERARCHY, findRackDefinition } from '../../data/rackShelfHierarchy';
+import {
+  CodeType,
+  validateCodeForSection,
+  INVALID_SECTION_SCAN_MESSAGE,
+} from '../../utils/codeValidation';
 
 interface BarcodeScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onScanSuccess: (scannedCode: string, detectedMethod?: string) => void;
   title?: string;
-  scannerType?: 'ISBN' | 'COPY_BARCODE' | 'STUDENT_ID' | 'MEMBER_CARD' | 'ALL';
+  scannerType?: 'ISBN' | 'COPY_BARCODE' | 'BOOK_COPY' | 'STUDENT_ID' | 'MEMBER_CARD' | 'RACK_SHELF' | 'NO_DUE' | 'ALL';
 }
 
 const SAMPLE_ISBN_PRESETS = [
@@ -299,6 +304,7 @@ export default function BarcodeScannerModal({
   const [isScanning, setIsScanning] = useState(false);
   const [activeTab, setActiveTab] = useState<'DEVICE_SCANNER' | 'LIVE_CAMERA'>('DEVICE_SCANNER');
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [scanSectionError, setScanSectionError] = useState<string | null>(null);
   const [deviceScanStatus, setDeviceScanStatus] = useState<string>('Ready & Listening for Hardware Barcode Reader...');
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -452,6 +458,7 @@ export default function BarcodeScannerModal({
       setManualInput('');
       setCopySearchTerm('');
       setCameraError(null);
+      setScanSectionError(null);
       setActiveTab('DEVICE_SCANNER');
       setDeviceScanStatus('Ready & Listening for Hardware Barcode Reader...');
       setTimeout(() => {
@@ -639,8 +646,9 @@ export default function BarcodeScannerModal({
               fps: 30,
               qrbox: (viewfinderWidth, viewfinderHeight) => {
                 const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                const edgeSize = Math.max(200, Math.floor(minEdge * 0.85));
-                return { width: edgeSize, height: edgeSize };
+                const edgeSize = Math.max(140, Math.floor(minEdge * 0.85));
+                const safeEdge = Math.min(edgeSize, minEdge - 10 > 0 ? minEdge - 10 : minEdge);
+                return { width: safeEdge, height: safeEdge };
               },
               aspectRatio: 1.0,
               videoConstraints: {
@@ -877,6 +885,24 @@ export default function BarcodeScannerModal({
     const code = cleanScannedCode(rawCode);
     if (!code) return;
 
+    // Strict Section-Specific Validation
+    if (scannerType && scannerType !== 'ALL') {
+      let expectedType: CodeType = 'BOOK_COPY';
+      if (scannerType === 'ISBN') expectedType = 'ISBN';
+      else if (scannerType === 'STUDENT_ID' || scannerType === 'MEMBER_CARD') expectedType = 'MEMBER_CARD';
+      else if (scannerType === 'RACK_SHELF') expectedType = 'RACK_SHELF';
+      else if (scannerType === 'NO_DUE') expectedType = 'NO_DUE';
+
+      const validation = validateCodeForSection(code, expectedType, state);
+      if (!validation.isValid) {
+        setScanSectionError(INVALID_SECTION_SCAN_MESSAGE);
+        setDeviceScanStatus(`❌ ${INVALID_SECTION_SCAN_MESSAGE}`);
+        return;
+      }
+    }
+
+    setScanSectionError(null);
+
     // Optional subtle audio beep confirmation on scan
     playScanBeep();
 
@@ -930,6 +956,23 @@ export default function BarcodeScannerModal({
         </div>
 
         <div className="p-6 overflow-y-auto space-y-5 flex-1">
+          {/* Section Validation Error Banner */}
+          {scanSectionError && (
+            <div className="p-3.5 bg-rose-50 border border-rose-300 text-rose-800 rounded-2xl flex items-center justify-between gap-3 text-xs font-bold animate-shake">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{scanSectionError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setScanSectionError(null)}
+                className="p-1 hover:bg-rose-100 rounded-lg text-rose-500 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* TWO OPTIONS SWITCHER - Clean Layout */}
           <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-2xl">
             <button
@@ -1234,35 +1277,35 @@ export default function BarcodeScannerModal({
                 </div>
               )}
 
-              {/* Live Camera Feed */}
+              {/* Live Camera Feed - Compact & Properly Aligned */}
               <div
-                className="relative w-full h-80 sm:h-96 min-h-[300px] rounded-3xl bg-slate-950 overflow-hidden flex flex-col items-center justify-center border-2 border-slate-800 shadow-inner group transition-all"
+                className="relative w-full max-w-sm sm:max-w-md mx-auto h-48 sm:h-56 rounded-2xl bg-slate-950 overflow-hidden flex flex-col items-center justify-center border-2 border-slate-800 shadow-inner group transition-all"
               >
                 {/* HTML5 QRCODE CONTAINER */}
-                <div id="live-camera-reader-element" className="absolute inset-0 w-full h-full object-cover overflow-hidden rounded-3xl" />
+                <div id="live-camera-reader-element" className="absolute inset-0 w-full h-full object-cover overflow-hidden rounded-2xl" />
                 <div id="live-camera-reader-element-file-temp" className="hidden" />
-                <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover rounded-3xl hidden" autoPlay playsInline muted />
+                <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover rounded-2xl hidden" autoPlay playsInline muted />
 
                 {/* Scan Feedback Overlay */}
                 {isScanning && (
                   <div className="absolute inset-0 bg-emerald-500/40 animate-pulse pointer-events-none z-20 flex items-center justify-center">
-                    <span className="px-4 py-2.5 rounded-2xl bg-emerald-600 text-white font-extrabold text-xs shadow-lg animate-bounce">
+                    <span className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white font-extrabold text-xs shadow-lg animate-bounce">
                       ⚡ Card Barcode / QR Code Detected! Processing...
                     </span>
                   </div>
                 )}
 
                 {/* Reticle Target Corners */}
-                <div className="absolute top-5 left-5 w-10 h-10 border-t-4 border-l-4 border-emerald-400 pointer-events-none z-10" />
-                <div className="absolute top-5 right-5 w-10 h-10 border-t-4 border-r-4 border-emerald-400 pointer-events-none z-10" />
-                <div className="absolute bottom-5 left-5 w-10 h-10 border-b-4 border-l-4 border-emerald-400 pointer-events-none z-10" />
-                <div className="absolute bottom-5 right-5 w-10 h-10 border-b-4 border-r-4 border-emerald-400 pointer-events-none z-10" />
+                <div className="absolute top-3 left-3 w-7 h-7 border-t-2 border-l-2 rounded-tl-sm border-emerald-400 pointer-events-none z-10" />
+                <div className="absolute top-3 right-3 w-7 h-7 border-t-2 border-r-2 rounded-tr-sm border-emerald-400 pointer-events-none z-10" />
+                <div className="absolute bottom-3 left-3 w-7 h-7 border-b-2 border-l-2 rounded-bl-sm border-emerald-400 pointer-events-none z-10" />
+                <div className="absolute bottom-3 right-3 w-7 h-7 border-b-2 border-r-2 rounded-br-sm border-emerald-400 pointer-events-none z-10" />
 
                 {/* Laser Line */}
-                <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_15px_#34d399] animate-pulse my-auto z-10 pointer-events-none" />
+                <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_#34d399] animate-pulse my-auto z-10 pointer-events-none" />
 
-                <div className="absolute bottom-4 flex items-center gap-2 text-xs font-bold text-slate-200 bg-slate-900/90 px-4 py-2 rounded-full border border-slate-700 shadow-md backdrop-blur-xs z-10">
-                  <Camera className="h-4 w-4 text-emerald-400 animate-spin" />
+                <div className="absolute bottom-2.5 flex items-center gap-1.5 text-[11px] font-bold text-slate-200 bg-slate-900/85 px-3 py-1.5 rounded-full border border-slate-700 shadow-md backdrop-blur-xs z-10">
+                  <Camera className="h-3.5 w-3.5 text-emerald-400 animate-spin" />
                   <span>
                     {isScanning
                       ? '⚡ Decoding Card Barcode / QR Code...'

@@ -15,6 +15,7 @@ export interface IMember extends Document {
   department?: string;
   program?: string;
   memberCardNo?: string;
+  barcode?: string;
   rollNo?: string;
   academicBatch?: string;
   phone?: string;
@@ -60,6 +61,7 @@ const MemberSchema = new Schema<IMember>(
     department: { type: String, default: 'General' },
     program: { type: String },
     memberCardNo: { type: String, index: true },
+    barcode: { type: String, unique: true, sparse: true, index: true },
     rollNo: { type: String },
     academicBatch: { type: String },
     phone: { type: String },

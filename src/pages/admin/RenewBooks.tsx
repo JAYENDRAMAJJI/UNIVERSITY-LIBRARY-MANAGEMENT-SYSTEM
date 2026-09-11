@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle, AlertCircle, Clock, ShieldCheck, XCircle, Search, X, RotateCcw, ArrowRight } from 'lucide-react';
+import { RefreshCw, CheckCircle, AlertCircle, Clock, ShieldCheck, XCircle, Search, X, RotateCcw, ArrowRight, ScanBarcode } from 'lucide-react';
 import { libraryStore } from '../../services/libraryStore.service';
 import { ExtensionRequest } from '../../types/library';
+import BarcodeScannerModal from '../../components/common/BarcodeScannerModal';
+import {
+  validateCodeForSection,
+  INVALID_SECTION_SCAN_MESSAGE,
+} from '../../utils/codeValidation';
 
 export default function RenewBooks() {
   const [state, setState] = useState(libraryStore.snapshot);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   // Reject Modal state
   const [rejectingRequest, setRejectingRequest] = useState<ExtensionRequest | null>(null);
@@ -32,6 +38,8 @@ export default function RenewBooks() {
       r.memberName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.bookTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.memberCardNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.barcode && r.barcode.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (r.accessionNo && r.accessionNo.toLowerCase().includes(searchTerm.toLowerCase())) ||
       r.reason.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -40,8 +48,21 @@ export default function RenewBooks() {
       r.memberName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.bookTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.memberCardNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.barcode && r.barcode.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (r.accessionNo && r.accessionNo.toLowerCase().includes(searchTerm.toLowerCase())) ||
       r.reason.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleScanSuccess = (scannedCode: string) => {
+    const clean = scannedCode.trim();
+    const val = validateCodeForSection(clean, 'BOOK_COPY', state);
+    if (!val.isValid) {
+      triggerAlert('error', INVALID_SECTION_SCAN_MESSAGE);
+      return;
+    }
+    setSearchTerm(clean);
+    triggerAlert('success', `Filtered by Book Copy Barcode: ${clean}`);
+  };
 
   const handleApprove = (requestId: string) => {
     const res = libraryStore.approveExtensionRequest(requestId);
@@ -87,6 +108,13 @@ export default function RenewBooks() {
           <h1 className="text-2xl font-bold font-poppins text-slate-900">Extend Book Time & Renewal Approvals</h1>
           <p className="text-sm text-slate-500 mt-1">Review member extension requests submitted by students and faculty, and manage approved extension history.</p>
         </div>
+        <button
+          type="button"
+          onClick={() => setIsScannerOpen(true)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs shadow-md shadow-purple-200 hover:opacity-95 transition-all cursor-pointer shrink-0"
+        >
+          <ScanBarcode className="w-4 h-4" /> Scan Book Barcode
+        </button>
       </div>
 
       {/* Alert Banner */}
@@ -113,7 +141,7 @@ export default function RenewBooks() {
           <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${searchTerm ? 'text-purple-600 font-bold' : 'text-slate-400'}`} />
           <input
             type="text"
-            placeholder="Search member name, book title, card..."
+            placeholder="Search by title, member, accession, barcode..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-9 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all bg-slate-50/70 focus:bg-white shadow-2xs"
@@ -157,6 +185,14 @@ export default function RenewBooks() {
         </div>
       </div>
 
+      <BarcodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScanSuccess={handleScanSuccess}
+        scannerType="BOOK_COPY"
+        title="Scan Book Copy Barcode for Renewal"
+      />
+
       {/* TAB 1: PENDING MEMBER EXTENSION REQUESTS */}
       {activeTab === 'pending' && (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
@@ -167,8 +203,8 @@ export default function RenewBooks() {
             <span className="text-xs font-semibold text-slate-500">Student & Faculty member requests requiring librarian approval</span>
           </div>
 
-          <div className="w-full">
-            <table className="w-full text-left border-collapse">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-xs font-extrabold text-slate-600 uppercase tracking-wider">
                   <th className="py-3 px-4 align-middle w-[18%]">Member Details</th>
@@ -253,8 +289,8 @@ export default function RenewBooks() {
             <span className="text-xs font-semibold text-slate-500">Official history log of librarian-approved extension requests</span>
           </div>
 
-          <div className="w-full">
-            <table className="w-full text-left border-collapse">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-xs font-extrabold text-slate-600 uppercase tracking-wider">
                   <th className="py-3 px-4 align-middle w-[18%]">Member Details</th>

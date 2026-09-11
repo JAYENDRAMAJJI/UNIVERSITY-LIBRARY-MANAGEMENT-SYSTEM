@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'LIBRARIAN' | 'STAFF' | 'FACULTY' | 'STUDENT' | 'GUEST' | 'OTHER';
+export type Role = 'ADMIN' | 'LIBRARIAN' | 'STAFF' | 'FACULTY' | 'STUDENT' | 'RESEARCH_SCHOLAR' | 'GUEST' | 'OTHER';
 
 export * from './rbac';
 
@@ -14,6 +14,7 @@ export interface User {
   avatarUrl?: string;
   department?: string;
   memberCardNo?: string;
+  barcode?: string;
   rollNo?: string;
   appliedDate?: string;
   approvedDate?: string;
@@ -21,6 +22,21 @@ export interface User {
   rejectionReason?: string;
   suspendedReason?: string;
   gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  designation?: string;
+  facultyType?: string;
+  facultyProgram?: string;
+  facultySpecialization?: string;
+  facultyJoiningYear?: number | string;
+  facultyStatus?: string;
+  scholarId?: string;
+  researchProgram?: string;
+  researchSupervisor?: string;
+  researchArea?: string;
+  researchAdmissionYear?: number | string;
+  researchStatus?: string;
+  libraryDivision?: string;
+  level?: string;
+  yearSemester?: string;
 }
 
 export type BookStatus = 'AVAILABLE' | 'ISSUED' | 'RESERVED' | 'MAINTENANCE' | 'LOST' | 'DISPOSED';
@@ -252,6 +268,7 @@ export interface MemberProfile {
   password?: string;
   role: Role;
   memberCardNo?: string;
+  barcode?: string;
   department: string;
   status: UserStatus;
   maxAllowedBooks: number;
@@ -271,10 +288,27 @@ export interface MemberProfile {
   startingYear?: number;
   passoutYear?: number;
   academicBatch?: string;
+  studentSpecialization?: string;
+  studentStatus?: string;
   address?: string;
   emergencyContact?: string;
   idProofType?: 'COLLEGE_ID' | 'AADHAAR' | 'PASSPORT' | 'DRIVING_LICENSE' | 'OTHER';
   idProofNumber?: string;
+  designation?: string;
+  facultyType?: string;
+  facultyProgram?: string;
+  facultySpecialization?: string;
+  facultyJoiningYear?: number | string;
+  facultyStatus?: string;
+  scholarId?: string;
+  researchProgram?: string;
+  researchSupervisor?: string;
+  researchArea?: string;
+  researchAdmissionYear?: number | string;
+  researchStatus?: string;
+  libraryDivision?: string;
+  level?: string;
+  yearSemester?: string;
   noDueStatus?: 'ELIGIBLE' | 'DUES_PENDING' | 'ISSUED';
   noDueCertificateNo?: string;
   noDueIssuedDate?: string;

@@ -14,7 +14,7 @@ export default function Footer() {
 
   return (
     <footer className="bg-slate-950 text-slate-300 border-t border-slate-800/80 mt-auto font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         
         {/* Balanced 4-Column Compact Grid Layout */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 pb-5 border-b border-slate-800/60">

@@ -15,39 +15,39 @@ export default function BrandLogo({
 }: BrandLogoProps) {
   const isDark = variant === 'dark';
 
-  // Responsive, balanced sizing configurations
+  // Responsive, compact sizing configurations
   const iconSizes = {
-    sm: 'w-8 h-8 sm:w-9 sm:h-9 rounded-xl shadow-[0_4px_12px_-2px_rgba(37,99,235,0.35)]',
-    md: 'w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl shadow-[0_6px_18px_-3px_rgba(37,99,235,0.4)]',
-    lg: 'w-14 h-14 sm:w-16 sm:h-16 rounded-2xl shadow-[0_10px_24px_-4px_rgba(37,99,235,0.45)]',
+    sm: 'w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg shadow-sm',
+    md: 'w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-lg sm:rounded-xl shadow-sm',
+    lg: 'w-11 h-11 sm:w-12 sm:h-12 rounded-xl shadow-md',
   };
 
   const svgSizes = {
-    sm: 'w-4.5 h-4.5 sm:w-5 sm:h-5',
-    md: 'w-6 h-6 sm:w-6.5 sm:h-6.5',
-    lg: 'w-8 h-8 sm:w-9 sm:h-9',
+    sm: 'w-3.5 h-3.5 sm:w-4 sm:h-4',
+    md: 'w-4 h-4 sm:w-4.5 sm:h-4.5',
+    lg: 'w-6 h-6 sm:w-6.5 sm:h-6.5',
   };
 
   const titleSizes = {
-    sm: 'text-base sm:text-lg',
-    md: 'text-lg sm:text-[21px]',
-    lg: 'text-2xl sm:text-3xl',
+    sm: 'text-xs sm:text-[13px]',
+    md: 'text-[13.5px] sm:text-[15px]',
+    lg: 'text-lg sm:text-xl',
   };
 
   const sublineTextSizes = {
-    sm: 'text-[7.5px] sm:text-[8px] tracking-[0.2em]',
-    md: 'text-[9px] sm:text-[9.5px] tracking-[0.24em]',
-    lg: 'text-[11px] sm:text-xs tracking-[0.28em]',
+    sm: 'text-[6px] sm:text-[6.5px] tracking-[0.16em]',
+    md: 'text-[7px] sm:text-[7.5px] tracking-[0.18em]',
+    lg: 'text-[8.5px] sm:text-[9px] tracking-[0.22em]',
   };
 
   const taglineSizes = {
-    sm: 'text-[8px] gap-1.5',
-    md: 'text-[9px] sm:text-[9.5px] gap-2',
-    lg: 'text-[11px] gap-2.5',
+    sm: 'text-[6px] gap-1',
+    md: 'text-[7px] sm:text-[7.5px] gap-1.5',
+    lg: 'text-[8.5px] gap-2',
   };
 
   return (
-    <div className={`flex items-center gap-2.5 sm:gap-3 select-none min-w-0 ${className}`}>
+    <div className={`flex items-center gap-2 sm:gap-2.5 select-none min-w-0 ${className}`}>
       {/* 3D Gradient Squircle Icon with Sleek Open Book Vector */}
       <div
         className={`relative shrink-0 flex items-center justify-center ${iconSizes[size]} bg-gradient-to-br from-[#2563eb] via-[#4f46e5] to-[#7c3aed] text-white ring-1 ring-white/30 border border-white/20 group-hover:scale-105 transition-all duration-300`}

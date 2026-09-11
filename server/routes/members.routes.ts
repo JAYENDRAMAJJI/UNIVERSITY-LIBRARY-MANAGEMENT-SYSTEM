@@ -30,6 +30,7 @@ router.post('/', async (req: Request, res: Response) => {
     const prefix = data.role === 'STUDENT' ? 'STU' : data.role === 'FACULTY' ? 'FAC' : data.role === 'ADMIN' ? 'ADM' : 'STA';
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const memberCardNo = data.memberCardNo || `${prefix}-${yr}-${randomSuffix}`;
+    const barcode = data.barcode || memberCardNo;
     const id = data.id || `mem-${Date.now()}`;
 
     const newMember = new Member({
@@ -38,6 +39,7 @@ router.post('/', async (req: Request, res: Response) => {
       userId: id,
       password: hashedPassword,
       memberCardNo,
+      barcode,
       status: data.status || 'ACTIVE',
       currentActiveLoans: 0,
       pendingFines: 0,
@@ -101,6 +103,13 @@ router.put('/:id/approve', async (req: Request, res: Response) => {
     }
 
     member.status = 'ACTIVE';
+    if (!member.memberCardNo || member.memberCardNo.startsWith('APP-')) {
+      const yr = new Date().getFullYear();
+      const prefix = member.role === 'STUDENT' ? 'STU' : member.role === 'FACULTY' ? 'FAC' : member.role === 'ADMIN' ? 'ADM' : 'STA';
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      member.memberCardNo = `${prefix}-${yr}-${randomSuffix}`;
+    }
+    member.barcode = member.memberCardNo;
     member.approvedDate = new Date().toISOString().split('T')[0];
     member.approvedBy = approvedBy;
     delete (member as any).rejectionReason;

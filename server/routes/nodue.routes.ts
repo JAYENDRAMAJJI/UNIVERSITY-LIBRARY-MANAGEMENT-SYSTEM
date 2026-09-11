@@ -31,7 +31,13 @@ router.post('/applications', async (req: Request, res: Response) => {
   try {
     const data = req.body;
     const student = await Member.findOne({
-      $or: [{ id: data.studentId }, { rollNo: data.rollNo }, { email: data.email }],
+      $or: [
+        { id: data.studentId },
+        { memberCardNo: data.memberCardNo },
+        { barcode: data.barcode },
+        { rollNo: data.rollNo },
+        { email: data.email?.toLowerCase().trim() },
+      ],
     });
 
     if (!student) {

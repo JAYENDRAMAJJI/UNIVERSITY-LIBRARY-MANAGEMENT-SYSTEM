@@ -50,6 +50,11 @@ import {
 } from '../../data/rackShelfHierarchy';
 import { printRackShelfPlacards, RackShelfPlacard } from '../../utils/barcodeQrGenerator';
 import BarcodeScannerModal from '../../components/common/BarcodeScannerModal';
+import {
+  validateCodeForSection,
+  detectCodeType,
+  INVALID_SECTION_SCAN_MESSAGE,
+} from '../../utils/codeValidation';
 
 interface LocatedBookResult {
   book: Book;
@@ -608,6 +613,13 @@ export default function InventoryManagement() {
   const handleScanSuccessToLocate = (scannedCode: string, detectedMethod?: string) => {
     setIsRackScannerOpen(false);
     const raw = (scannedCode || '').trim();
+
+    const validation = validateCodeForSection(raw, ['RACK_SHELF', 'BOOK_COPY'], state);
+    if (!validation.isValid) {
+      triggerToast(INVALID_SECTION_SCAN_MESSAGE);
+      return;
+    }
+
     const clean = raw.toUpperCase().replace(/^QR-/, '').replace(/^RACK:/, '').replace(/^SHELF:/, '').trim();
 
     // ==========================================
@@ -3211,7 +3223,7 @@ export default function InventoryManagement() {
         onClose={() => setIsRackScannerOpen(false)}
         onScanSuccess={handleScanSuccessToLocate}
         title={`${dynamicScanScope.scopeLabel} • (Scope: ${dynamicScanScope.scopeDesc})`}
-        scannerType="ALL"
+        scannerType={viewMode === 'RACK_SHELF' ? 'RACK_SHELF' : 'BOOK_COPY'}
       />
     </div>
   );

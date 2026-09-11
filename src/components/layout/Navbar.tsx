@@ -69,8 +69,13 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
     switch (user.role) {
       case 'ADMIN':
         return '/admin/dashboard';
+      case 'STAFF':
+      case 'LIBRARIAN':
+        return '/staff/dashboard';
       case 'FACULTY':
         return '/faculty/dashboard';
+      case 'RESEARCH_SCHOLAR':
+        return '/research-scholar/dashboard';
       case 'STUDENT':
         return '/student/dashboard';
       default:
@@ -98,8 +103,10 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
     { to: '/catalog', label: 'Books Catalog' },
     { to: '/digital-resources', label: 'Digital Library' },
     { to: '/collections', label: 'Collections' },
+    { to: '/notices', label: 'Notices' },
+    { to: '/events', label: 'Events' },
     { to: '/about', label: 'About' },
-    { to: '/feedback', label: 'Feedback' },
+    { to: '/contact', label: 'Contact' },
   ];
 
   const handleMobileMenuClick = () => {
@@ -128,9 +135,9 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
   const displayAvatar = user?.avatarUrl || currentMember?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
 
   return (
-    <nav className="h-[84px] sm:h-[88px] shrink-0 bg-white/95 shadow-2xs backdrop-blur-xl transition-all z-40 w-full relative">
-      <div className="w-full px-4 sm:px-6 lg:px-8 h-full">
-        <div className="flex h-full justify-between items-center gap-4">
+    <nav className="h-[68px] sm:h-[72px] lg:h-[76px] shrink-0 bg-white/95 shadow-2xs backdrop-blur-xl transition-all z-40 w-full relative border-b border-slate-200/60">
+      <div className="w-full max-w-[1720px] 2xl:max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 h-full">
+        <div className="flex h-full justify-between items-center gap-3 sm:gap-4">
           {/* Brand Logo */}
           <div className="flex items-center shrink-0">
             <Link
@@ -153,7 +160,7 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
                     <Link
                       key={link.to}
                       to={link.to}
-                      className={`px-3.5 py-2 rounded-full text-xs xl:text-sm font-semibold transition-all whitespace-nowrap ${
+                      className={`px-3 py-1.5 rounded-full text-xs xl:text-sm font-semibold transition-all whitespace-nowrap ${
                         isActive ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                       }`}
                     >
@@ -166,14 +173,14 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
                   className="p-2 text-slate-500 hover:text-blue-600 hover:bg-slate-50 rounded-full transition-all ml-1"
                   title="Search Books & Resources"
                 >
-                  <Search className="h-4.5 w-4.5" />
+                  <Search className="h-4 w-4" />
                 </Link>
-                <div className="h-6 w-px bg-slate-200 mx-1.5" />
+                <div className="h-5 w-px bg-slate-200 mx-1.5" />
               </>
             )}
 
             {/* Corner of the site: Notification Bell & User Profile Dropdown Pill */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               {/* Notification Bell Icon - Only for Logged In Users */}
               {user && (
                 <div className="relative" ref={notifRef}>
@@ -183,12 +190,12 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
                       setIsNotifOpen(!isNotifOpen);
                       setIsUserMenuOpen(false);
                     }}
-                    className="relative p-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 hover:bg-blue-50 hover:border-blue-200 text-slate-700 hover:text-blue-600 transition-all cursor-pointer shadow-2xs"
+                    className="relative p-2 rounded-2xl border border-slate-200 bg-slate-50/80 hover:bg-blue-50 hover:border-blue-200 text-slate-700 hover:text-blue-600 transition-all cursor-pointer shadow-2xs"
                     title="Library Notifications & Circulars"
                   >
-                    <Bell className="h-5 w-5" />
+                    <Bell className="h-4.5 w-4.5" />
                     {unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-extrabold text-white shadow-xs animate-pulse">
+                      <span className="absolute -top-1 -right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-600 text-[9.5px] font-extrabold text-white shadow-xs animate-pulse">
                         {unreadCount > 99 ? '99+' : unreadCount}
                       </span>
                     )}
@@ -196,7 +203,7 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
 
                   {/* Notification Dropdown Panel */}
                   {isNotifOpen && (
-                    <div className="fixed inset-x-3 top-[88px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-3 w-auto sm:w-96 max-w-full sm:max-w-sm rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden z-50 animate-fadeIn">
+                    <div className="fixed inset-x-3 top-[72px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2.5 w-auto sm:w-96 max-w-[calc(100vw-1.5rem)] sm:max-w-sm rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden z-50 animate-fadeIn">
                       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 p-4 text-white flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <Bell className="h-4 w-4 text-blue-400 shrink-0" />
@@ -323,7 +330,7 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
 
                   {/* Dropdown Menu Card */}
                   {isUserMenuOpen && (
-                    <div className="fixed inset-x-3 top-[88px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-3 w-auto sm:w-80 max-w-full sm:max-w-sm rounded-3xl bg-white border border-slate-200 shadow-2xl p-4 sm:p-5 z-50 animate-fadeIn text-left space-y-3 max-h-[80vh] overflow-y-auto">
+                    <div className="fixed inset-x-3 top-[72px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2.5 w-auto sm:w-80 max-w-[calc(100vw-1.5rem)] sm:max-w-sm rounded-3xl bg-white border border-slate-200 shadow-2xl p-4 sm:p-5 z-50 animate-fadeIn text-left space-y-3 max-h-[80vh] overflow-y-auto">
                       {/* Header Details */}
                       <div className="space-y-0.5">
                         <h3 className="font-extrabold text-base sm:text-lg font-poppins text-slate-900 leading-tight">
@@ -386,13 +393,21 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
                   )}
                 </div>
               ) : (
-                <Link
-                  to="/login"
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] hover:bg-blue-700 px-5 py-2.5 text-xs xl:text-sm font-bold text-white shadow-md shadow-blue-500/20 hover:shadow-lg transition-all whitespace-nowrap shrink-0 ml-1"
-                >
-                  <UserIcon className="h-4 w-4" />
-                  <span>Portal Login</span>
-                </Link>
+                <div className="flex items-center gap-2 ml-1">
+                  <Link
+                    to="/login"
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] hover:bg-blue-700 px-4 py-2 text-xs xl:text-sm font-bold text-white shadow-md shadow-blue-500/20 hover:shadow-lg transition-all whitespace-nowrap shrink-0"
+                  >
+                    <UserIcon className="h-4 w-4" />
+                    <span>Login</span>
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs xl:text-sm font-bold text-slate-700 transition-all whitespace-nowrap shrink-0"
+                  >
+                    <span>Register</span>
+                  </Link>
+                </div>
               )}
             </div>
           </div>
@@ -475,13 +490,22 @@ export default function Navbar({ onToggleMobileSidebar }: NavbarProps) {
                 </button>
               </>
             ) : (
-              <Link
-                to="/login"
-                onClick={() => setIsOpen(false)}
-                className="block text-center rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-md"
-              >
-                Portal Login
-              </Link>
+              <div className="space-y-2">
+                <Link
+                  to="/login"
+                  onClick={() => setIsOpen(false)}
+                  className="block text-center rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-md"
+                >
+                  Portal Login
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setIsOpen(false)}
+                  className="block text-center rounded-xl border border-slate-300 bg-slate-50 py-2.5 text-sm font-bold text-slate-700"
+                >
+                  Register Account
+                </Link>
+              </div>
             )}
           </div>
         </div>

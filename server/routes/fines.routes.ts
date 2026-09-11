@@ -21,7 +21,13 @@ router.post('/create', async (req: Request, res: Response) => {
     const { memberId, amount, reason = 'DAMAGED', bookTitle = 'Library Material', transactionId = '' } = req.body;
 
     const member = await Member.findOne({
-      $or: [{ id: memberId }, { memberCardNo: memberId }, { email: memberId }],
+      $or: [
+        { id: memberId },
+        { memberCardNo: new RegExp(`^${memberId}$`, 'i') },
+        { barcode: new RegExp(`^${memberId}$`, 'i') },
+        { rollNo: new RegExp(`^${memberId}$`, 'i') },
+        { email: memberId.toLowerCase().trim() },
+      ],
     });
     if (!member) {
       return res.status(404).json({ success: false, message: 'Member not found' });

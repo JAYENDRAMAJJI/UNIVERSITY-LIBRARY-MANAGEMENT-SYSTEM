@@ -9,9 +9,14 @@ export interface IAttendance extends Document {
   memberId: string;
   memberName: string;
   memberCardNo: string;
-  memberType: 'STUDENT' | 'FACULTY' | 'STAFF' | 'GUEST';
+  role?: string;
+  memberType?: 'STUDENT' | 'FACULTY' | 'STAFF' | 'GUEST';
   department?: string;
   purpose?: string;
+  entryGate?: string;
+  verificationMethod?: string;
+  checkedInBy?: string;
+  notes?: string;
   checkInTime: string;
   checkOutTime?: string;
   date: string;
@@ -27,6 +32,7 @@ const AttendanceSchema = new Schema<IAttendance>(
     memberId: { type: String, required: true, index: true },
     memberName: { type: String, required: true },
     memberCardNo: { type: String, required: true, index: true },
+    role: { type: String, default: 'STUDENT', index: true },
     memberType: {
       type: String,
       enum: ['STUDENT', 'FACULTY', 'STAFF', 'GUEST'],
@@ -34,6 +40,10 @@ const AttendanceSchema = new Schema<IAttendance>(
     },
     department: { type: String },
     purpose: { type: String, default: 'General Reading & Research' },
+    entryGate: { type: String, default: 'Main Gate - North Wing' },
+    verificationMethod: { type: String, default: 'BARCODE' },
+    checkedInBy: { type: String, default: 'Gate Staff' },
+    notes: { type: String },
     checkInTime: { type: String, required: true },
     checkOutTime: { type: String },
     date: { type: String, required: true, index: true },
